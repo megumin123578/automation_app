@@ -93,13 +93,23 @@ def crawl_data(csv_path=CSV_PATH):
             break
 
         for tr in rows:
-            cols = [td.get_text(strip=True) for td in tr.find_all("td")]
-            if not cols:
+            # --- Lấy dữ liệu từng hàng, bỏ phần "Additional data" và chỉ lấy 9 cột chính ---
+            tds = tr.find_all("td")
+            if not tds:
                 continue
 
-           
-            while cols and cols[-1] == "":
-                cols.pop()
+            cols = [td.get_text(strip=True) for td in tds[:9]]  # chỉ lấy 9 ô đầu
+            text_row = " ".join(cols)
+
+            # Bỏ qua nếu dòng chứa thông tin thừa
+            if "Additional data" in text_row or "Comments" in text_row:
+                continue
+
+            # Đảm bảo đúng 9 cột
+            if len(cols) < 9:
+                print(f"Bỏ qua dòng thiếu cột ({len(cols)} cột): {cols}")
+                continue
+
 
             order_id = cols[0]
             if order_id in existing_ids:
@@ -179,7 +189,11 @@ def replace_link_with_channel(df, month, max_workers=10):
     date_col = next((c for c in df.columns if 'date' in c.lower()), None)
     if not date_col:
         raise KeyError("Không tìm thấy cột chứa 'date' trong CSV!")
-    df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+    # Sửa lỗi mất dấu cách giữa ngày và giờ
+    df[date_col] = df[date_col].astype(str).str.replace(
+        r"(\d{4}-\d{2}-\d{2})(\d{2}:\d{2}:\d{2})", r"\1 \2", regex=True
+    )
+    df[date_col] = pd.to_datetime(df[date_col], errors="coerce", format="%Y-%m-%d %H:%M:%S")
     df = df[df[date_col].dt.strftime("%Y-%m") == month]
 
     # === 2. Lấy danh sách URL duy nhất ===

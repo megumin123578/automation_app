@@ -108,6 +108,9 @@ def load_data(month_str=None):
     # Xóa dữ liệu cũ
     for row in tree.get_children():
         tree.delete(row)
+    
+    #sort
+    df = df.sort_values(by="Date", ascending=False)
 
     # Thêm dữ liệu mới
     for _, row in df.iterrows():
@@ -131,7 +134,7 @@ def load_data(month_str=None):
         print(f"[CẢNH BÁO] Không tính được tổng chi phí: {e}")
 
 
-def extract_cookie_action():
+def extract_cookie_action():#
     """Xử lý nút Extract PHPSESSID"""
     raw_cookie = cookie_entry.get("1.0", "end").strip()
     if not raw_cookie:
