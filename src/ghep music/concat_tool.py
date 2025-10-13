@@ -62,7 +62,6 @@ class ConcatApp(tk.Tk):
         self.combo_limit_videos['values'] = limit_display
         self.combo_limit_videos.current(0) 
 
-        ttk.Label(self.frm_top, text='')
 
         def on_limit_change(event=None):
             val = self.combo_limit_videos.get()

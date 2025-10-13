@@ -111,6 +111,8 @@ class App(tk.Tk):
         self._refresh_group_files()
         self._bind_text_preview()
 
+        self.after(1500, self._auto_check_update) #1.5s after UI ready
+
     # ---------- Header ----------
 
     def _schedule_preview(self):
@@ -405,7 +407,7 @@ class App(tk.Tk):
 
 
     def _set_status(self, msg: str):
-        self.status_var.set(msg)
+        self.after(0, lambda: self.status_var.set(msg))
 
     # ---------- Edit row by double click----------
     def _on_tree_double_click(self, event):
@@ -816,6 +818,39 @@ class App(tk.Tk):
             messagebox.showerror("Not found", f"can't find file: \n{script_path}")
             return
         subprocess.Popen([sys.executable, script_path], shell=False)
+    
+    def _auto_check_update(self):
+        """Tự động kiểm tra update khi mở app."""
+        def worker():
+            try:
+                self._set_status("Checking for new version...")
+                msg = check_and_update(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
+
+                if msg.startswith("Installed update"):
+                    # Đã cài xong luôn (trường hợp auto-install)
+                    self._set_status("Update successfully.")
+                    if messagebox.askyesno("Done", "Updated restart app to apply ?"):
+                        self._restart_app()
+
+                elif "New version" in msg or "update available" in msg.lower():
+                    self._set_status("Have new version")
+                    if messagebox.askyesno("Have new version", f"{msg}\n\nDo you want to update?"):
+                        try:
+                            # cài đặt trực tiếp
+                            install_from_zip("update.zip")  # nếu file zip đã được tải
+                            self._set_status("Installed new version.")
+                            if messagebox.askyesno("Done", "Updated restart app to apply ?"):
+                                self._restart_app()
+                        except Exception as e:
+                            messagebox.showerror("Error", f"Can't update this version:\n{e}")
+                else:
+                    self._set_status("You are up to date")
+            except Exception as e:
+                self._set_status("Inspect the Eror")
+                print("Update error:", e)
+
+        threading.Thread(target=worker, daemon=True).start()
+
 
 if __name__ == "__main__":
     app = App()

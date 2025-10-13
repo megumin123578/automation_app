@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import shutil
 import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 CONFIG_FILE = "ghep music/config.json"
 
 def list_all_mp4_files(folder_path):
@@ -303,7 +304,7 @@ def concat_video(video_paths, output_path):
     os.remove(list_file)
 
 
-def auto_concat(input_videos, output_path):
+def auto_concat(input_videos, output_path, num_threads = 8):
     normalized_paths = []
 
     def normalize_and_collect(i, path):
@@ -311,7 +312,7 @@ def auto_concat(input_videos, output_path):
         normalize_video(path, fixed)
         return fixed
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = [executor.submit(normalize_and_collect, i, path) for i, path in enumerate(input_videos)]
         for future in futures:
             normalized_paths.append(future.result())
