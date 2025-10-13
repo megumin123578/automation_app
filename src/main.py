@@ -829,7 +829,7 @@ class App(tk.Tk):
                 if msg.startswith("Installed update"):
                     # Đã cài xong luôn (trường hợp auto-install)
                     self._set_status("Update successfully.")
-                    if messagebox.askyesno("Done", "Updated restart app to apply ?"):
+                    if messagebox.askyesno("Notice", "Have new version to update, do you want to update ?"):
                         self._restart_app()
 
                 elif "New version" in msg or "update available" in msg.lower():
