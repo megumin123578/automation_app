@@ -8,6 +8,52 @@ ffmpeg version 2025-06-28-git-cfd1f81e7d-full_build-www.gyan.dev Copyright (c) 2
   libavfilter    11.  0.100 / 11.  0.100
   libswscale      9.  0.100 /  9.  0.100
   libswresample   6.  0.100 /  6.  0.100
-[in#0 @ 000001878f43fb80] Error opening input: No such file or directory
-Error opening input file temp.mp4.
-Error opening input files: No such file or directory
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf62.1.101
+  Duration: 00:00:32.02, start: 0.000000, bitrate: 7354 kb/s
+  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 7237 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+      encoder         : Lavc62.4.100 h264_nvenc
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 108 kb/s (default)
+    Metadata:
+      handler_name    : SoundHandler
+      vendor_id       : [0][0][0][0]
+Input #1, mp3, from 'C:/Users/Admin/Music\Hollow Coves - These Memories (Official Music Video).mp3':
+  Metadata:
+    major_brand     : dash
+    minor_version   : 0
+    compatible_brands: iso6mp41
+    encoder         : Lavf58.76.100
+  Duration: 00:05:13.38, start: 0.025057, bitrate: 128 kb/s
+  Stream #1:0: Audio: mp3 (mp3float), 44100 Hz, stereo, fltp, 128 kb/s, start 0.025057
+    Metadata:
+      encoder         : Lavc58.13
+Stream mapping:
+  Stream #0:1 (aac) -> amix
+  Stream #1:0 (mp3float) -> volume:default
+  Stream #0:0 -> #0:0 (copy)
+  amix:default -> Stream #0:1 (aac)
+Press [q] to stop, [?] for help
+Output #0, mp4, to 'E:/ghep xong\381.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf62.1.101
+  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 7237 kb/s, 60 fps, 60 tbr, 15360 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+      encoder         : Lavc62.4.100 h264_nvenc
+  Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s
+    Metadata:
+      encoder         : Lavc62.4.100 aac
+frame=  807 fps=0.0 q=-1.0 size=   11776KiB time=00:00:13.50 bitrate=7143.8kbits/s speed=25.7x elapsed=0:00:00.52    [out#0/mp4 @ 000001a2007d0980] video:28271KiB audio:516KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.178777%
+frame= 1920 fps=1868 q=-1.0 Lsize=   28839KiB time=00:00:31.97 bitrate=7389.4kbits/s speed=31.1x elapsed=0:00:01.02    
+[aac @ 000001a200ae1880] Qavg: 745.094

@@ -10,6 +10,26 @@ CONFIG_FILE = os.path.join(BASE_DIR,"config.json")
 USED_LOG_FILE = os.path.join(BASE_DIR,"log.txt")
 CONFIG_PATH = os.path.join(BASE_DIR,"config_dir")
 
+def _pythonw_exe():
+    import sys, os
+    exe = sys.executable
+    if os.name == "nt":
+        cand = os.path.join(os.path.dirname(exe), "pythonw.exe")
+        if os.path.exists(cand):
+            return cand
+    return exe  # fallback (không ưu tiên)
+
+def _popen_gui(args):
+    import subprocess, os
+    if os.name == "nt":
+        # Ẩn cửa sổ console của process con
+        return subprocess.Popen(
+            args,
+            shell=False,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+    else:
+        return subprocess.Popen(args, shell=False)
 
 def list_group_csvs(groups_dir: str):
     if not os.path.isdir(groups_dir):

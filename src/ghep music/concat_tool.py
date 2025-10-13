@@ -1,4 +1,5 @@
 
+import time
 from helper import *
 
 class ConcatApp(tk.Tk):
@@ -12,6 +13,9 @@ class ConcatApp(tk.Tk):
         style.theme_use("clam")
         style.configure("Accent.TButton", foreground="blue")
 
+        self.start_time = None
+        self.elapsed_times = []
+
         # State
         self.input_folder = tk.StringVar()
         self.save_folder = tk.StringVar()
@@ -24,7 +28,7 @@ class ConcatApp(tk.Tk):
         self.total_mp4 = tk.StringVar(value="0")
         self.num_groups = tk.StringVar(value="0")
         self.groups_done = tk.StringVar(value="0")
-        self.status_var = tk.StringVar(value="Chưa bắt đầu")
+        self.status_var = tk.StringVar(value="Idle")
         self.last_output_var = tk.StringVar(value="(chưa có)")
 
         self.groups: list[list[str]] = []
@@ -44,7 +48,7 @@ class ConcatApp(tk.Tk):
         self.frm_top = ttk.LabelFrame(self, text="⚙️ Cấu hình", padding=10)
 
         # ===== Dòng 1: Tham số cơ bản =====
-        ttk.Label(self.frm_top, text="Số lượng video / nhóm:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
+        ttk.Label(self.frm_top, text="Videos/group:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
         self.combo_group_size = ttk.Combobox(
             self.frm_top, textvariable=self.group_size_var,
             values=list(range(2, 101)), width=6, state="readonly"
@@ -52,9 +56,9 @@ class ConcatApp(tk.Tk):
         self.combo_group_size.grid(row=0, column=1, sticky="w", pady=4)
         self.combo_group_size.bind("<<ComboboxSelected>>", self._on_group_size_change)
 
-        ttk.Label(self.frm_top, text="Số lượng video cần tạo:").grid(row=0, column=2, sticky="e", padx=4)
+        ttk.Label(self.frm_top, text="Total videos to export:").grid(row=0, column=2, sticky="e", padx=4)
         #chọn lượng video
-        limit_display = ["Ghép hết"] + [str(i) for i in range(1, 101)]
+        limit_display = ["All"] + [str(i) for i in range(1, 101)]
         self.combo_limit_videos = ttk.Combobox(
             self.frm_top, width=8, state="readonly",
             textvariable=tk.StringVar()
@@ -74,7 +78,7 @@ class ConcatApp(tk.Tk):
         self.combo_limit_videos.grid(row=0, column=3, sticky="w")
 
 
-        ttk.Label(self.frm_top, text="Âm lượng:").grid(row=0, column=4, sticky="e", padx=4)
+        ttk.Label(self.frm_top, text="Volume:").grid(row=0, column=4, sticky="e", padx=4)
         self.slider_volume = ttk.Scale(self.frm_top, from_=0.0, to=1.0, orient="horizontal",
                                        variable=self.bgm_volume_var, length=120)
         self.slider_volume.grid(row=0, column=5, sticky="w", padx=2)
@@ -92,17 +96,16 @@ class ConcatApp(tk.Tk):
         self.bgm_volume_var.trace_add("write", self._update_volume_label)
 
         # ===== chọn thư mục =====
-        self._add_folder_row("📁 Thư mục nguồn:", self.input_folder, 1, reload=True)
-        self._add_folder_row("💾 Thư mục lưu:", self.save_folder, 2)
-        self._add_folder_row("🎵 Thư mục nhạc:", self.bgm_folder, 3, bgm=True)
+        self._add_folder_row("📁 Source folder:", self.input_folder, 1, reload=True)
+        self._add_folder_row("💾 Save folder:", self.save_folder, 2)
+        self._add_folder_row("🎵 Music folder:", self.bgm_folder, 3, bgm=True)
 
         # ===== các nút thao tác =====
         self.frm_buttons = ttk.Frame(self.frm_top)
-        self.btn_concat = ttk.Button(self.frm_buttons, text="▶ Bắt đầu ghép", command=self.start_concat)
-        self.btn_stop = ttk.Button(self.frm_buttons, text="■ Dừng", command=self.stop_concat, state=tk.DISABLED)
-        self.btn_open = ttk.Button(self.frm_buttons, text="📂 Mở thư mục lưu", command=self.open_output_folder)
-        self.btn_clear = ttk.Button(self.frm_buttons, text="🗑 Xóa log", command=self.clear_log)
-        
+        self.btn_concat = ttk.Button(self.frm_buttons, text="▶ Start", command=self.start_concat)
+        self.btn_stop = ttk.Button(self.frm_buttons, text="■ Stop", command=self.stop_concat, state=tk.DISABLED)
+        self.btn_open = ttk.Button(self.frm_buttons, text="📂 Open save folder", command=self.open_output_folder)
+        self.btn_clear = ttk.Button(self.frm_buttons, text="🗑 Delete log", command=self.clear_log)
 
         self.progress = ttk.Progressbar(self.frm_buttons, orient="horizontal", mode="determinate", length=280)
         self.lbl_status = ttk.Label(self.frm_buttons, textvariable=self.status_var, width=15, anchor="w")
@@ -116,19 +119,19 @@ class ConcatApp(tk.Tk):
 
 
         # ===== Log + Thống kê =====
-        self.frm_logstats = ttk.LabelFrame(self, text="📜 Log & Thống kê", padding=8)
+        self.frm_logstats = ttk.LabelFrame(self, text="📜 Log", padding=8)
 
         # --- Khung thống kê ---
         stats_frame = ttk.Frame(self.frm_logstats)
         stats_frame.pack(fill="x", pady=(0, 6))
 
-        ttk.Label(stats_frame, text="Tổng video còn lại:").grid(row=0, column=0, sticky="e", padx=6)
+        ttk.Label(stats_frame, text="Total videos remain:").grid(row=0, column=0, sticky="e", padx=6)
         ttk.Label(stats_frame, textvariable=self.total_mp4).grid(row=0, column=1, sticky="w")
 
-        ttk.Label(stats_frame, text="Số nhóm:").grid(row=0, column=2, sticky="e", padx=6)
+        ttk.Label(stats_frame, text="Groups remain:").grid(row=0, column=2, sticky="e", padx=6)
         ttk.Label(stats_frame, textvariable=self.num_groups).grid(row=0, column=3, sticky="w")
 
-        ttk.Label(stats_frame, text="Đã ghép:").grid(row=0, column=4, sticky="e", padx=6)
+        ttk.Label(stats_frame, text="Done:").grid(row=0, column=4, sticky="e", padx=6)
         ttk.Label(stats_frame, textvariable=self.groups_done).grid(row=0, column=5, sticky="w")
 
         # --- Khung log ---
@@ -159,7 +162,7 @@ class ConcatApp(tk.Tk):
         ttk.Label(self.frm_top, text=label).grid(row=row, column=0, sticky="e", padx=4, pady=3)
         entry = ttk.Entry(self.frm_top, textvariable=var, width=60)
         entry.grid(row=row, column=1, columnspan=4, sticky="we", padx=4)
-        btn = ttk.Button(self.frm_top, text="Chọn thư mục", width=15,
+        btn = ttk.Button(self.frm_top, text="Select folder", width=15,
                          command=lambda: self._choose_folder(var, reload=reload, bgm=bgm))
         btn.grid(row=row, column=5, columnspan=2, sticky="w", padx=4)
 
@@ -281,7 +284,7 @@ class ConcatApp(tk.Tk):
 
     
     def _choose_folder(self, var: tk.StringVar, reload=False, bgm=False):
-        folder = filedialog.askdirectory(title="Chọn thư mục")
+        folder = filedialog.askdirectory(title="Select folder")
         if folder:
             var.set(folder)
             if reload:
@@ -295,6 +298,8 @@ class ConcatApp(tk.Tk):
             self.save_config()   # lưu lại khi chọn mới
 
     def start_concat(self):
+        self.start_time = time.time()
+        self.elapsed_times.clear()
         if self.worker and self.worker.is_alive():
             return messagebox.showinfo("Đang chạy", "Tiến trình đang chạy.")
         if not self.groups:
@@ -314,7 +319,7 @@ class ConcatApp(tk.Tk):
         self.stop_flag.clear()
         self.btn_concat.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.NORMAL)
-        self.status_var.set("Đang ghép...")
+        self.status_var.set("Working...")
 
         self.progress['maximum'] = len(todo_groups)
         self.progress['value'] = 0
@@ -336,7 +341,7 @@ class ConcatApp(tk.Tk):
             for group in todo:
                 if self.stop_flag.is_set():
                     break
-
+                start_group_time = time.time()
                 temp = "temp.mp4"
                 try:
                     auto_concat(group, temp)
@@ -371,14 +376,38 @@ class ConcatApp(tk.Tk):
                         os.remove(temp)
 
                 f_log.flush()
+                elapsed = time.time() - start_group_time
+                self.elapsed_times.append(elapsed)
                 self._enqueue(self._update_progress)
 
 
     def _update_progress(self):
         self.progress['value'] += 1
-        percent = (self.progress['value'] / self.progress['maximum']) * 100
-        self.status_var.set(f"{percent:.1f}%")
-        self.groups_done.set(str(int(self.groups_done.get()) + 1))
+        done = self.progress['value']
+        total = self.progress['maximum']
+        percent = (done / total) * 100
+
+        avg_time = sum(self.elapsed_times) / len(self.elapsed_times) if self.elapsed_times else 0
+        remaining_groups = total - done
+        eta_seconds = avg_time * remaining_groups
+        elapsed_total = time.time() - self.start_time if self.start_time else 0
+
+        # định dạng thời gian
+        def fmt_time(t):
+            m, s = divmod(int(t), 60)
+            return f"{m}m{s}s" if m else f"{s}s"
+
+        eta_str = fmt_time(eta_seconds)
+        elapsed_str = fmt_time(elapsed_total)
+        avg_str = f"{avg_time:.1f}s/nhóm" if avg_time else "--"
+
+        # ghi log thay vì hiển thị ở label
+        log_text = f"[Tiến trình] {percent:.1f}% | Còn lại: {eta_str} | Đã chạy: {elapsed_str} | TB: {avg_str}"
+        self._append_log(log_text)
+
+        self.groups_done.set(str(done))
+
+
 
     def _on_done(self):
         self.btn_concat.config(state=tk.NORMAL)

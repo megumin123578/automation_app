@@ -3,20 +3,6 @@ import threading
 import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-from module import (list_group_csvs, 
-    read_channels_from_csv,normalize_lines,
-    assign_pairs, load_group_dirs, 
-    load_used_videos, get_mp4_filename, 
-    load_group_config, save_group_config,
-    CONFIG_PATH
-    
-    )
-from hyperparameter import (
-    APP_TITLE,
-    GROUPS_DIR,
-    OUTPUT_DIR,
-    EXCEL_DIR
-)
 from tkcalendar  import DateEntry
 from openpyxl.styles import Font
 from random_vids import get_random_unused_mp4
@@ -27,27 +13,9 @@ import tkinter.simpledialog as sd
 from hyperparameter import APP_VERSION, UPDATE_MANIFEST
 from update_manager import check_and_update, install_from_zip
 import sys,subprocess
+from module import *
+from hyperparameter import *
 
-def _pythonw_exe():
-    import sys, os
-    exe = sys.executable
-    if os.name == "nt":
-        cand = os.path.join(os.path.dirname(exe), "pythonw.exe")
-        if os.path.exists(cand):
-            return cand
-    return exe  # fallback (không ưu tiên)
-
-def _popen_gui(args):
-    import subprocess, os
-    if os.name == "nt":
-        # Ẩn cửa sổ console của process con
-        return subprocess.Popen(
-            args,
-            shell=False,
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
-    else:
-        return subprocess.Popen(args, shell=False)
 
 class App(tk.Tk):
     def __init__(self):
