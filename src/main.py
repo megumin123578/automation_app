@@ -3,6 +3,7 @@ import threading
 import datetime
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+import openai
 from tkcalendar  import DateEntry
 from openpyxl.styles import Font
 from random_vids import get_random_unused_mp4
@@ -180,6 +181,7 @@ class App(tk.Tk):
         btns = ttk.Frame(self, padding=(10, 0, 10, 0))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Clear Inputs", command=self._clear_inputs).pack(side=tk.LEFT, padx=6)
+        ttk.Button(btns, text="Generate titles and des", command=self._generate_titles_descs).pack(side=tk.LEFT, padx=6)
 
 
     # ---------- Preview / Tree ----------
@@ -746,12 +748,15 @@ class App(tk.Tk):
             try:
                 self._set_status("Checking for updates...")
                 msg = check_and_update(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
+                print(f"Update from {UPDATE_MANIFEST}")
                 self._set_status(msg)
                 if msg.startswith("Installed update"):
                     if messagebox.askyesno("Update installed", "Khởi động lại để áp dụng?"):
                         self._restart_app()
             except Exception as e:
+                print(f"Update from {UPDATE_MANIFEST}")
                 messagebox.showerror("Update error", str(e))
+
                 self._set_status("Update failed.")
         threading.Thread(target=worker, daemon=True).start()
 
@@ -818,7 +823,27 @@ class App(tk.Tk):
                 print("Update error:", e)
 
         threading.Thread(target=worker, daemon=True).start()
+    
 
+    def _generate_titles_descs(self):
+        try:
+            topic = self.group_file_var().get().strip() or "Short videos youtube"
+            prompt = f"Create 10 titles mesmerizing and 10 short description for {topic}"
+
+            response = openai.ChatCompletion.create(
+                model = "gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.8,
+            )
+
+            text = response["choices"][0]["message"]["content"]
+            self.txt_titles.delete("1.0", tk.END)
+            self.txt_descs.delete("1.0", tk.END)
+            self.txt_titles.insert(tk.END, text)
+
+            self._set_status("Generated tiles and description.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error when generate content: {e}")
 
 if __name__ == "__main__":
     app = App()

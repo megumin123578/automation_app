@@ -74,6 +74,7 @@ def check_and_update(manifest_src: str, current_version: str, verify_hash: bool 
     remote_ver = info.get("version") or info.get("latest") or ""
     zip_src = info.get("zip_url") or info.get("zip_path")
     sha = info.get("sha256")
+    print(f"Đang tải manifest từ: {manifest_src}")
 
     if not remote_ver or not zip_src:
         return "Manifest không hợp lệ."

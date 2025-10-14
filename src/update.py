@@ -5,12 +5,9 @@ import shutil
 import re
 from datetime import datetime
 
-# --- cấu hình ---
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.path.join(ROOT_DIR, "temp_build")
 TARGET_FILE = os.path.join(ROOT_DIR, "hyperparameter.py")  # file chứa APP_VERSION
-
-# đặt tên zip theo ngày giờ
 VERSION = datetime.now().strftime("%Y.%m.%d.%H%M")
 OUTPUT_ZIP = os.path.join(ROOT_DIR, f"update_package_{VERSION}.zip")
 
@@ -39,9 +36,7 @@ def should_exclude(name, full_path):
         return True
     return False
 
-
 def copy_and_bump_version(src_path=TARGET_FILE, dest_dir=TEMP_DIR):
-    """Copy file hyperparameter.py và tăng APP_VERSION"""
     if not os.path.exists(src_path):
         print(f"Không tìm thấy file: {src_path}")
         return None, None
@@ -74,9 +69,7 @@ def copy_and_bump_version(src_path=TARGET_FILE, dest_dir=TEMP_DIR):
     print(f"Bản tạm hyperparameter.py: {old_version} → {new_version}")
     return new_version, dest_path
 
-
 def create_zip_only():
-    """Chỉ tạo file .zip update"""
     app_version, temp_file = copy_and_bump_version()
     if not app_version:
         print("Không tạo được version, dừng lại.")
