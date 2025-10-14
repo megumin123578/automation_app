@@ -1,2 +1,0 @@
-{"output": "E:\\ghep xong\\380.mp4", "inputs": ["E:\\storage\\905.mp4", "E:\\storage\\910.mp4", "E:\\storage\\904.mp4", "E:\\storage\\909.mp4"], "bgm": "C:\\Users\\Admin\\Music\\Cam_Tu_Cau_-_Remix_KLICKAUD.mp3"}
-{"output": "E:\\ghep xong\\381.mp4", "inputs": ["E:\\storage\\907.mp4", "E:\\storage\\901.mp4", "E:\\storage\\908.mp4", "E:\\storage\\902.mp4"], "bgm": "C:\\Users\\Admin\\Music\\Hollow Coves - These Memories (Official Music Video).mp3"}

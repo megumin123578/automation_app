@@ -14,6 +14,7 @@ import shutil
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 CONFIG_FILE = "ghep music/config.json"
+CONFIG_DIR = "ghep music/configs"
 
 def list_all_mp4_files(folder_path):
     if not os.path.isdir(folder_path):

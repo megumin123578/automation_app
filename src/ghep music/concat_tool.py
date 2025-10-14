@@ -1,17 +1,31 @@
-
 import time
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import tkinter.simpledialog as sd
+import threading
+import queue
+import os
+import json
+import shutil
+import random
 from helper import *
 
 class ConcatApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Ghép Short Tự Động")
-        self.geometry("1000x480")  
-        self.minsize(900,580)
+        self.title("Video Concatenation Tool")
+        self.state("zoomed") 
+        self.minsize(900, 600)
 
+        # Configure style
         style = ttk.Style()
         style.theme_use("clam")
-        style.configure("Accent.TButton", foreground="blue")
+        style.configure("Accent.TButton", font=("Segoe UI", 10, "bold"), foreground="#ffffff", background="#4CAF50", padding=6)
+        style.configure("Stop.TButton", font=("Segoe UI", 10, "bold"), foreground="#ffffff", background="#F44336", padding=6)
+        style.configure("Secondary.TButton", font=("Segoe UI", 10), foreground="#ffffff", background="#2196F3", padding=6)
+        style.configure("TLabel", font=("Segoe UI", 10))
+        style.configure("TEntry", font=("Segoe UI", 10))
+        style.configure("TCombobox", font=("Segoe UI", 10))
 
         self.start_time = None
         self.elapsed_times = []
@@ -30,171 +44,159 @@ class ConcatApp(tk.Tk):
         self.groups_done = tk.StringVar(value="0")
         self.status_var = tk.StringVar(value="Idle")
         self.last_output_var = tk.StringVar(value="(chưa có)")
-
         self.groups: list[list[str]] = []
         self.stop_flag = threading.Event()
         self.worker: threading.Thread | None = None
         self.log_q: queue.Queue[str] = queue.Queue()
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        self.selected_channel = tk.StringVar()
 
         self._build_ui()
         self._layout()
 
-        self.load_config()
+        self.load_last_channel()
         if self.input_folder.get():
             self.reload_groups()
 
-    # ================= UI =================
     def _build_ui(self):
-        self.frm_top = ttk.LabelFrame(self, text="⚙️ Cấu hình", padding=10)
-
-        # ===== Dòng 1: Tham số cơ bản =====
-        ttk.Label(self.frm_top, text="Videos/group:").grid(row=0, column=0, sticky="e", padx=4, pady=4)
-        self.combo_group_size = ttk.Combobox(
-            self.frm_top, textvariable=self.group_size_var,
-            values=list(range(2, 101)), width=6, state="readonly"
+        # Main configuration frame
+        self.frm_top = ttk.LabelFrame(self, text="⚙️ Configuration", padding=(10, 10))
+        
+        # Channel selection
+        channel_frame = ttk.Frame(self.frm_top)
+        channel_frame.grid(row=0, column=0, columnspan=4, sticky="w", pady=5)
+        ttk.Label(channel_frame, text="Channel:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
+        self.combo_channel = ttk.Combobox(
+            channel_frame, textvariable=self.selected_channel, values=self._list_channels(),
+            width=25, state="readonly", font=("Segoe UI", 10)
         )
-        self.combo_group_size.grid(row=0, column=1, sticky="w", pady=4)
+        self.combo_channel.grid(row=0, column=1, sticky="w", padx=5)
+        self.combo_channel.bind("<<ComboboxSelected>>", self._on_channel_change)
+        
+        self.btn_add_channel = ttk.Button(channel_frame, text="+ Add", style="Secondary.TButton", command=self._add_channel)
+        self.btn_add_channel.grid(row=0, column=2, sticky="w", padx=5)
+
+        # Parameters frame
+        param_frame = ttk.Frame(self.frm_top)
+        param_frame.grid(row=1, column=0, columnspan=4, sticky="we", pady=5)
+        
+        ttk.Label(param_frame, text="Videos per Group:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
+        self.combo_group_size = ttk.Combobox(
+            param_frame, textvariable=self.group_size_var, values=list(range(2, 101)),
+            width=6, state="readonly", font=("Segoe UI", 10)
+        )
+        self.combo_group_size.grid(row=0, column=1, sticky="w", padx=5)
         self.combo_group_size.bind("<<ComboboxSelected>>", self._on_group_size_change)
 
-        ttk.Label(self.frm_top, text="Total videos to export:").grid(row=0, column=2, sticky="e", padx=4)
-        #chọn lượng video
+        ttk.Label(param_frame, text="Total Videos to Export:", font=("Segoe UI", 10, "bold")).grid(row=0, column=2, sticky="e", padx=5)
         limit_display = ["All"] + [str(i) for i in range(1, 101)]
         self.combo_limit_videos = ttk.Combobox(
-            self.frm_top, width=8, state="readonly",
-            textvariable=tk.StringVar()
+            param_frame, width=8, state="readonly", textvariable=tk.StringVar(), values=limit_display
         )
-        self.combo_limit_videos['values'] = limit_display
-        self.combo_limit_videos.current(0) 
-
-
+        self.combo_limit_videos.current(0)
+        self.combo_limit_videos.grid(row=0, column=3, sticky="w", padx=5)
+        
         def on_limit_change(event=None):
             val = self.combo_limit_videos.get()
-            if val == "Ghép hết":
-                self.limit_videos_var.set(0)
-            else:
-                self.limit_videos_var.set(int(val))
-
+            self.limit_videos_var.set(0 if val == "All" else int(val))
         self.combo_limit_videos.bind("<<ComboboxSelected>>", on_limit_change)
-        self.combo_limit_videos.grid(row=0, column=3, sticky="w")
 
-
-        ttk.Label(self.frm_top, text="Volume:").grid(row=0, column=4, sticky="e", padx=4)
-        self.slider_volume = ttk.Scale(self.frm_top, from_=0.0, to=1.0, orient="horizontal",
-                                       variable=self.bgm_volume_var, length=120)
-        self.slider_volume.grid(row=0, column=5, sticky="w", padx=2)
-
-        self.lbl_volume = ttk.Label(self.frm_top, width=5)
-        self.lbl_volume.grid(row=0, column=6, sticky="w")
-
-        self.frm_top.columnconfigure(6, weight=1)
-
-        #reload button
-        self.btn_reload = ttk.Button(self.frm_top, text="↻",width=3, command=self.reload_groups, style="Accent.TButton")
-        self.btn_reload.grid(row=0, column=7, sticky="w", padx=8)
-        
-        # cập nhật label âm lượng
+        ttk.Label(param_frame, text="BGM Volume:", font=("Segoe UI", 10, "bold")).grid(row=0, column=4, sticky="e", padx=5)
+        self.slider_volume = ttk.Scale(param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.bgm_volume_var, length=120)
+        self.slider_volume.grid(row=0, column=5, sticky="w", padx=5)
+        self.lbl_volume = ttk.Label(param_frame, text=f"{self.bgm_volume_var.get() * 100:.0f}%", width=5)
+        self.lbl_volume.grid(row=0, column=6, sticky="w", padx=5)
         self.bgm_volume_var.trace_add("write", self._update_volume_label)
 
-        # ===== chọn thư mục =====
-        self._add_folder_row("📁 Source folder:", self.input_folder, 1, reload=True)
-        self._add_folder_row("💾 Save folder:", self.save_folder, 2)
-        self._add_folder_row("🎵 Music folder:", self.bgm_folder, 3, bgm=True)
+        self.btn_reload = ttk.Button(param_frame, text="↻ Reload", style="Accent.TButton", command=self.reload_groups)
+        self.btn_reload.grid(row=0, column=7, sticky="w", padx=5)
 
-        # ===== các nút thao tác =====
-        self.frm_buttons = ttk.Frame(self.frm_top)
-        self.btn_concat = ttk.Button(self.frm_buttons, text="▶ Start", command=self.start_concat)
-        self.btn_stop = ttk.Button(self.frm_buttons, text="■ Stop", command=self.stop_concat, state=tk.DISABLED)
-        self.btn_open = ttk.Button(self.frm_buttons, text="📂 Open save folder", command=self.open_output_folder)
-        self.btn_clear = ttk.Button(self.frm_buttons, text="🗑 Delete log", command=self.clear_log)
+        # Folder selection
+        folder_frame = ttk.LabelFrame(self.frm_top, text="📁 Folders", padding=(10, 5))
+        folder_frame.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
+        self._add_folder_row("Source Folder:", self.input_folder, 0, folder_frame, reload=True)
+        self._add_folder_row("Save Folder:", self.save_folder, 1, folder_frame)
+        self._add_folder_row("Music Folder:", self.bgm_folder, 2, folder_frame, bgm=True)
 
-        self.progress = ttk.Progressbar(self.frm_buttons, orient="horizontal", mode="determinate", length=280)
-        self.lbl_status = ttk.Label(self.frm_buttons, textvariable=self.status_var, width=15, anchor="w")
-
-        for i, btn in enumerate([self.btn_concat, self.btn_stop, self.btn_open, self.btn_clear]):
-            btn.grid(row=0, column=i, padx=6, pady=6)
-        self.progress.grid(row=0, column=4, sticky="we", padx=6)
-        self.lbl_status.grid(row=0, column=5, sticky="w", padx=6)
-        self.frm_buttons.grid(row=5, column=0, columnspan=7, pady=(6, 4), sticky="we")
+        # Action buttons and progress
+        action_frame = ttk.Frame(self.frm_top)
+        action_frame.grid(row=3, column=0, columnspan=4, sticky="we", pady=10)
+        self.btn_concat = ttk.Button(action_frame, text="▶ Start", style="Accent.TButton", command=self.start_concat)
+        self.btn_concat.grid(row=0, column=0, padx=5)
+        self.btn_stop = ttk.Button(action_frame, text="■ Stop", style="Stop.TButton", command=self.stop_concat, state=tk.DISABLED)
+        self.btn_stop.grid(row=0, column=1, padx=5)
+        self.btn_open = ttk.Button(action_frame, text="📂 Open Folder", style="Secondary.TButton", command=self.open_output_folder)
+        self.btn_open.grid(row=0, column=2, padx=5)
+        self.btn_clear = ttk.Button(action_frame, text="🗑 Clear Log", style="Secondary.TButton", command=self.clear_log)
+        self.btn_clear.grid(row=0, column=3, padx=5)
         
+        self.progress = ttk.Progressbar(action_frame, orient="horizontal", mode="determinate", length=300)
+        self.progress.grid(row=0, column=4, padx=5, sticky="we")
+        self.lbl_status = ttk.Label(action_frame, textvariable=self.status_var, font=("Segoe UI", 10, "italic"))
+        self.lbl_status.grid(row=0, column=5, padx=5, sticky="w")
 
-
-        # ===== Log + Thống kê =====
-        self.frm_logstats = ttk.LabelFrame(self, text="📜 Log", padding=8)
-
-        # --- Khung thống kê ---
+        # Log and stats frame
+        self.frm_logstats = ttk.LabelFrame(self, text="📜 Log & Statistics", padding=(10, 10))
         stats_frame = ttk.Frame(self.frm_logstats)
-        stats_frame.pack(fill="x", pady=(0, 6))
+        stats_frame.pack(fill="x", pady=(0, 10))
+        
+        ttk.Label(stats_frame, text="Total Videos:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
+        ttk.Label(stats_frame, textvariable=self.total_mp4).grid(row=0, column=1, sticky="w", padx=5)
+        ttk.Label(stats_frame, text="Groups Remaining:", font=("Segoe UI", 10, "bold")).grid(row=0, column=2, sticky="e", padx=5)
+        ttk.Label(stats_frame, textvariable=self.num_groups).grid(row=0, column=3, sticky="w", padx=5)
+        ttk.Label(stats_frame, text="Groups Done:", font=("Segoe UI", 10, "bold")).grid(row=0, column=4, sticky="e", padx=5)
+        ttk.Label(stats_frame, textvariable=self.groups_done).grid(row=0, column=5, sticky="w", padx=5)
 
-        ttk.Label(stats_frame, text="Total videos remain:").grid(row=0, column=0, sticky="e", padx=6)
-        ttk.Label(stats_frame, textvariable=self.total_mp4).grid(row=0, column=1, sticky="w")
-
-        ttk.Label(stats_frame, text="Groups remain:").grid(row=0, column=2, sticky="e", padx=6)
-        ttk.Label(stats_frame, textvariable=self.num_groups).grid(row=0, column=3, sticky="w")
-
-        ttk.Label(stats_frame, text="Done:").grid(row=0, column=4, sticky="e", padx=6)
-        ttk.Label(stats_frame, textvariable=self.groups_done).grid(row=0, column=5, sticky="w")
-
-        # --- Khung log ---
         log_frame = ttk.Frame(self.frm_logstats)
         log_frame.pack(fill="both", expand=True)
         scrollbar = ttk.Scrollbar(log_frame, orient="vertical")
         scrollbar.pack(side="right", fill="y")
-
         self.txt_log = tk.Text(
-            log_frame,
-            height=12,
-            wrap="word",
-            state="disabled",
-            bg="#1e1e1e",
-            fg="#dcdcdc",
-            font=("Consolas", 12),
-            yscrollcommand=scrollbar.set
+            log_frame, height=12, wrap="word", state="disabled", font=("Consolas", 11),
+            bg="#f5f5f5", fg="#333333", borderwidth=1, relief="solid"
         )
         self.txt_log.pack(fill="both", expand=True)
         scrollbar.config(command=self.txt_log.yview)
+        self.txt_log.tag_configure("link", foreground="#1E90FF", underline=True)
 
-        # Tag cho link
-        self.txt_log.tag_configure("link", foreground="#4ea3ff", underline=True)
-
-
-
-    def _add_folder_row(self, label, var, row, reload=False, bgm=False):
-        ttk.Label(self.frm_top, text=label).grid(row=row, column=0, sticky="e", padx=4, pady=3)
-        entry = ttk.Entry(self.frm_top, textvariable=var, width=60)
-        entry.grid(row=row, column=1, columnspan=4, sticky="we", padx=4)
-        btn = ttk.Button(self.frm_top, text="Select folder", width=15,
+    def _add_folder_row(self, label, var, row, parent, reload=False, bgm=False):
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="e", padx=5, pady=3)
+        entry = ttk.Entry(parent, textvariable=var, width=50, font=("Segoe UI", 10))
+        entry.grid(row=row, column=1, columnspan=2, sticky="we", padx=5, pady=3)
+        btn = ttk.Button(parent, text="Browse", style="Secondary.TButton",
                          command=lambda: self._choose_folder(var, reload=reload, bgm=bgm))
-        btn.grid(row=row, column=5, columnspan=2, sticky="w", padx=4)
+        btn.grid(row=row, column=3, sticky="w", padx=5, pady=3)
 
     def _layout(self):
-        self.frm_top.pack(fill="x", padx=10, pady=8)
-        self.frm_logstats.pack(fill="both", expand=True, padx=10, pady=(4, 10))
-    
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=2)
+        self.grid_columnconfigure(0, weight=1)
+        self.frm_top.grid(row=0, column=0, sticky="nsew", padx=15, pady=(10, 5))
+        self.frm_logstats.grid(row=1, column=0, sticky="nsew", padx=15, pady=(5, 10))
+        self.frm_top.columnconfigure(0, weight=1)
+        self.frm_logstats.columnconfigure(0, weight=1)
+
     def _update_volume_label(self, *args):
         val = self.bgm_volume_var.get()
-        self.lbl_volume.config(text=f"{val * 100:.0f}")
+        self.lbl_volume.config(text=f"{val * 100:.0f}%")
 
     def _append_log(self, text: str):
-    
         self.txt_log.configure(state="normal")
-
         if text.startswith("Đã ghép xong: "):
             path = text.replace("Đã ghép xong: ", "").strip()
             tag_name = f"link_{hash(path)}"
             self.txt_log.insert("end", "Đã ghép xong: ")
             self.txt_log.insert("end", path + "\n", tag_name)
-            # Style
-            self.txt_log.tag_configure(tag_name, foreground="#03fc13", underline=True)
+            self.txt_log.tag_configure(tag_name, foreground="#32CD32", underline=True)
             self.txt_log.tag_bind(tag_name, "<Enter>", lambda e: self.txt_log.config(cursor="hand2"))
             self.txt_log.tag_bind(tag_name, "<Leave>", lambda e: self.txt_log.config(cursor=""))
             self.txt_log.tag_bind(tag_name, "<Button-1>", lambda e, p=path: self._open_video_path(p))
         else:
             self.txt_log.insert("end", text + "\n")
-
-        self.txt_log.see("end")  #auto scroll
+        self.txt_log.see("end")
         self.txt_log.configure(state="disabled")
 
-    def _open_video_path(self, path: str): #open video when click
+    def _open_video_path(self, path: str):
         if os.path.exists(path):
             try:
                 os.startfile(path)
@@ -241,13 +243,10 @@ class ConcatApp(tk.Tk):
         except Exception as e:
             messagebox.showerror("Lỗi", f"Đọc video lỗi: {e}")
             return
-
-        # loại bỏ video đã dùng trong log
         used_videos = set()
         log_dir = os.path.abspath("log")
         os.makedirs(log_dir, exist_ok=True)
         log_path = os.path.join(log_dir, "log.txt")
-
         if os.path.exists(log_path):
             try:
                 with open(log_path, "r", encoding="utf-8") as f:
@@ -263,26 +262,18 @@ class ConcatApp(tk.Tk):
                             continue
             except Exception as e:
                 messagebox.showwarning("Log", f"Lỗi đọc log: {e}")
-
-        # bỏ video đã dùng
         all_videos = [v for v in all_videos if os.path.abspath(v) not in used_videos]
-
         gsize = self.group_size_var.get() or 6
         all_groups = get_all_random_video_groups(all_videos, group_size=gsize)
-
-        # Giới hạn số lượng nhóm cần ghép
         limit_groups = self.limit_videos_var.get()
         if limit_groups > 0:
             self.groups = all_groups[:limit_groups]
         else:
             self.groups = all_groups
-
         self.total_mp4.set(str(len(all_videos)))
         self.num_groups.set(str(len(self.groups)))
         self.save_config()
 
-
-    
     def _choose_folder(self, var: tk.StringVar, reload=False, bgm=False):
         folder = filedialog.askdirectory(title="Select folder")
         if folder:
@@ -295,7 +286,7 @@ class ConcatApp(tk.Tk):
                     messagebox.showinfo("OK", f"Đã load {len(self.mp3_list)} file mp3.")
                 except Exception as e:
                     messagebox.showerror("Lỗi", f"Không đọc được mp3: {e}")
-            self.save_config()   # lưu lại khi chọn mới
+            self.save_config()
 
     def start_concat(self):
         self.start_time = time.time()
@@ -308,23 +299,17 @@ class ConcatApp(tk.Tk):
         if not out_dir:
             return messagebox.showwarning("Thiếu thư mục lưu", "Chọn thư mục lưu")
         os.makedirs(out_dir, exist_ok=True)
-
-        
-        
         limit_groups = self.limit_videos_var.get()
         todo_groups = self.groups
         if limit_groups > 0:
             todo_groups = self.groups[:limit_groups]
-
         self.stop_flag.clear()
         self.btn_concat.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.NORMAL)
         self.status_var.set("Working...")
-
         self.progress['maximum'] = len(todo_groups)
         self.progress['value'] = 0
         self.groups_done.set("0")
-
         self.worker = threading.Thread(target=self._do_concat_worker, args=(todo_groups, out_dir), daemon=True)
         self.worker.start()
         self.after(200, self._poll_worker)
@@ -336,7 +321,6 @@ class ConcatApp(tk.Tk):
         log_dir = os.path.abspath("log")
         os.makedirs(log_dir, exist_ok=True)
         log_path = os.path.join(log_dir, "log.txt")
-
         with open(log_path, "a", encoding="utf-8") as f_log:
             for group in todo:
                 if self.stop_flag.is_set():
@@ -352,8 +336,6 @@ class ConcatApp(tk.Tk):
                         output = get_next_output_filename(out_dir)
                         shutil.copy2(temp, output)
                         bg_audio = None
-
-                    # ghi log JSON
                     log_entry = {
                         "output": os.path.abspath(output),
                         "inputs": [os.path.abspath(p) for p in group],
@@ -362,52 +344,38 @@ class ConcatApp(tk.Tk):
                     f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
                     self.after(0, lambda path=output: self.last_output_var.set(path))
                     self.after(0, lambda path=output: self._append_log(f"Đã ghép xong: {path}"))
-
-
                 except Exception as e:
                     log_entry = {
                         "error": str(e),
                         "inputs": [os.path.abspath(p) for p in group]
                     }
                     f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
-
                 finally:
                     if os.path.exists(temp):
                         os.remove(temp)
-
                 f_log.flush()
                 elapsed = time.time() - start_group_time
                 self.elapsed_times.append(elapsed)
                 self._enqueue(self._update_progress)
-
 
     def _update_progress(self):
         self.progress['value'] += 1
         done = self.progress['value']
         total = self.progress['maximum']
         percent = (done / total) * 100
-
         avg_time = sum(self.elapsed_times) / len(self.elapsed_times) if self.elapsed_times else 0
         remaining_groups = total - done
         eta_seconds = avg_time * remaining_groups
         elapsed_total = time.time() - self.start_time if self.start_time else 0
-
-        # định dạng thời gian
         def fmt_time(t):
             m, s = divmod(int(t), 60)
             return f"{m}m{s}s" if m else f"{s}s"
-
         eta_str = fmt_time(eta_seconds)
         elapsed_str = fmt_time(elapsed_total)
         avg_str = f"{avg_time:.1f}s/nhóm" if avg_time else "--"
-
-        # ghi log thay vì hiển thị ở label
         log_text = f"[Tiến trình] {percent:.1f}% | Còn lại: {eta_str} | Đã chạy: {elapsed_str} | TB: {avg_str}"
         self._append_log(log_text)
-
         self.groups_done.set(str(done))
-
-
 
     def _on_done(self):
         self.btn_concat.config(state=tk.NORMAL)
@@ -429,21 +397,17 @@ class ConcatApp(tk.Tk):
         if path and os.path.isdir(path):
             os.startfile(path)
 
-
     def clear_log(self):
         log_dir = os.path.abspath("log")
         log_path = os.path.join(log_dir, "log.txt")
-
         if not os.path.exists(log_path):
             messagebox.showinfo("Xóa log", "Không có file log để xóa.")
             return
-
         confirm = messagebox.askyesno("Xóa log", "Bạn có chắc muốn xóa toàn bộ dữ liệu log?")
         if confirm:
             try:
                 os.remove(log_path)
                 messagebox.showinfo("Xóa log", "Đã xóa dữ liệu log.")
-                # Reload lại nhóm vì có thể còn video
                 self.reload_groups()
             except Exception as e:
                 messagebox.showerror("Xóa log", f"Lỗi khi xóa log: {e}")
@@ -455,6 +419,79 @@ class ConcatApp(tk.Tk):
             self.reload_groups()
         except ValueError:
             pass
+
+    def _list_channels(self):
+        files = [f[:5] for f in os.listdir(CONFIG_DIR) if f.endswith(".json")]
+        return sorted(files) if files else []
+
+    def _add_channel(self):
+        name = sd.askstring("New channel", "Enter channel's name: ")
+        if not name:
+            return
+        path = os.path.join(CONFIG_DIR, f"{name}.json")
+        if os.path.exists(path):
+            messagebox.showwarning("Duplicated", "Channel already exist!")
+            return
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump({}, f)
+        self.combo_channel['values'] = self._list_channels()
+        self.selected_channel.set(name)
+        self.load_channel_config(name)
+        self.save_last_channel(name)
+
+    def _on_channel_change(self, event=None):
+        ch = self.selected_channel.get()
+        if ch:
+            self.load_channel_config(ch)
+            self.save_last_channel(ch)
+
+    def load_last_channel(self):
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            last = cfg.get("last_channel", "")
+            if last and os.path.exists(os.path.join(CONFIG_DIR, f"{last}.json")):
+                self.selected_channel.set(last)
+                self.combo_channel["values"] = self._list_channels()
+                self.load_channel_config(last)
+
+    def save_last_channel(self, name=None):
+        cfg = {"last_channel": name or self.selected_channel.get()}
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+    def load_channel_config(self, name):
+        path = os.path.join(CONFIG_DIR, f"{name}.json")
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            self.input_folder.set(cfg.get("input_folder", ""))
+            self.save_folder.set(cfg.get("save_folder", ""))
+            self.bgm_folder.set(cfg.get("bgm_folder", ""))
+            self.group_size_var.set(cfg.get("group_size", 6))
+            self.bgm_volume_var.set(cfg.get("bgm_volume", 0.5))
+            self.limit_videos_var.set(cfg.get("limit_videos", 0))
+        except Exception as e:
+            messagebox.showerror("Load config", f"Lỗi đọc {path}: {e}")
+
+    def save_channel_config(self):
+        ch = self.selected_channel.get()
+        if not ch:
+            return messagebox.showwarning("Chưa chọn channel", "Hãy chọn hoặc tạo channel trước.")
+        path = os.path.join(CONFIG_DIR, f"{ch}.json")
+        cfg = {
+            "input_folder": self.input_folder.get(),
+            "save_folder": self.save_folder.get(),
+            "bgm_folder": self.bgm_folder.get(),
+            "group_size": self.group_size_var.get(),
+            "bgm_volume": self.bgm_volume_var.get(),
+            "limit_videos": self.limit_videos_var.get()
+        }
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+        messagebox.showinfo("Lưu cấu hình", f"Đã lưu cấu hình cho channel: {ch}")
 
 if __name__ == '__main__':
     ConcatApp().mainloop()
