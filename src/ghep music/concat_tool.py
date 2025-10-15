@@ -1,13 +1,13 @@
 import time
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import tkinter.simpledialog as sd
 import threading
 import queue
 import os
 import json
 import shutil
 import random
+from moviepy import VideoFileClip, concatenate_videoclips, vfx
 from helper import *
 
 class ConcatApp(tk.Tk):
@@ -37,6 +37,7 @@ class ConcatApp(tk.Tk):
         self.group_size_var = tk.IntVar(value=6)
         self.bgm_volume_var = tk.DoubleVar(value=0.5)
         self.limit_videos_var = tk.IntVar(value=0)
+        self.concat_mode = tk.StringVar(value="Concat + Music background")
 
         self.mp3_list: list[str] = []
         self.total_mp4 = tk.StringVar(value="0")
@@ -62,9 +63,11 @@ class ConcatApp(tk.Tk):
         # Main configuration frame
         self.frm_top = ttk.LabelFrame(self, text="⚙️ Configuration", padding=(10, 10))
         
-        # Channel selection
+        # Channel selection + Concat mode cùng hàng
         channel_frame = ttk.Frame(self.frm_top)
-        channel_frame.grid(row=0, column=0, columnspan=4, sticky="w", pady=5)
+        channel_frame.grid(row=0, column=0, columnspan=4, sticky="we", pady=5)
+        channel_frame.columnconfigure(7, weight=1)
+
         ttk.Label(channel_frame, text="Channel:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
         self.combo_channel = ttk.Combobox(
             channel_frame, textvariable=self.selected_channel, values=self._list_channels(),
@@ -72,13 +75,38 @@ class ConcatApp(tk.Tk):
         )
         self.combo_channel.grid(row=0, column=1, sticky="w", padx=5)
         self.combo_channel.bind("<<ComboboxSelected>>", self._on_channel_change)
-        
-        # Input để nhập tên channel mới
+
+        # --- Input để nhập tên channel mới ---
         self.entry_new_channel = ttk.Entry(channel_frame, width=20, font=("Segoe UI", 10))
         self.entry_new_channel.grid(row=0, column=2, sticky="w", padx=5)
+
+        def on_focus_in(e):
+            if self.entry_new_channel.get() == "Enter channel name...":
+                self.entry_new_channel.delete(0, "end")
+
+        def on_focus_out(e):
+            if not self.entry_new_channel.get().strip():
+                self.entry_new_channel.insert(0, "Enter channel name...")
+
         self.entry_new_channel.insert(0, "Enter channel name...")
-        self.entry_new_channel.bind("<FocusIn>", lambda e: self.entry_new_channel.delete(0, "end"))
+        self.entry_new_channel.bind("<FocusIn>", on_focus_in)
+        self.entry_new_channel.bind("<FocusOut>", on_focus_out)
         self.entry_new_channel.bind("<Return>", self._create_channel_from_entry)
+
+        # --- Concat mode ngay cạnh ---
+        ttk.Label(channel_frame, text="Concat mode:", font=("Segoe UI", 10, "bold")).grid(row=0, column=3, sticky="e", padx=(15,5))
+        self.combo_mode = ttk.Combobox(
+            channel_frame, textvariable=self.concat_mode, state="readonly", width=25, font=("Segoe UI", 10),
+            values=[
+                "Concat + Music background",
+                "Concat No Music",
+                "Concat and Reverse",
+                "Concat with time limit",
+            ]
+        )
+        self.combo_mode.grid(row=0, column=4, sticky="w", padx=5)
+        self.combo_mode.current(0)
+        self.combo_mode.bind("<<ComboboxSelected>>", lambda e: self.save_channel_config())
 
 
         # Parameters frame
@@ -139,6 +167,7 @@ class ConcatApp(tk.Tk):
         self.progress.grid(row=0, column=4, padx=5, sticky="we")
         self.lbl_status = ttk.Label(action_frame, textvariable=self.status_var, font=("Segoe UI", 10, "italic"))
         self.lbl_status.grid(row=0, column=5, padx=5, sticky="w")
+
 
         # Log and stats frame
         self.frm_logstats = ttk.LabelFrame(self, text="📜 Log & Statistics", padding=(10, 10))
@@ -211,34 +240,6 @@ class ConcatApp(tk.Tk):
         else:
             messagebox.showwarning("Không tìm thấy", f"File không tồn tại:\n{path}")
 
-    def load_config(self):
-        if os.path.exists(CONFIG_FILE):
-            try:
-                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                self.input_folder.set(cfg.get("input_folder", ""))
-                self.save_folder.set(cfg.get("save_folder", ""))
-                self.bgm_folder.set(cfg.get("bgm_folder", ""))
-                self.group_size_var.set(cfg.get("group_size", 2))
-                self.bgm_volume_var.set(cfg.get("bgm_volume", 0.5))
-                if self.bgm_folder.get():
-                    self.mp3_list = list_all_mp3_files(self.bgm_folder.get())
-            except Exception as e:
-                messagebox.showwarning("Config", f"Lỗi đọc config: {e}")
-
-    def save_config(self):
-        cfg = {
-            "input_folder": self.input_folder.get(),
-            "save_folder": self.save_folder.get(),
-            "bgm_folder": self.bgm_folder.get(),
-            "group_size": self.group_size_var.get(),
-            "bgm_volume": self.bgm_volume_var.get(),
-        }
-        try:
-            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            messagebox.showerror("Config", f"Lỗi lưu config: {e}")
 
     def reload_groups(self):
         folder = self.input_folder.get()
@@ -323,7 +324,10 @@ class ConcatApp(tk.Tk):
 
     def stop_concat(self):
         self.stop_flag.set()
+        self.status_var.set("Stop")
 
+
+    #==============Switch mode================
     def _do_concat_worker(self, todo: list[list[str]], out_dir: str):
         log_dir = os.path.abspath("log")
         os.makedirs(log_dir, exist_ok=True)
@@ -335,27 +339,65 @@ class ConcatApp(tk.Tk):
                 start_group_time = time.time()
                 temp = "temp.mp4"
                 try:
-                    auto_concat(group, temp)
-                    bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
-                    if bg_audio and os.path.isfile(bg_audio):
-                        output = mix_audio_with_bgm_ffmpeg(temp, bg_audio, out_dir, self.bgm_volume_var.get())
-                    else:
+                    mode = self.concat_mode.get()
+                    output = None
+
+                    #++++++++++++++++LOGIC+++++++++++++++++++++
+                    if mode == "Concat + Music background":
+                        auto_concat(group, temp)
+                        bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                        if bg_audio and os.path.isfile(bg_audio):
+                            print(f"[DEBUG] Mixing BGM {bg_audio} into {temp}")
+                            output = mix_audio_with_bgm_ffmpeg(temp, bg_audio, out_dir, self.bgm_volume_var.get())
+                        else:
+                            output = get_next_output_filename(out_dir)
+                            shutil.copy2(temp, output)
+
+                    elif mode == "Concat No Music":
+                        auto_concat(group, temp)
                         output = get_next_output_filename(out_dir)
                         shutil.copy2(temp, output)
-                        bg_audio = None
+
+                    elif mode == "Concat and Reverse":
+
+                        clips = [VideoFileClip(p) for p in group]
+                        forward = concatenate_videoclips(clips)
+                        reversed_clip = forward.fx(vfx.time_mirror)
+                        final = concatenate_videoclips([forward, reversed_clip])
+                        output = get_next_output_filename(out_dir)
+                        final.write_videofile(output, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+                        [c.close() for c in clips]
+                        forward.close()
+                        reversed_clip.close()
+                        final.close()
+
+                    elif mode == "Concat with time limit":
+                        clips, total = [], 0
+                        for p in group:
+                            clip = VideoFileClip(p)
+                            if total + clip.duration > 60:
+                                clip = clip.subclip(0, max(0.1, 60 - total))
+                            clips.append(clip)
+                            total += clip.duration
+                            if total >= 60:
+                                break
+                        final = concatenate_videoclips(clips)
+                        output = get_next_output_filename(out_dir)
+                        final.write_videofile(output, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+                        [c.close() for c in clips]
+                        final.close()
+
                     log_entry = {
                         "output": os.path.abspath(output),
                         "inputs": [os.path.abspath(p) for p in group],
-                        "bgm": os.path.abspath(bg_audio) if bg_audio else None
+                        "mode": mode
                     }
                     f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
                     self.after(0, lambda path=output: self.last_output_var.set(path))
                     self.after(0, lambda path=output: self._append_log(f"Đã ghép xong: {path}"))
+
                 except Exception as e:
-                    log_entry = {
-                        "error": str(e),
-                        "inputs": [os.path.abspath(p) for p in group]
-                    }
+                    log_entry = {"error": str(e), "inputs": [os.path.abspath(p) for p in group]}
                     f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
                 finally:
                     if os.path.exists(temp):
@@ -364,6 +406,9 @@ class ConcatApp(tk.Tk):
                 elapsed = time.time() - start_group_time
                 self.elapsed_times.append(elapsed)
                 self._enqueue(self._update_progress)
+
+
+    
 
     def _update_progress(self):
         self.progress['value'] += 1
@@ -432,21 +477,6 @@ class ConcatApp(tk.Tk):
         files = [f[:-5] for f in os.listdir(CONFIG_DIR) if f.endswith(".json")]
         return sorted(files) if files else []
 
-    def _add_channel(self):
-        name = sd.askstring("New channel", "Enter channel's name: ")
-        if not name:
-            return
-        path = os.path.join(CONFIG_DIR, f"{name}.json")
-        if os.path.exists(path):
-            messagebox.showwarning("Duplicated", "Channel already exist!")
-            return
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump({}, f)
-        self.combo_channel['values'] = self._list_channels()
-        self.selected_channel.set(name)
-        self.load_channel_config(name)
-        self.save_last_channel(name)
-
     def _on_channel_change(self, event=None):
         ch = self.selected_channel.get()
         if ch:
@@ -455,18 +485,20 @@ class ConcatApp(tk.Tk):
             self.save_channel_config()
 
     def load_last_channel(self):
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        if os.path.exists(LAST_CHANNEL_FILE):
+            with open(LAST_CHANNEL_FILE, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
             last = cfg.get("last_channel", "")
             if last and os.path.exists(os.path.join(CONFIG_DIR, f"{last}.json")):
                 self.selected_channel.set(last)
                 self.combo_channel["values"] = self._list_channels()
                 self.load_channel_config(last)
+                if self.bgm_folder.get() and os.path.isdir(self.bgm_folder.get()):
+                    self.mp3_list = list_all_mp3_files(self.bgm_folder.get())
 
     def save_last_channel(self, name=None):
         cfg = {"last_channel": name or self.selected_channel.get()}
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        with open(LAST_CHANNEL_FILE, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
 
     def load_channel_config(self, name):
@@ -482,8 +514,19 @@ class ConcatApp(tk.Tk):
             self.group_size_var.set(cfg.get("group_size", 6))
             self.bgm_volume_var.set(cfg.get("bgm_volume", 0.5))
             self.limit_videos_var.set(cfg.get("limit_videos", 0))
+            self.concat_mode.set(cfg.get('concat_mode','Concat + Music background'))
+            self.combo_mode.set(self.concat_mode.get())
+
         except Exception as e:
             messagebox.showerror("Load config", f"Lỗi đọc {path}: {e}")
+        
+        if self.bgm_folder.get() and os.path.isdir(self.bgm_folder.get()):
+            try:
+                self.mp3_list = list_all_mp3_files(self.bgm_folder.get())
+                print(f"[INFO] Loaded {len(self.mp3_list)} mp3 files from {self.bgm_folder.get()}")
+            except Exception as e:
+                print(f"[WARN] Could not read mp3 folder: {e}")
+
 
     def save_channel_config(self):
         ch = self.selected_channel.get()
@@ -496,7 +539,8 @@ class ConcatApp(tk.Tk):
             "bgm_folder": self.bgm_folder.get(),
             "group_size": self.group_size_var.get(),
             "bgm_volume": self.bgm_volume_var.get(),
-            "limit_videos": self.limit_videos_var.get()
+            "limit_videos": self.limit_videos_var.get(),
+            "concat_mode": self.concat_mode.get(),
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
@@ -521,8 +565,9 @@ class ConcatApp(tk.Tk):
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể tạo channel '{name}': {e}")
         finally:
-            self.entry_new_channel.delete(0, "end")
-            self.entry_new_channel.insert(0, "Enter channel name...")
+            if not self.entry_new_channel.focus_get() == self.entry_new_channel:
+                self.entry_new_channel.delete(0, "end")
+                self.entry_new_channel.insert(0, "Add channel...")
 
 if __name__ == '__main__':
     ConcatApp().mainloop()

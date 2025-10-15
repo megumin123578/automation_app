@@ -1,0 +1,5 @@
+{"output": "E:\\ghep xong\\444.mp4", "inputs": ["E:\\storage\\905.mp4", "E:\\storage\\904.mp4"], "mode": "Concat + Music background"}
+{"output": "E:\\ghep xong\\445.mp4", "inputs": ["E:\\storage\\910.mp4", "E:\\storage\\906.mp4"], "mode": "Concat + Music background"}
+{"output": "E:\\ghep xong\\446.mp4", "inputs": ["E:\\storage\\903.mp4", "E:\\storage\\907.mp4"], "mode": "Concat + Music background"}
+{"output": "E:\\ghep xong\\447.mp4", "inputs": ["E:\\storage\\908.mp4", "E:\\storage\\909.mp4"], "mode": "Concat + Music background"}
+{"output": "E:\\ghep xong\\448.mp4", "inputs": ["E:\\storage\\901.mp4", "E:\\storage\\902.mp4"], "mode": "Concat + Music background"}

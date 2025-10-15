@@ -15,6 +15,7 @@ import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 CONFIG_FILE = "ghep music/config.json"
 CONFIG_DIR = "ghep music/configs"
+LAST_CHANNEL_FILE = "ghep music/last_channel.json"
 
 def list_all_mp4_files(folder_path):
     if not os.path.isdir(folder_path):
