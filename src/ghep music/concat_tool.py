@@ -279,7 +279,6 @@ class ConcatApp(tk.Tk):
             self.groups = all_groups
         self.total_mp4.set(str(len(all_videos)))
         self.num_groups.set(str(len(self.groups)))
-        self.save_config()
 
     def _choose_folder(self, var: tk.StringVar, reload=False, bgm=False):
         folder = filedialog.askdirectory(title="Select folder")
@@ -293,7 +292,6 @@ class ConcatApp(tk.Tk):
                     messagebox.showinfo("OK", f"Đã load {len(self.mp3_list)} file mp3.")
                 except Exception as e:
                     messagebox.showerror("Lỗi", f"Không đọc được mp3: {e}")
-            self.save_config()
             self.save_channel_config()
 
     def start_concat(self):
@@ -568,6 +566,18 @@ class ConcatApp(tk.Tk):
             if not self.entry_new_channel.focus_get() == self.entry_new_channel:
                 self.entry_new_channel.delete(0, "end")
                 self.entry_new_channel.insert(0, "Add channel...")
+
+    def _clear_channel_selection(self):
+        if not self.selected_channel.get():
+            return
+        confirm = messagebox.askyesno("Xác nhận", f"Xoá channel '{self.selected_channel.get()}' khỏi danh sách?")
+        if confirm:
+            ch = self.selected_channel.get()
+            path = os.path.join(CONFIG_DIR, f"{ch}.json")
+            if os.path.exists(path):
+                os.remove(path)
+            self.selected_channel.set("")
+            self.combo_channel["values"] = self._list_channels()
 
 if __name__ == '__main__':
     ConcatApp().mainloop()
