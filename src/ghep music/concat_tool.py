@@ -429,7 +429,7 @@ class ConcatApp(tk.Tk):
             pass
 
     def _list_channels(self):
-        files = [f[:5] for f in os.listdir(CONFIG_DIR) if f.endswith(".json")]
+        files = [f[:-5] for f in os.listdir(CONFIG_DIR) if f.endswith(".json")]
         return sorted(files) if files else []
 
     def _add_channel(self):
