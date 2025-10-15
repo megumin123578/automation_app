@@ -819,7 +819,7 @@ class App(tk.Tk):
                 else:
                     self._set_status("You are up to date")
             except Exception as e:
-                self._set_status("Inspect the Eror")
+                self._set_status(f"Inspect the Eror: {e}")
                 print("Update error:", e)
 
         threading.Thread(target=worker, daemon=True).start()

@@ -73,8 +73,13 @@ class ConcatApp(tk.Tk):
         self.combo_channel.grid(row=0, column=1, sticky="w", padx=5)
         self.combo_channel.bind("<<ComboboxSelected>>", self._on_channel_change)
         
-        self.btn_add_channel = ttk.Button(channel_frame, text="+ Add", style="Secondary.TButton", command=self._add_channel)
-        self.btn_add_channel.grid(row=0, column=2, sticky="w", padx=5)
+        # Input để nhập tên channel mới
+        self.entry_new_channel = ttk.Entry(channel_frame, width=20, font=("Segoe UI", 10))
+        self.entry_new_channel.grid(row=0, column=2, sticky="w", padx=5)
+        self.entry_new_channel.insert(0, "Enter channel name...")
+        self.entry_new_channel.bind("<FocusIn>", lambda e: self.entry_new_channel.delete(0, "end"))
+        self.entry_new_channel.bind("<Return>", self._create_channel_from_entry)
+
 
         # Parameters frame
         param_frame = ttk.Frame(self.frm_top)
@@ -179,6 +184,7 @@ class ConcatApp(tk.Tk):
     def _update_volume_label(self, *args):
         val = self.bgm_volume_var.get()
         self.lbl_volume.config(text=f"{val * 100:.0f}%")
+        self.save_channel_config()
 
     def _append_log(self, text: str):
         self.txt_log.configure(state="normal")
@@ -287,6 +293,7 @@ class ConcatApp(tk.Tk):
                 except Exception as e:
                     messagebox.showerror("Lỗi", f"Không đọc được mp3: {e}")
             self.save_config()
+            self.save_channel_config()
 
     def start_concat(self):
         self.start_time = time.time()
@@ -417,6 +424,7 @@ class ConcatApp(tk.Tk):
             gsize = int(self.combo_group_size.get())
             self.group_size_var.set(gsize)
             self.reload_groups()
+            self.save_channel_config()
         except ValueError:
             pass
 
@@ -444,6 +452,7 @@ class ConcatApp(tk.Tk):
         if ch:
             self.load_channel_config(ch)
             self.save_last_channel(ch)
+            self.save_channel_config()
 
     def load_last_channel(self):
         if os.path.exists(CONFIG_FILE):
@@ -491,7 +500,29 @@ class ConcatApp(tk.Tk):
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
-        messagebox.showinfo("Lưu cấu hình", f"Đã lưu cấu hình cho channel: {ch}")
+
+    def _create_channel_from_entry(self, event=None):
+        name = self.entry_new_channel.get().strip()
+        if not name:
+            return
+        path = os.path.join(CONFIG_DIR, f"{name}.json")
+        if os.path.exists(path):
+            messagebox.showwarning("Duplicated", f"Channel '{name}' đã tồn tại!")
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({}, f, indent=2, ensure_ascii=False)
+            self.combo_channel["values"] = self._list_channels()
+            self.selected_channel.set(name)
+            self.load_channel_config(name)
+            self.save_last_channel(name)
+            self.save_channel_config()
+            messagebox.showinfo("Thành công", f"Đã tạo channel mới: {name}")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể tạo channel '{name}': {e}")
+        finally:
+            self.entry_new_channel.delete(0, "end")
+            self.entry_new_channel.insert(0, "Enter channel name...")
 
 if __name__ == '__main__':
     ConcatApp().mainloop()
