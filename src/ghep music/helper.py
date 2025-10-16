@@ -131,7 +131,75 @@ def mix_audio_with_bgm_ffmpeg(
     print(f"Added random BGM from {start_delay:.1f}s → {output_video}")
     return output_video
 
+def mix_audio_at_end_ffmpeg(
+    input_video: str,
+    bgm_audio: str,
+    output_dir: str,
+    mix_length: int = 15,      # số giây cuối để chèn nhạc
+    bgm_volume: float = 0.6,
+    video_volume: float = 0.2,
+):
+    os.makedirs(output_dir, exist_ok=True)
+    output_video = get_next_output_filename(output_dir)
+    log_path = "log/mix_end_bgm.txt"
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
+    def get_duration(file):
+        try:
+            result = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", file],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
+            )
+            return float(result.stdout.strip())
+        except:
+            return 0.0
+
+    video_dur = get_duration(input_video)
+    bgm_dur = get_duration(bgm_audio)
+
+    if video_dur == 0 or bgm_dur == 0:
+        raise ValueError("Không thể đọc độ dài video hoặc nhạc nền.")
+    
+    mix_length = min(mix_length, video_dur)
+    mix_start = max(0, video_dur - mix_length)
+
+    if bgm_dur > mix_length:
+        bgm_start = random.uniform(0, bgm_dur - mix_length)
+    else:
+        bgm_start = 0
+
+    # === Lệnh ffmpeg ===
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", input_video,
+        "-ss", str(bgm_start), "-t", str(mix_length), "-i", bgm_audio,
+        "-filter_complex",
+        f"[0:a]asplit=2[a0][a1];"
+        f"[a0]atrim=0:{mix_start}[a_pre];"
+        f"[a1]atrim={mix_start}:{video_dur},asetpts=PTS-STARTPTS,volume={video_volume}[a_vid_end];"
+        f"[1:a]volume={bgm_volume},apad[a_bgm];"
+        f"[a_vid_end][a_bgm]amix=inputs=2:duration=first:dropout_transition=2[a_mix];"
+        f"[a_pre][a_mix]concat=n=2:v=0:a=1[aout]",
+        "-map", "0:v",
+        "-map", "[aout]",
+        "-c:v", "copy",
+        "-c:a", "aac",
+        "-shortest",
+        output_video
+    ]
+
+    # === Chạy ffmpeg ===
+    with open(log_path, "w", encoding="utf-8") as log_file:
+        try:
+            subprocess.run(cmd, check=True, stdout=log_file, stderr=log_file)
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] FFmpeg failed — check {log_path}")
+            raise
+
+    print(f"[INFO] Added BGM to last {mix_length:.1f}s of video.")
+    print(f"[INFO] Output: {output_video}")
+    return output_video
 
 def read_used_source_videos(log_path: str):
     used_files = []
@@ -320,7 +388,7 @@ def auto_concat(input_videos, output_path, num_threads = 8):
 
     for path in normalized_paths:
         os.remove(path)
-        
+
 
 def run_ffmpeg(cmd: list):
     try:

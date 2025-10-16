@@ -127,7 +127,7 @@ class ConcatApp(tk.Tk):
             val = self.combo_limit_videos.get()
             self.limit_videos_var.set(0 if val == "All" else int(val))
         self.combo_limit_videos.bind("<<ComboboxSelected>>", on_limit_change)
-        
+
         self.slider_volume = ttk.Scale(param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.bgm_volume_var, length=120)
         self.slider_volume.grid(row=0, column=5, sticky="w", padx=5)
         self.lbl_volume = ttk.Label(param_frame, text=f"{self.bgm_volume_var.get() * 100:.0f}%", width=5)
@@ -342,7 +342,14 @@ class ConcatApp(tk.Tk):
                             shutil.copy2(temp, output)
                     
                     elif mode == "Concat with outro music":
-                        print("Choose outro music")
+                        auto_concat(group, temp)
+                        bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                        if bg_audio and os.path.isfile(bg_audio):
+                            output = mix_audio_at_end_ffmpeg(temp,bg_audio, out_dir, 15, self.bgm_volume_var.get(), 0.2)
+                        else:
+                            output = get_next_output_filename(out_dir)
+                            shutil.copy2(temp, output)
+
 
                     elif mode == "Normal concat":
                         auto_concat(group, temp)
