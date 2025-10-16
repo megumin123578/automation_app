@@ -44,7 +44,6 @@ def list_group_csvs(groups_dir: str):
             files.append(name)
     return sorted(files)
 
-
 def read_channels_from_csv(csv_path: str):
     channels = []
     if not os.path.isfile(csv_path):
@@ -77,10 +76,8 @@ def read_channels_from_csv(csv_path: str):
                 channels.append(first)
     return channels
 
-
 def normalize_lines(s: str):
     return [ln.strip() for ln in s.splitlines() if ln.strip()]
-
 
 def assign_pairs(channels, titles, descs, mode="titles"):
 
@@ -129,7 +126,6 @@ def load_group_dirs(config_path=CONFIG_PATH) -> dict:
             # (tùy chọn) giữ thêm khóa cũ để tương thích 2 chiều
             group_to_dir[key + ".csv"] = norm_path
     return group_to_dir
-
 
 def load_used_videos():
     if not os.path.exists(USED_LOG_FILE):

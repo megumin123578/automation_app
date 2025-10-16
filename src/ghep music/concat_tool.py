@@ -92,6 +92,7 @@ class ConcatApp(tk.Tk):
             channel_frame, textvariable=self.concat_mode, state="readonly", width=25, font=("Segoe UI", 10),
             values=[
                 "Concat with music background",
+                "Concat with outro music",
                 "Normal concat",
                 "Concat and Reverse",
                 "Concat with time limit",
@@ -126,13 +127,16 @@ class ConcatApp(tk.Tk):
             val = self.combo_limit_videos.get()
             self.limit_videos_var.set(0 if val == "All" else int(val))
         self.combo_limit_videos.bind("<<ComboboxSelected>>", on_limit_change)
-
-        ttk.Label(param_frame, text="BGM Volume:", font=("Segoe UI", 10, "bold")).grid(row=0, column=4, sticky="e", padx=5)
+        
         self.slider_volume = ttk.Scale(param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.bgm_volume_var, length=120)
         self.slider_volume.grid(row=0, column=5, sticky="w", padx=5)
         self.lbl_volume = ttk.Label(param_frame, text=f"{self.bgm_volume_var.get() * 100:.0f}%", width=5)
         self.lbl_volume.grid(row=0, column=6, sticky="w", padx=5)
         self.bgm_volume_var.trace_add("write", self._update_volume_label)
+
+        self.lbl_bgm_text = ttk.Label(param_frame, text="BGM Volume:", font=("Segoe UI", 10, "bold"))
+        self.lbl_bgm_text.grid(row=0, column=4, sticky="e", padx=5)
+
 
         self.btn_reload = ttk.Button(param_frame, text="↻ Reload", style="Accent.TButton", command=self.reload_groups)
         self.btn_reload.grid(row=0, column=7, sticky="w", padx=5)
@@ -310,7 +314,6 @@ class ConcatApp(tk.Tk):
         self.stop_flag.set()
         self.status_var.set("Stop")
 
-
     #==============Switch mode================
     def _do_concat_worker(self, todo: list[list[str]], out_dir: str):
         log_dir = os.path.abspath("log")
@@ -337,6 +340,9 @@ class ConcatApp(tk.Tk):
                         else:
                             output = get_next_output_filename(out_dir)
                             shutil.copy2(temp, output)
+                    
+                    elif mode == "Concat with outro music":
+                        print("Choose outro music")
 
                     elif mode == "Normal concat":
                         auto_concat(group, temp)
@@ -344,7 +350,6 @@ class ConcatApp(tk.Tk):
                         shutil.copy2(temp, output)
 
                     elif mode == "Concat and Reverse":
-
                         clips = [VideoFileClip(p) for p in group]
                         forward = concatenate_videoclips(clips)
                         reversed_clip = forward.fx(vfx.time_mirror)
@@ -391,9 +396,6 @@ class ConcatApp(tk.Tk):
                 elapsed = time.time() - start_group_time
                 self.elapsed_times.append(elapsed)
                 self._enqueue(self._update_progress)
-
-
-    
 
     def _update_progress(self):
         self.progress['value'] += 1
@@ -629,16 +631,15 @@ class ConcatApp(tk.Tk):
 
     def _update_mode_visibility(self):
         mode = self.concat_mode.get()
-        if mode == "Concat with music background":
+        if mode == "Concat with music background" or mode == "Concat with outro music":
+            self.lbl_bgm_text.grid()
             self.slider_volume.grid()
             self.lbl_volume.grid()
         
         else:
+            self.lbl_bgm_text.grid_remove()
             self.slider_volume.grid_remove()
             self.lbl_volume.grid_remove()
-
-    
-
 
 if __name__ == '__main__':
     ConcatApp().mainloop()
