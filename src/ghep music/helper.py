@@ -90,6 +90,7 @@ def mix_audio_with_bgm_ffmpeg(
     bgm_audio: str,
     output_dir: str,
     bgm_volume: float = 0.5,
+    video_volume: float = 0.8
 ):
     output_video = get_next_output_filename(output_dir)
     temp_output = "temp.mp4"
