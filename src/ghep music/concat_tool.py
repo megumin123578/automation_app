@@ -542,7 +542,11 @@ class ConcatApp(tk.Tk):
             self.limit_videos_var.set(cfg.get("limit_videos", 0))
             self.concat_mode.set(cfg.get('concat_mode','Concat + Music background'))
             self.combo_mode.set(self.concat_mode.get())
-            self.video_volume_var.set(cfg.get('video_volume', 0.8))
+            if self.concat_mode.get() == "Concat with outro music":
+                self.video_volume_var.set(cfg.get("video_volume", 0.8))
+            else:
+                self.video_volume_var.set(0.8)
+
 
         except Exception as e:
             messagebox.showerror("Load config", f"Lỗi đọc {path}: {e}")
