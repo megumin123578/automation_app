@@ -1,8 +1,8 @@
 from datetime import datetime
 import os
+import time
 import re
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
 import shutil
 import pathlib
 import json
@@ -10,9 +10,9 @@ import threading
 import queue
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import shutil
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from moviepy import VideoFileClip, concatenate_videoclips, vfx
 CONFIG_FILE = "ghep music/config.json"
 CONFIG_DIR = "ghep music/configs"
 LAST_CHANNEL_FILE = "ghep music/last_channel.json"
@@ -53,8 +53,6 @@ def get_all_random_video_groups(videos, group_size=6):
     return groups
 
 
-
-
 def get_next_output_filename(folder: str) -> str:
     max_index = 0
     pattern = re.compile(r"(\d+)\.mp4$", re.IGNORECASE)
@@ -68,7 +66,6 @@ def get_next_output_filename(folder: str) -> str:
 
     next_index = max_index + 1
     return os.path.join(folder, f"{next_index}.mp4")
-
 
 #musc helper functions
 def get_audio_duration(bgm_audio: str) -> float:

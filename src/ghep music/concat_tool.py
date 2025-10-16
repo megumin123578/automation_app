@@ -54,6 +54,7 @@ class ConcatApp(tk.Tk):
 
         self._build_ui()
         self._layout()
+        self.bind_all("<Delete>", self._on_global_delete)
 
         self.load_last_channel()
         if self.input_folder.get():
@@ -75,6 +76,7 @@ class ConcatApp(tk.Tk):
         )
         self.combo_channel.grid(row=0, column=1, sticky="w", padx=5)
         self.combo_channel.bind("<<ComboboxSelected>>", self._on_channel_change)
+        self._add_right_click_menu(self.combo_channel,[("🗑 Delete Channel", self._clear_channel_selection),])
 
         # --- Input để nhập tên channel mới ---
         self.entry_new_channel = ttk.Entry(channel_frame, width=20, font=("Segoe UI", 10))
@@ -197,6 +199,8 @@ class ConcatApp(tk.Tk):
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="e", padx=5, pady=3)
         entry = ttk.Entry(parent, textvariable=var, width=50, font=("Segoe UI", 10))
         entry.grid(row=row, column=1, columnspan=2, sticky="we", padx=5, pady=3)
+        self._add_right_click_menu(entry, [("❌ Clear Path", lambda v=var: v.set(""))])
+
         btn = ttk.Button(parent, text="Browse", style="Secondary.TButton",
                          command=lambda: self._choose_folder(var, reload=reload, bgm=bgm))
         btn.grid(row=row, column=3, sticky="w", padx=5, pady=3)
@@ -567,17 +571,71 @@ class ConcatApp(tk.Tk):
                 self.entry_new_channel.delete(0, "end")
                 self.entry_new_channel.insert(0, "Add channel...")
 
+
+    def _add_right_click_menu(self, widget, menu_items: list[tuple[str, callable]]):
+        """Gắn menu chuột phải cho Entry/Combobox, cả phần dropdown, và hỗ trợ phím Delete."""
+        menu = tk.Menu(self, tearoff=0)
+        for label, command in menu_items:
+            menu.add_command(label=label, command=command)
+
+        def show_menu(event=None):
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
+
+        # Hiện menu khi bấm chuột phải
+        widget.bind("<Button-3>", show_menu)
+
+        # Cũng gắn sự kiện cho phần con (mũi tên dropdown)
+        try:
+            for child in widget.winfo_children():
+                child.bind("<Button-3>", show_menu)
+        except Exception:
+            pass
+
+
+
+
     def _clear_channel_selection(self):
-        if not self.selected_channel.get():
+        ch = self.selected_channel.get().strip()
+        if not ch:
+            return messagebox.showwarning("Chưa chọn", "Chưa chọn channel để xoá.")
+
+        confirm = messagebox.askyesno("Xác nhận xoá", f"Xoá channel '{ch}' khỏi danh sách?")
+        if not confirm:
             return
-        confirm = messagebox.askyesno("Xác nhận", f"Xoá channel '{self.selected_channel.get()}' khỏi danh sách?")
-        if confirm:
-            ch = self.selected_channel.get()
-            path = os.path.join(CONFIG_DIR, f"{ch}.json")
-            if os.path.exists(path):
-                os.remove(path)
+
+        # Xoá file JSON của channel
+        path = os.path.join(CONFIG_DIR, f"{ch}.json")
+        if os.path.exists(path):
+            os.remove(path)
+
+        # Lấy lại danh sách channel còn lại
+        channels = self._list_channels()
+
+        # Nếu vẫn còn channel khác → tự động chọn cái tiếp theo
+        if channels:
+            next_ch = channels[0]
+            self.selected_channel.set(next_ch)
+            self.combo_channel["values"] = channels
+            self.load_channel_config(next_ch)
+            self.save_last_channel(next_ch)
+            messagebox.showinfo("Đã xoá", f"Đã xoá '{ch}', tự động chuyển sang '{next_ch}'.")
+        else:
+            # Không còn channel nào
             self.selected_channel.set("")
-            self.combo_channel["values"] = self._list_channels()
+            self.combo_channel["values"] = []
+            messagebox.showinfo("Đã xoá", f"Đã xoá '{ch}'. Hiện không còn channel nào.")
+
+    
+    def _on_global_delete(self, event=None):
+        if self.selected_channel.get():
+            self._clear_channel_selection()
+        widget = self.focus_get()
+        if isinstance(widget, ttk.Entry):
+            widget.delete(0, "end")
+
 
 if __name__ == '__main__':
     ConcatApp().mainloop()
