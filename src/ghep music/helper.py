@@ -320,6 +320,7 @@ def auto_concat(input_videos, output_path, num_threads = 8):
 
     for path in normalized_paths:
         os.remove(path)
+        
 
 def run_ffmpeg(cmd: list):
     try:

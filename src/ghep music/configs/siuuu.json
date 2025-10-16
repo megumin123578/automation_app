@@ -1,9 +1,9 @@
 {
-  "input_folder": "",
-  "save_folder": "",
-  "bgm_folder": "",
+  "input_folder": "E:/storage2",
+  "save_folder": "E:/ghep xong",
+  "bgm_folder": "C:/Users/Admin/Music",
   "group_size": 6,
   "bgm_volume": 0.5,
   "limit_videos": 0,
-  "concat_mode": "Concat + Music background"
+  "concat_mode": "Normal concat"
 }

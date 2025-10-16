@@ -1,13 +1,4 @@
-import time
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-import threading
-import queue
-import os
-import json
-import shutil
-import random
-from moviepy import VideoFileClip, concatenate_videoclips, vfx
+
 from helper import *
 
 class ConcatApp(tk.Tk):
@@ -37,7 +28,7 @@ class ConcatApp(tk.Tk):
         self.group_size_var = tk.IntVar(value=6)
         self.bgm_volume_var = tk.DoubleVar(value=0.5)
         self.limit_videos_var = tk.IntVar(value=0)
-        self.concat_mode = tk.StringVar(value="Concat + Music background")
+        self.concat_mode = tk.StringVar(value="Concat with music background")
 
         self.mp3_list: list[str] = []
         self.total_mp4 = tk.StringVar(value="0")
@@ -100,17 +91,17 @@ class ConcatApp(tk.Tk):
         self.combo_mode = ttk.Combobox(
             channel_frame, textvariable=self.concat_mode, state="readonly", width=25, font=("Segoe UI", 10),
             values=[
-                "Concat + Music background",
-                "Concat No Music",
+                "Concat with music background",
+                "Normal concat",
                 "Concat and Reverse",
                 "Concat with time limit",
             ]
         )
         self.combo_mode.grid(row=0, column=4, sticky="w", padx=5)
         self.combo_mode.current(0)
-        self.combo_mode.bind("<<ComboboxSelected>>", lambda e: self.save_channel_config())
+        self.combo_mode.bind("<<ComboboxSelected>>", lambda e: (self.save_channel_config(), self._update_mode_visibility()))
 
-
+        
         # Parameters frame
         param_frame = ttk.Frame(self.frm_top)
         param_frame.grid(row=1, column=0, columnspan=4, sticky="we", pady=5)
@@ -235,16 +226,6 @@ class ConcatApp(tk.Tk):
         self.txt_log.see("end")
         self.txt_log.configure(state="disabled")
 
-    def _open_video_path(self, path: str):
-        if os.path.exists(path):
-            try:
-                os.startfile(path)
-            except Exception as e:
-                messagebox.showerror("Lỗi mở video", f"Không thể mở:\n{path}\n\n{e}")
-        else:
-            messagebox.showwarning("Không tìm thấy", f"File không tồn tại:\n{path}")
-
-
     def reload_groups(self):
         folder = self.input_folder.get()
         if not folder or not os.path.isdir(folder):
@@ -257,7 +238,8 @@ class ConcatApp(tk.Tk):
         used_videos = set()
         log_dir = os.path.abspath("log")
         os.makedirs(log_dir, exist_ok=True)
-        log_path = os.path.join(log_dir, "log.txt")
+        ch = self.selected_channel.get().strip() or 'default'
+        log_path = os.path.join(log_dir, f"{ch}.txt")
         if os.path.exists(log_path):
             try:
                 with open(log_path, "r", encoding="utf-8") as f:
@@ -333,7 +315,8 @@ class ConcatApp(tk.Tk):
     def _do_concat_worker(self, todo: list[list[str]], out_dir: str):
         log_dir = os.path.abspath("log")
         os.makedirs(log_dir, exist_ok=True)
-        log_path = os.path.join(log_dir, "log.txt")
+        ch = self.selected_channel.get().strip() or 'default'
+        log_path = os.path.join(log_dir, f"{ch}.txt")
         with open(log_path, "a", encoding="utf-8") as f_log:
             for group in todo:
                 if self.stop_flag.is_set():
@@ -345,7 +328,7 @@ class ConcatApp(tk.Tk):
                     output = None
 
                     #++++++++++++++++LOGIC+++++++++++++++++++++
-                    if mode == "Concat + Music background":
+                    if mode == "Concat with music background":
                         auto_concat(group, temp)
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         if bg_audio and os.path.isfile(bg_audio):
@@ -355,7 +338,7 @@ class ConcatApp(tk.Tk):
                             output = get_next_output_filename(out_dir)
                             shutil.copy2(temp, output)
 
-                    elif mode == "Concat No Music":
+                    elif mode == "Normal concat":
                         auto_concat(group, temp)
                         output = get_next_output_filename(out_dir)
                         shutil.copy2(temp, output)
@@ -453,7 +436,8 @@ class ConcatApp(tk.Tk):
 
     def clear_log(self):
         log_dir = os.path.abspath("log")
-        log_path = os.path.join(log_dir, "log.txt")
+        ch = self.selected_channel.get().strip() or 'default'
+        log_path = os.path.join(log_dir, f"{ch}.txt")
         if not os.path.exists(log_path):
             messagebox.showinfo("Xóa log", "Không có file log để xóa.")
             return
@@ -478,6 +462,15 @@ class ConcatApp(tk.Tk):
     def _list_channels(self):
         files = [f[:-5] for f in os.listdir(CONFIG_DIR) if f.endswith(".json")]
         return sorted(files) if files else []
+
+    def _open_video_path(self, path: str):
+        if os.path.exists(path):
+            try:
+                os.startfile(path)
+            except Exception as e:
+                messagebox.showerror("Lỗi mở video", f"Không thể mở:\n{path}\n\n{e}")
+        else:
+            messagebox.showwarning("Không tìm thấy", f"File không tồn tại:\n{path}")
 
     def _on_channel_change(self, event=None):
         ch = self.selected_channel.get()
@@ -528,6 +521,8 @@ class ConcatApp(tk.Tk):
                 print(f"[INFO] Loaded {len(self.mp3_list)} mp3 files from {self.bgm_folder.get()}")
             except Exception as e:
                 print(f"[WARN] Could not read mp3 folder: {e}")
+
+        self._update_mode_visibility()
 
 
     def save_channel_config(self):
@@ -594,9 +589,6 @@ class ConcatApp(tk.Tk):
         except Exception:
             pass
 
-
-
-
     def _clear_channel_selection(self):
         ch = self.selected_channel.get().strip()
         if not ch:
@@ -628,13 +620,24 @@ class ConcatApp(tk.Tk):
             self.combo_channel["values"] = []
             messagebox.showinfo("Đã xoá", f"Đã xoá '{ch}'. Hiện không còn channel nào.")
 
-    
     def _on_global_delete(self, event=None):
         if self.selected_channel.get():
             self._clear_channel_selection()
         widget = self.focus_get()
         if isinstance(widget, ttk.Entry):
             widget.delete(0, "end")
+
+    def _update_mode_visibility(self):
+        mode = self.concat_mode.get()
+        if mode == "Concat with music background":
+            self.slider_volume.grid()
+            self.lbl_volume.grid()
+        
+        else:
+            self.slider_volume.grid_remove()
+            self.lbl_volume.grid_remove()
+
+    
 
 
 if __name__ == '__main__':
