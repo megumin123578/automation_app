@@ -17,6 +17,23 @@ CONFIG_FILE = "ghep music/config.json"
 CONFIG_DIR = "ghep music/configs"
 LAST_CHANNEL_FILE = "ghep music/last_channel.json"
 
+
+import time, gc, threading, os, shutil
+
+def _tmp_root(out_dir): 
+    d = os.path.join(out_dir, "_tmp"); os.makedirs(d, exist_ok=True); return d
+
+def make_temp_mp4(out_dir):
+    return os.path.join(_tmp_root(out_dir),
+        f"concat_{os.getpid()}_{threading.get_ident()}_{int(time.time()*1000)}.mp4")
+
+def safe_remove(path, attempts=10, delay=0.2):
+    for _ in range(attempts):
+        try: os.remove(path); return True
+        except FileNotFoundError: return True
+        except (PermissionError, OSError): gc.collect(); time.sleep(delay)
+    return False
+
 def list_all_mp4_files(folder_path):
     if not os.path.isdir(folder_path):
         raise ValueError(f"Không tìm thấy thư mục: {folder_path}")
@@ -346,8 +363,6 @@ def normalize_video(
         else:
             raise
 
-
-
 def concat_video(video_paths, output_path):
     list_file = "temp.txt"
     with open(list_file, 'w', encoding='utf-8') as f:
@@ -389,6 +404,59 @@ def auto_concat(input_videos, output_path, num_threads = 8):
 
     for path in normalized_paths:
         os.remove(path)
+
+def concat_reverse(
+    input_video: str,
+    output_dir: str,
+    speed_reverse: float = 3.0,
+    use_nvenc: bool = True,
+    keep_audio: bool = False
+):
+        os.makedirs(output_dir, exist_ok=True)
+        base = os.path.splitext(os.path.basename(input_video))[0]
+        output_path = os.path.join(output_dir, f"{base}_rev.mp4")
+
+        vcodec = "h264_nvenc" if use_nvenc else "libx264"
+        if keep_audio:
+            filter_complex = (
+                f"[0:v]reverse,setpts=PTS/{speed_reverse}[revv];"
+                f"[0:v][revv]concat=n=2:v=1:a=0[v];"
+                f"[0:a]apad[aout]"
+            )
+            map_args = ["-map", "[v]", "-map", "[aout]"]
+        else:
+            filter_complex = (
+                f"[0:v]reverse,setpts=PTS/{speed_reverse}[revv];"
+                f"[0:v][revv]concat=n=2:v=1:a=0[v]"
+            )
+            map_args = ["-map", "[v]", "-an"]
+
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", input_video,
+            "-filter_complex", filter_complex,
+            *map_args,
+            "-c:v", vcodec,
+            "-preset", "fast",
+            "-b:v", "4M",
+            "-c:a", "aac",
+            "-shortest",
+            output_path
+        ]
+
+        log_path = "log/concat_reverse_single.txt"
+        os.makedirs("log", exist_ok=True)
+        with open(log_path, "w", encoding="utf-8") as lf:
+            subprocess.run(cmd, check=True, stdout=lf, stderr=lf)
+
+        print(f"[OK] Created: {output_path}")
+        return output_path
+
+
+
+
+
+
 
 
 def run_ffmpeg(cmd: list):

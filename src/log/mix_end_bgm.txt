@@ -8,19 +8,19 @@ ffmpeg version 2025-06-28-git-cfd1f81e7d-full_build-www.gyan.dev Copyright (c) 2
   libavfilter    11.  0.100 / 11.  0.100
   libswscale      9.  0.100 /  9.  0.100
   libswresample   6.  0.100 /  6.  0.100
-Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp.mp4':
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'E:/ghep xong\_tmp\concat_21280_14136_1760673791562.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
     compatible_brands: isomiso2avc1mp41
     encoder         : Lavf62.1.101
-  Duration: 00:00:48.02, start: 0.000000, bitrate: 6470 kb/s
-  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 6345 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
+  Duration: 00:00:16.02, start: 0.000000, bitrate: 5752 kb/s
+  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 5648 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
     Metadata:
       handler_name    : VideoHandler
       vendor_id       : [0][0][0][0]
       encoder         : Lavc62.4.100 h264_nvenc
-  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 114 kb/s (default)
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 98 kb/s (default)
     Metadata:
       handler_name    : SoundHandler
       vendor_id       : [0][0][0][0]
@@ -37,13 +37,13 @@ Stream mapping:
   Stream #0:0 -> #0:0 (copy)
   concat:out:a0 -> Stream #0:1 (aac)
 Press [q] to stop, [?] for help
-Output #0, mp4, to 'E:/ghep xong\42.mp4':
+Output #0, mp4, to 'E:/ghep xong\8.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
     compatible_brands: isomiso2avc1mp41
     encoder         : Lavf62.1.101
-  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 6345 kb/s, 60 fps, 60 tbr, 15360 tbn (default)
+  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 5648 kb/s, 60 fps, 60 tbr, 15360 tbn (default)
     Metadata:
       handler_name    : VideoHandler
       vendor_id       : [0][0][0][0]
@@ -51,6 +51,6 @@ Output #0, mp4, to 'E:/ghep xong\42.mp4':
   Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s
     Metadata:
       encoder         : Lavc62.4.100 aac
-frame=  875 fps=0.0 q=-1.0 size=   12544KiB time=00:00:14.57 bitrate=7052.6kbits/s speed=28.2x elapsed=0:00:00.51    frame= 1957 fps=1898 q=-1.0 size=   25600KiB time=00:00:32.68 bitrate=6416.7kbits/s speed=31.7x elapsed=0:00:01.03    [out#0/mp4 @ 000001eb294b22c0] video:37181KiB audio:618KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.202416%
-frame= 2880 fps=1971 q=-1.0 Lsize=   37876KiB time=00:00:47.97 bitrate=6468.0kbits/s speed=32.8x elapsed=0:00:01.46    
-[aac @ 000001eb294f28c0] Qavg: 14616.272
+[out#0/mp4 @ 00000262957e1380] video:11032KiB audio:248KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.234197%
+frame=  960 fps=0.0 q=-1.0 Lsize=   11307KiB time=00:00:15.97 bitrate=5799.5kbits/s speed=36.9x elapsed=0:00:00.43    
+[aac @ 0000026295db0ac0] Qavg: 4385.540

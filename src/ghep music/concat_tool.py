@@ -1,4 +1,4 @@
-
+import gc, time, threading
 from helper import *
 
 class ConcatApp(tk.Tk):
@@ -108,7 +108,8 @@ class ConcatApp(tk.Tk):
         param_frame = ttk.Frame(self.frm_top)
         param_frame.grid(row=1, column=0, columnspan=4, sticky="we", pady=5)
         
-        ttk.Label(param_frame, text="Videos per Group:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
+        self.lbl_group_size = ttk.Label(param_frame, text="Videos per Group:", font=("Segoe UI", 10, "bold"))
+        self.lbl_group_size.grid(row=0, column=0, sticky="e", padx=5)        
         self.combo_group_size = ttk.Combobox(
             param_frame, textvariable=self.group_size_var, values=list(range(2, 101)),
             width=6, state="readonly", font=("Segoe UI", 10)
@@ -135,7 +136,7 @@ class ConcatApp(tk.Tk):
         self.lbl_volume.grid(row=0, column=6, sticky="w", padx=5)
 
         # --- Video Volume Slider ---
-        self.lbl_video_vol = ttk.Label(param_frame, text="Video Volume:", font=("Segoe UI", 10, "bold"))
+        self.lbl_video_vol = ttk.Label(param_frame, text="Outro Volume:", font=("Segoe UI", 10, "bold"))
         self.lbl_video_vol.grid(row=1, column=4, sticky="e", padx=5)
 
         self.slider_video_vol = ttk.Scale(
@@ -153,15 +154,22 @@ class ConcatApp(tk.Tk):
         self.lbl_bgm_text.grid(row=0, column=4, sticky="e", padx=5)
 
 
-        self.btn_reload = ttk.Button(param_frame, text="↻ Reload", style="Accent.TButton", command=self.reload_groups)
-        self.btn_reload.grid(row=0, column=7, sticky="w", padx=5)
+        # self.btn_reload = ttk.Button(param_frame, text="↻ Reload", style="Accent.TButton", command=self.reload_groups)
+        # self.btn_reload.grid(row=0, column=7, sticky="w", padx=5)
 
         # Folder selection
-        folder_frame = ttk.LabelFrame(self.frm_top, text="📁 Folders", padding=(10, 5))
-        folder_frame.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
-        self._add_folder_row("Source Folder:", self.input_folder, 0, folder_frame, reload=True)
-        self._add_folder_row("Save Folder:", self.save_folder, 1, folder_frame)
-        self._add_folder_row("Music Folder:", self.bgm_folder, 2, folder_frame, bgm=True)
+        self.folder_frame = ttk.LabelFrame(self.frm_top, text="📁 Folders", padding=(10, 5))
+        self.folder_frame.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
+
+        # 2 dòng luôn hiện
+        self._add_folder_row("Source Folder:", self.input_folder, 0, self.folder_frame, reload=True)
+        self._add_folder_row("Save Folder:", self.save_folder, 1, self.folder_frame)
+
+        # Dòng "Music Folder" — riêng biệt để ẩn/hiện
+        self.frm_music = ttk.Frame(self.folder_frame)
+        self._add_folder_row("Music Folder:", self.bgm_folder, 0, self.frm_music, bgm=True)
+        self.frm_music.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
+
 
         # Action buttons and progress
         action_frame = ttk.Frame(self.frm_top)
@@ -335,93 +343,129 @@ class ConcatApp(tk.Tk):
         os.makedirs(log_dir, exist_ok=True)
         ch = self.selected_channel.get().strip() or 'default'
         log_path = os.path.join(log_dir, f"{ch}.txt")
+
         with open(log_path, "a", encoding="utf-8") as f_log:
             for group in todo:
                 if self.stop_flag.is_set():
                     break
+
                 start_group_time = time.time()
-                temp = "temp.mp4"
+
+                # Biến kiểm soát vòng đời file tạm
+                created_temp = False
+                temp = None
+                output = None
+
                 try:
                     mode = self.concat_mode.get()
-                    output = None
 
-                    #++++++++++++++++LOGIC+++++++++++++++++++++
-                    if mode == "Concat with music background":
+                    # ===================== MODE tạo temp =====================
+                    if mode in ("Concat with music background",
+                                "Concat with outro music",
+                                "Normal concat"):
+                        # Tạo temp duy nhất
+                        temp = make_temp_mp4(out_dir)
+                        created_temp = True
+
+                        # 1) Ghép chuẩn hoá + concat vào temp
                         auto_concat(group, temp)
-                        bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
-                        if bg_audio and os.path.isfile(bg_audio):
-                            print(f"[DEBUG] Mixing BGM {bg_audio} into {temp}")
-                            output = mix_audio_with_bgm_ffmpeg(
-                            temp, bg_audio, out_dir,
-                            bgm_volume=self.bgm_volume_var.get()
-                        )
-                        else:
+
+                        if mode == "Normal concat":
+                            # move thay vì copy+remove để tránh lock
                             output = get_next_output_filename(out_dir)
-                            shutil.copy2(temp, output)
-                    
-                    elif mode == "Concat with outro music":
-                        auto_concat(group, temp)
-                        bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
-                        if bg_audio and os.path.isfile(bg_audio):
-                            output = mix_audio_at_end_ffmpeg(
-                                temp, bg_audio, out_dir, 15,
-                                bgm_volume=self.bgm_volume_var.get(),
-                                video_volume=self.video_volume_var.get()
-                            )
-                        else:
-                            output = get_next_output_filename(out_dir)
-                            shutil.copy2(temp, output)
+                            shutil.move(temp, output)
+                            created_temp = False  # đã move sang output
 
+                        elif mode == "Concat with music background":
+                            bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                            if bg_audio and os.path.isfile(bg_audio):
+                                output = mix_audio_with_bgm_ffmpeg(
+                                    temp, bg_audio, out_dir,
+                                    bgm_volume=self.bgm_volume_var.get()
+                                )
+                                # ffmpeg đã xong → xoá temp an toàn
+                                safe_remove(temp)
+                                created_temp = False
+                            else:
+                                output = get_next_output_filename(out_dir)
+                                shutil.move(temp, output)
+                                created_temp = False
 
-                    elif mode == "Normal concat":
-                        auto_concat(group, temp)
-                        output = get_next_output_filename(out_dir)
-                        shutil.copy2(temp, output)
+                        elif mode == "Concat with outro music":
+                            bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                            if bg_audio and os.path.isfile(bg_audio):
+                                output = mix_audio_at_end_ffmpeg(
+                                    temp, bg_audio, out_dir, 15,
+                                    bgm_volume=self.bgm_volume_var.get(),
+                                    video_volume=self.video_volume_var.get()
+                                )
+                                safe_remove(temp)
+                                created_temp = False
+                            else:
+                                output = get_next_output_filename(out_dir)
+                                shutil.move(temp, output)
+                                created_temp = False
 
+                    # ===================== MODE không tạo temp =====================
                     elif mode == "Concat and Reverse":
+                        # Dùng moviepy như hiện tại, KHÔNG tạo temp
                         clips = [VideoFileClip(p) for p in group]
                         forward = concatenate_videoclips(clips)
                         reversed_clip = forward.fx(vfx.time_mirror)
                         final = concatenate_videoclips([forward, reversed_clip])
                         output = get_next_output_filename(out_dir)
-                        final.write_videofile(output, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+                        final.write_videofile(output, codec="libx264", audio_codec="aac",
+                                            verbose=False, logger=None)
+                        # Giải phóng handle
                         [c.close() for c in clips]
                         forward.close()
                         reversed_clip.close()
                         final.close()
 
                     elif mode == "Concat with time limit":
-                        clips, total = [], 0
+                        # Không tạo temp; viết trực tiếp ra output bằng moviepy
+                        clips, total_sec = [], 0.0
                         for p in group:
                             clip = VideoFileClip(p)
-                            if total + clip.duration > 60:
-                                clip = clip.subclip(0, max(0.1, 60 - total))
+                            if total_sec + clip.duration > 60:
+                                clip = clip.subclip(0, max(0.1, 60 - total_sec))
                             clips.append(clip)
-                            total += clip.duration
-                            if total >= 60:
+                            total_sec += clip.duration
+                            if total_sec >= 60:
                                 break
                         final = concatenate_videoclips(clips)
                         output = get_next_output_filename(out_dir)
-                        final.write_videofile(output, codec="libx264", audio_codec="aac", verbose=False, logger=None)
+                        final.write_videofile(output, codec="libx264", audio_codec="aac",
+                                            verbose=False, logger=None)
                         [c.close() for c in clips]
                         final.close()
 
+                    # ===================== Ghi log + cập nhật UI =====================
                     log_entry = {
-                        "output": os.path.abspath(output),
+                        "output": os.path.abspath(output) if output else None,
                         "inputs": [os.path.abspath(p) for p in group],
                         "mode": mode
                     }
                     f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
-                    self.after(0, lambda path=output: self.last_output_var.set(path))
-                    self.after(0, lambda path=output: self._append_log(f"Đã ghép xong: {path}"))
+
+                    if output:
+                        self.after(0, lambda path=output: self.last_output_var.set(path))
+                        self.after(0, lambda path=output: self._append_log(f"Đã ghép xong: {path}"))
 
                 except Exception as e:
-                    log_entry = {"error": str(e), "inputs": [os.path.abspath(p) for p in group]}
-                    f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                    # Log lỗi + hiện lên UI
+                    err_entry = {"error": str(e), "inputs": [os.path.abspath(p) for p in group]}
+                    f_log.write(json.dumps(err_entry, ensure_ascii=False) + "\n")
+                    self.after(0, lambda: self._append_log(f"[LỖI] {e}"))
+
                 finally:
-                    if os.path.exists(temp):
-                        os.remove(temp)
+                    # Chỉ xoá temp nếu chính vòng này đã tạo ra temp và chưa move/cleanup
+                    if created_temp and temp and os.path.exists(temp):
+                        safe_remove(temp)
+
                 f_log.flush()
+
+                # Thống kê tiến trình & UI
                 elapsed = time.time() - start_group_time
                 self.elapsed_times.append(elapsed)
                 self._enqueue(self._update_progress)
@@ -540,7 +584,7 @@ class ConcatApp(tk.Tk):
             self.group_size_var.set(cfg.get("group_size", 6))
             self.bgm_volume_var.set(cfg.get("bgm_volume", 0.5))
             self.limit_videos_var.set(cfg.get("limit_videos", 0))
-            self.concat_mode.set(cfg.get('concat_mode','Concat + Music background'))
+            self.concat_mode.set(cfg.get('concat_mode', 'Concat with music background'))
             self.combo_mode.set(self.concat_mode.get())
             if self.concat_mode.get() == "Concat with outro music":
                 self.video_volume_var.set(cfg.get("video_volume", 0.8))
@@ -559,7 +603,6 @@ class ConcatApp(tk.Tk):
                 print(f"[WARN] Could not read mp3 folder: {e}")
 
         self._update_mode_visibility()
-
 
     def save_channel_config(self):
         ch = self.selected_channel.get()
@@ -670,34 +713,82 @@ class ConcatApp(tk.Tk):
 
     def _update_mode_visibility(self):
         mode = self.concat_mode.get()
-        if mode == "Concat with music background":
-            # Chỉ hiện slider BGM
+
+        # Hai chế độ có nhạc → hiện dòng Music Folder + volume
+        if mode in ("Concat with music background", "Concat with outro music"):
             self.lbl_bgm_text.grid()
             self.slider_volume.grid()
             self.lbl_volume.grid()
+            self._show_music_row(True)
 
-            # Ẩn slider video volume
-            self.lbl_video_vol.grid_remove()
-            self.slider_video_vol.grid_remove()
-            self.lbl_video_vol_value.grid_remove()
+            if mode == "Concat with outro music":
+                self.lbl_video_vol.grid()
+                self.slider_video_vol.grid()
+                self.lbl_video_vol_value.grid()
+            else:
+                self.lbl_video_vol.grid_remove()
+                self.slider_video_vol.grid_remove()
+                self.lbl_video_vol_value.grid_remove()
 
-        elif mode == "Concat with outro music":
-            # Hiện cả 2 loại volume
-            self.lbl_bgm_text.grid()
-            self.slider_volume.grid()
-            self.lbl_volume.grid()
-            self.lbl_video_vol.grid()
-            self.slider_video_vol.grid()
-            self.lbl_video_vol_value.grid()
+            self._show_group_size(True)
 
-        else:
-            # Ẩn hết khi không có nhạc
+        elif mode == "Concat and Reverse":
+            # Ẩn tất cả volume + dòng Music Folder, giữ nguyên Source/Save
             self.lbl_bgm_text.grid_remove()
             self.slider_volume.grid_remove()
             self.lbl_volume.grid_remove()
             self.lbl_video_vol.grid_remove()
             self.slider_video_vol.grid_remove()
             self.lbl_video_vol_value.grid_remove()
+            self._show_music_row(False)
+            self.group_size_var.set(1)
+            self._show_group_size(False)
+
+        else:  # Normal concat / Concat with time limit
+            # Ẩn dòng Music Folder, ẩn volume, nhưng KHÔNG ẩn toàn bộ folder
+            self.lbl_bgm_text.grid_remove()
+            self.slider_volume.grid_remove()
+            self.lbl_volume.grid_remove()
+            self.lbl_video_vol.grid_remove()
+            self.slider_video_vol.grid_remove()
+            self.lbl_video_vol_value.grid_remove()
+            self._show_music_row(False)
+            self._show_group_size(True)
+
+
+
+
+
+
+    def _show_music_row(self, visible=True):
+        for child in self.frm_music.grid_slaves():
+            info = child.grid_info()
+            if info.get("row") == 2:  # hàng của Music Folder
+                if visible:
+                    child.grid()
+                else:
+                    child.grid_remove()
+
+    def _show_group_size(self, visible=True):
+        if visible:
+            # hiện lại đúng vị trí cũ
+            self.lbl_group_size.grid()
+            self.combo_group_size.grid()
+            # nếu vừa từ Reverse mode quay lại thì khôi phục giá trị
+            if self.group_size_var.get() == 1:
+                self.group_size_var.set(6)
+        else:
+            # ẩn
+            self.lbl_group_size.grid_remove()
+            self.combo_group_size.grid_remove()
+
+    def _show_folder_frame(self, visible=True):
+        if visible:
+            self.folder_frame.grid()
+        else:
+            self.folder_frame.grid_remove()
+
+
 
     def _update_video_volume_label(self, *args):
         val = self.video_volume_var.get()
