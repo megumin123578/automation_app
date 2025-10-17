@@ -2,9 +2,8 @@
   "input_folder": "",
   "save_folder": "",
   "bgm_folder": "",
-  "group_size": 6,
+  "group_size": 1,
   "bgm_volume": 0.5,
   "limit_videos": 0,
-  "concat_mode": "Concat with outro music",
-  "video_volume": 0.8
+  "concat_mode": "Concat and Reverse"
 }

@@ -8,42 +8,45 @@ ffmpeg version 2025-06-28-git-cfd1f81e7d-full_build-www.gyan.dev Copyright (c) 2
   libavfilter    11.  0.100 / 11.  0.100
   libswscale      9.  0.100 /  9.  0.100
   libswresample   6.  0.100 /  6.  0.100
-Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp_13520.mp4':
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp_24572.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
     compatible_brands: isomiso2avc1mp41
     encoder         : Lavf62.1.101
-  Duration: 00:00:16.02, start: 0.000000, bitrate: 7975 kb/s
-  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 7847 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
+  Duration: 00:00:56.02, start: 0.000000, bitrate: 6859 kb/s
+  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 6739 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
     Metadata:
       handler_name    : VideoHandler
       vendor_id       : [0][0][0][0]
       encoder         : Lavc62.4.100 h264_nvenc
-  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 125 kb/s (default)
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 109 kb/s (default)
     Metadata:
       handler_name    : SoundHandler
       vendor_id       : [0][0][0][0]
-Input #1, mp3, from 'C:/Users/Admin/Music\Cam_Tu_Cau_-_Remix_KLICKAUD.mp3':
-  Duration: 00:04:41.22, start: 0.025057, bitrate: 128 kb/s
+Input #1, mp3, from 'C:/Users/Admin/Music\Hollow Coves - These Memories (Official Music Video).mp3':
+  Metadata:
+    major_brand     : dash
+    minor_version   : 0
+    compatible_brands: iso6mp41
+    encoder         : Lavf58.76.100
+  Duration: 00:05:13.38, start: 0.025057, bitrate: 128 kb/s
   Stream #1:0: Audio: mp3 (mp3float), 44100 Hz, stereo, fltp, 128 kb/s, start 0.025057
     Metadata:
-      encoder         : LAME3.100
-    Side data:
-      replaygain: track gain - -6.000000, track peak - unknown, album gain - unknown, album peak - unknown, 
+      encoder         : Lavc58.13
 Stream mapping:
   Stream #0:1 (aac) -> asplit:default
   Stream #1:0 (mp3float) -> volume:default
   Stream #0:0 -> #0:0 (copy)
   concat:out:a0 -> Stream #0:1 (aac)
 Press [q] to stop, [?] for help
-Output #0, mp4, to 'E:/ghep xong\6.mp4':
+Output #0, mp4, to 'E:/ghep xong\33.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
     compatible_brands: isomiso2avc1mp41
     encoder         : Lavf62.1.101
-  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 7847 kb/s, 60 fps, 60 tbr, 15360 tbn (default)
+  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 6739 kb/s, 60 fps, 60 tbr, 15360 tbn (default)
     Metadata:
       handler_name    : VideoHandler
       vendor_id       : [0][0][0][0]
@@ -51,6 +54,6 @@ Output #0, mp4, to 'E:/ghep xong\6.mp4':
   Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s
     Metadata:
       encoder         : Lavc62.4.100 aac
-[out#0/mp4 @ 0000022708cad340] video:15327KiB audio:239KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.169715%
-frame=  960 fps=0.0 q=-1.0 Lsize=   15593KiB time=00:00:15.97 bitrate=7997.9kbits/s speed=46.3x elapsed=0:00:00.34    
-[aac @ 0000022709635540] Qavg: 4909.012
+frame= 1181 fps=0.0 q=-1.0 size=   15104KiB time=00:00:19.73 bitrate=6270.2kbits/s speed=38.8x elapsed=0:00:00.50    frame= 2133 fps=2072 q=-1.0 size=   26624KiB time=00:00:35.58 bitrate=6129.3kbits/s speed=34.6x elapsed=0:00:01.02    frame= 3183 fps=2066 q=-1.0 size=   44032KiB time=00:00:53.09 bitrate=6793.2kbits/s speed=34.5x elapsed=0:00:01.54    [out#0/mp4 @ 00000219b868c480] video:46067KiB audio:652KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.190575%
+frame= 3360 fps=2084 q=-1.0 Lsize=   46808KiB time=00:00:55.97 bitrate=6850.9kbits/s speed=34.7x elapsed=0:00:01.61    
+[aac @ 00000219b92f9940] Qavg: 20496.834

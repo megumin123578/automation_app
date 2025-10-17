@@ -410,47 +410,51 @@ def concat_reverse(
     output_dir: str,
     speed_reverse: float = 3.0,
     use_nvenc: bool = True,
-    keep_audio: bool = False
+    keep_audio: bool = True  # 🔥 sửa mặc định thành True
 ):
-        os.makedirs(output_dir, exist_ok=True)
-        base = os.path.splitext(os.path.basename(input_video))[0]
-        output_path = os.path.join(output_dir, f"{base}_rev.mp4")
+    os.makedirs(output_dir, exist_ok=True)
+    base = os.path.splitext(os.path.basename(input_video))[0]
+    output_path = os.path.join(output_dir, f"{base}_rev.mp4")
 
-        vcodec = "h264_nvenc" if use_nvenc else "libx264"
-        if keep_audio:
-            filter_complex = (
-                f"[0:v]reverse,setpts=PTS/{speed_reverse}[revv];"
-                f"[0:v][revv]concat=n=2:v=1:a=0[v];"
-                f"[0:a]apad[aout]"
-            )
-            map_args = ["-map", "[v]", "-map", "[aout]"]
-        else:
-            filter_complex = (
-                f"[0:v]reverse,setpts=PTS/{speed_reverse}[revv];"
-                f"[0:v][revv]concat=n=2:v=1:a=0[v]"
-            )
-            map_args = ["-map", "[v]", "-an"]
+    vcodec = "h264_nvenc" if use_nvenc else "libx264"
 
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", input_video,
-            "-filter_complex", filter_complex,
-            *map_args,
-            "-c:v", vcodec,
-            "-preset", "fast",
-            "-b:v", "4M",
-            "-c:a", "aac",
-            "-shortest",
-            output_path
-        ]
+    if keep_audio:
+        # Giữ lại audio gốc
+        filter_complex = (
+            f"[0:v]reverse,setpts=PTS/{speed_reverse}[revv];"
+            f"[0:v][revv]concat=n=2:v=1:a=0[v];"
+            f"[0:a]atempo={speed_reverse},apad[aout]"
+        )
+        map_args = ["-map", "[v]", "-map", "[aout]"]
+    else:
+        # Không cần âm gốc
+        filter_complex = (
+            f"[0:v]reverse,setpts=PTS/{speed_reverse}[revv];"
+            f"[0:v][revv]concat=n=2:v=1:a=0[v]"
+        )
+        map_args = ["-map", "[v]"]
 
-        log_path = "log/concat_reverse_single.txt"
-        os.makedirs("log", exist_ok=True)
-        with open(log_path, "w", encoding="utf-8") as lf:
-            subprocess.run(cmd, check=True, stdout=lf, stderr=lf)
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", input_video,
+        "-filter_complex", filter_complex,
+        *map_args,
+        "-c:v", vcodec,
+        "-preset", "fast",
+        "-b:v", "4M",
+        "-c:a", "aac",
+        "-shortest",
+        output_path
+    ]
 
-        print(f"[OK] Created: {output_path}")
-        return output_path
+    log_path = "log/concat_reverse_single.txt"
+    os.makedirs("log", exist_ok=True)
+    with open(log_path, "w", encoding="utf-8") as lf:
+        subprocess.run(cmd, check=True, stdout=lf, stderr=lf)
+
+    print(f"[OK] Created: {output_path}")
+    return output_path
+
 
 
 def run_ffmpeg(cmd: list):

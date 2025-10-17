@@ -8,28 +8,30 @@ ffmpeg version 2025-06-28-git-cfd1f81e7d-full_build-www.gyan.dev Copyright (c) 2
   libavfilter    11.  0.100 / 11.  0.100
   libswscale      9.  0.100 /  9.  0.100
   libswresample   6.  0.100 /  6.  0.100
-Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp_22968.mp4':
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp_9428.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
     compatible_brands: isomiso2avc1mp41
     encoder         : Lavf62.1.101
-  Duration: 00:00:08.02, start: 0.000000, bitrate: 6848 kb/s
-  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 6773 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
+  Duration: 00:00:08.02, start: 0.000000, bitrate: 8450 kb/s
+  Stream #0:0[0x1](und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 8343 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
     Metadata:
       handler_name    : VideoHandler
       vendor_id       : [0][0][0][0]
       encoder         : Lavc62.4.100 h264_nvenc
-  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 78 kb/s (default)
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 115 kb/s (default)
     Metadata:
       handler_name    : SoundHandler
       vendor_id       : [0][0][0][0]
 Stream mapping:
   Stream #0:0 (h264) -> reverse:default
   Stream #0:0 (h264) -> concat
+  Stream #0:1 (aac) -> atempo:default
   concat:out:v0 -> Stream #0:0 (h264_nvenc)
+  apad:default -> Stream #0:1 (aac)
 Press [q] to stop, [?] for help
-Output #0, mp4, to 'E:/ghep xong\temp_22968_rev.mp4':
+Output #0, mp4, to 'E:/ghep xong\temp_9428_rev.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
@@ -40,5 +42,9 @@ Output #0, mp4, to 'E:/ghep xong\temp_22968_rev.mp4':
       encoder         : Lavc62.4.100 h264_nvenc
     Side data:
       cpb: bitrate max/min/avg: 0/0/4000000 buffer size: 8000000 vbv_delay: N/A
-frame=  279 fps=0.0 q=17.0 size=    3840KiB time=00:00:04.66 bitrate=6740.9kbits/s speed= 8.9x elapsed=0:00:00.52    [out#0/mp4 @ 000001fe242d52c0] video:9659KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.036247%
-frame=  641 fps=0.0 q=17.0 Lsize=    9662KiB time=00:00:10.71 bitrate=7386.0kbits/s dup=0 drop=320 speed=11.1x elapsed=0:00:00.96    
+  Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s
+    Metadata:
+      encoder         : Lavc62.4.100 aac
+frame=  105 fps=0.0 q=17.0 size=    1536KiB time=00:00:01.72 bitrate=7282.0kbits/s speed=3.35x elapsed=0:00:00.51    frame=  437 fps=422 q=17.0 size=    8192KiB time=00:00:07.30 bitrate=9193.0kbits/s speed=7.05x elapsed=0:00:01.03    [out#0/mp4 @ 0000029d4120bb40] video:11192KiB audio:37KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.116828%
+frame=  641 fps=506 q=21.0 Lsize=   11243KiB time=00:00:10.70 bitrate=8599.9kbits/s dup=0 drop=320 speed=8.46x elapsed=0:00:01.26    
+[aac @ 0000029d417d02c0] Qavg: 53999.129
