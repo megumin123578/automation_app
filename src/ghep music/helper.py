@@ -12,7 +12,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from moviepy import VideoFileClip, concatenate_videoclips, vfx
+from moviepy import VideoClip, concatenate_videoclips, VideoFileClip, vfx
 CONFIG_FILE = "ghep music/config.json"
 CONFIG_DIR = "ghep music/configs"
 LAST_CHANNEL_FILE = "ghep music/last_channel.json"
@@ -451,12 +451,6 @@ def concat_reverse(
 
         print(f"[OK] Created: {output_path}")
         return output_path
-
-
-
-
-
-
 
 
 def run_ffmpeg(cmd: list):

@@ -456,7 +456,7 @@ class ConcatApp(tk.Tk):
         self.btn_concat.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.DISABLED)
         self.status_var.set("Hoàn thành" if not self.stop_flag.is_set() else "Đã dừng")
-        self.progress_infor_var.set("" if not self.stop_flag.is_set() else "Đã dừng")
+        self.progress_infor_var.set("Hoàn thành" if not self.stop_flag.is_set() else "Đã dừng")
         self.reload_groups()
 
     def _poll_worker(self):

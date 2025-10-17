@@ -1,1 +1,1 @@
-{"error": "'VideoClip' object has no attribute 'fx'", "inputs": ["E:\\storage2\\905.mp4", "E:\\storage2\\909.mp4", "E:\\storage2\\908.mp4", "E:\\storage2\\906.mp4", "E:\\storage2\\901.mp4", "E:\\storage2\\902.mp4"]}
+{"output": "E:\\ghep xong\\27.mp4", "inputs": ["E:\\storage2\\908.mp4"], "mode": "Concat and Reverse"}
