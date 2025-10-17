@@ -761,13 +761,11 @@ class ConcatApp(tk.Tk):
 
 
     def _show_music_row(self, visible=True):
-        for child in self.frm_music.grid_slaves():
-            info = child.grid_info()
-            if info.get("row") == 2:  # hàng của Music Folder
-                if visible:
-                    child.grid()
-                else:
-                    child.grid_remove()
+        if visible:
+            self.frm_music.grid()
+        else:
+            self.frm_music.grid_remove()
+
 
     def _show_group_size(self, visible=True):
         if visible:
