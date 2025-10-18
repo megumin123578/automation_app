@@ -154,8 +154,9 @@ def mix_audio_at_end_ffmpeg(
     bgm_audio: str,
     output_dir: str,
     mix_length: int = 15,      # số giây cuối để chèn nhạc
-    bgm_volume: float = 0.6,
-    video_volume: float = 0.2,
+    bgm_volume: float = 0.6,   # âm lượng nhạc nền
+    outro_volume: float = 0.2, # âm lượng phần cuối của video gốc
+    video_volume: float = 1.0, # âm lượng tổng thể video gốc (slider mới)
 ):
     os.makedirs(output_dir, exist_ok=True)
     output_video = get_next_output_filename(output_dir)
@@ -163,61 +164,72 @@ def mix_audio_at_end_ffmpeg(
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     def get_duration(file):
+        """Lấy độ dài video/audio (giây)."""
         try:
             result = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                 "-of", "default=noprint_wrappers=1:nokey=1", file],
+                [
+                    "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1", file
+                ],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
             )
             return float(result.stdout.strip())
-        except:
+        except Exception:
             return 0.0
 
     video_dur = get_duration(input_video)
     bgm_dur = get_duration(bgm_audio)
 
-    if video_dur == 0 or bgm_dur == 0:
-        raise ValueError("Không thể đọc độ dài video hoặc nhạc nền.")
-    
+    if video_dur <= 0:
+        raise ValueError(f"Không thể đọc độ dài video: {input_video}")
+    if bgm_dur <= 0:
+        raise ValueError(f"Không thể đọc độ dài nhạc nền: {bgm_audio}")
+
+    # Tính toán vị trí chèn outro
     mix_length = min(mix_length, video_dur)
     mix_start = max(0, video_dur - mix_length)
 
     if bgm_dur > mix_length:
         bgm_start = random.uniform(0, bgm_dur - mix_length)
     else:
-        bgm_start = 0
+        bgm_start = 0.0
 
-    # === Lệnh ffmpeg ===
+    # ==== FILTER COMPLEX ====
+    # - [0:a]volume=video_volume: điều chỉnh âm video gốc
+    # - [a_vid_end]volume=outro_volume: làm nhỏ phần cuối
+    # - [1:a]volume=bgm_volume: điều chỉnh âm nhạc nền
+    # - Ghép lại [a_pre] + [a_mix] → [aout]
+    filter_complex = (
+        f"[0:a]volume={video_volume},asplit=2[a0][a1];"
+        f"[a0]atrim=0:{mix_start}[a_pre];"
+        f"[a1]atrim={mix_start}:{video_dur},asetpts=PTS-STARTPTS,volume={outro_volume}[a_vid_end];"
+        f"[1:a]volume={bgm_volume},apad[a_bgm];"
+        f"[a_vid_end][a_bgm]amix=inputs=2:duration=first:dropout_transition=2[a_mix];"
+        f"[a_pre][a_mix]concat=n=2:v=0:a=1[aout]"
+    )
+
     cmd = [
         "ffmpeg", "-y",
         "-i", input_video,
         "-ss", str(bgm_start), "-t", str(mix_length), "-i", bgm_audio,
-        "-filter_complex",
-        f"[0:a]asplit=2[a0][a1];"
-        f"[a0]atrim=0:{mix_start}[a_pre];"
-        f"[a1]atrim={mix_start}:{video_dur},asetpts=PTS-STARTPTS,volume={video_volume}[a_vid_end];"
-        f"[1:a]volume={bgm_volume},apad[a_bgm];"
-        f"[a_vid_end][a_bgm]amix=inputs=2:duration=first:dropout_transition=2[a_mix];"
-        f"[a_pre][a_mix]concat=n=2:v=0:a=1[aout]",
-        "-map", "0:v",
-        "-map", "[aout]",
-        "-c:v", "copy",
-        "-c:a", "aac",
+        "-filter_complex", filter_complex,
+        "-map", "0:v", "-map", "[aout]",
+        "-c:v", "copy", "-c:a", "aac",
         "-shortest",
         output_video
     ]
 
-    # === Chạy ffmpeg ===
     with open(log_path, "w", encoding="utf-8") as log_file:
         try:
             subprocess.run(cmd, check=True, stdout=log_file, stderr=log_file)
-        except subprocess.CalledProcessError as e:
-            print(f"[ERROR] FFmpeg failed — check {log_path}")
+        except subprocess.CalledProcessError:
+            print(f"[ERROR] FFmpeg mix failed, xem log: {log_path}")
             raise
 
-    print(f"[INFO] Added BGM to last {mix_length:.1f}s of video.")
-    print(f"[INFO] Output: {output_video}")
+    print(f"[OK] Đã chèn nhạc vào {mix_length:.1f}s cuối video.")
+    print(f"[OUT] {output_video}")
     return output_video
+
 
 def read_used_source_videos(log_path: str):
     used_files = []

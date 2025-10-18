@@ -28,6 +28,7 @@ class ConcatApp(tk.Tk):
         self.group_size_var = tk.IntVar(value=6)
         self.bgm_volume_var = tk.DoubleVar(value=0.5)
         self.video_volume_var = tk.DoubleVar(value=0.2)
+        self.main_video_volume_var = tk.DoubleVar(value=1.0)
         self.limit_videos_var = tk.IntVar(value=0)
         self.concat_mode = tk.StringVar(value="Concat with music background")
 
@@ -136,6 +137,18 @@ class ConcatApp(tk.Tk):
         self.lbl_volume = ttk.Label(param_frame, text=f"{self.bgm_volume_var.get() * 100:.0f}%", width=5)
         self.lbl_volume.grid(row=0, column=6, sticky="w", padx=5)
 
+        # --- Main Video Volume Slider ---
+        self.lbl_main_video_vol = ttk.Label(param_frame, text="Video Volume:", font=("Segoe UI", 10, "bold"))
+        self.lbl_main_video_vol.grid(row=2, column=4, sticky="e", padx=5)
+
+        self.slider_main_video_vol = ttk.Scale(
+            param_frame, from_=0.0, to=2.0, orient="horizontal", variable=self.main_video_volume_var, length=120
+        )
+        self.slider_main_video_vol.grid(row=2, column=5, sticky="w", padx=5)
+
+        self.lbl_main_video_vol_value = ttk.Label(param_frame, text=f"{self.main_video_volume_var.get() * 100:.0f}%", width=5)
+        self.lbl_main_video_vol_value.grid(row=2, column=6, sticky="w", padx=5)
+
         # --- Video Volume Slider ---
         self.lbl_video_vol = ttk.Label(param_frame, text="Outro Volume:", font=("Segoe UI", 10, "bold"))
         self.lbl_video_vol.grid(row=1, column=4, sticky="e", padx=5)
@@ -216,6 +229,8 @@ class ConcatApp(tk.Tk):
         self.txt_log.pack(fill="both", expand=True)
         scrollbar.config(command=self.txt_log.yview)
         self.txt_log.tag_configure("link", foreground="#1E90FF", underline=True)
+
+        self.main_video_volume_var.trace_add("write", self._update_main_video_volume_label)
 
     def _add_folder_row(self, label, var, row, parent, reload=False, bgm=False):
         lbl = ttk.Label(parent, text=label)
@@ -378,7 +393,8 @@ class ConcatApp(tk.Tk):
                             print(f"[DEBUG] Mixing BGM {bg_audio} into {temp}")
                             output = mix_audio_with_bgm_ffmpeg(
                             temp, bg_audio, out_dir,
-                            bgm_volume=self.bgm_volume_var.get()
+                            bgm_volume=self.bgm_volume_var.get(),
+                            video_volume=self.main_video_volume_var.get()
                         )
                         else:
                             output = get_next_output_filename(out_dir)
@@ -391,7 +407,8 @@ class ConcatApp(tk.Tk):
                             output = mix_audio_at_end_ffmpeg(
                                 temp, bg_audio, out_dir, 15,
                                 bgm_volume=self.bgm_volume_var.get(),
-                                video_volume=self.video_volume_var.get()
+                                outro_volume=self.video_volume_var.get(),
+                                video_volume= self.main_video_volume_var.get()
                             )
                         else:
                             output = get_next_output_filename(out_dir)
@@ -410,7 +427,8 @@ class ConcatApp(tk.Tk):
                             print(f"[DEBUG] Mixing BGM {bg_audio} into {tmp_out}")
                             output = mix_audio_with_bgm_ffmpeg(
                             tmp_out, bg_audio, out_dir,
-                            bgm_volume=self.bgm_volume_var.get()
+                            bgm_volume=self.bgm_volume_var.get(),
+                            video_volume=self.main_video_volume_var.get()
                         )
                         else: 
                             output = get_next_output_filename(out_dir)
@@ -569,6 +587,7 @@ class ConcatApp(tk.Tk):
                 self.video_volume_var.set(cfg.get("video_volume", 0.2))
             else:
                 self.video_volume_var.set(0.2)
+            self.main_video_volume_var.set(cfg.get("main_video_volume", 1.0))
 
             self._update_mode_visibility()
 
@@ -598,6 +617,9 @@ class ConcatApp(tk.Tk):
             "bgm_volume": self.bgm_volume_var.get(),
             "limit_videos": self.limit_videos_var.get(),
             "concat_mode": self.concat_mode.get(),
+            "main_video_volume": self.main_video_volume_var.get(),
+            "outro_volume": self.video_volume_var.get(),
+
         }
 
         # Chỉ lưu video_volume khi đang ở chế độ outro
@@ -695,22 +717,29 @@ class ConcatApp(tk.Tk):
     def _update_mode_visibility(self):
         mode = self.concat_mode.get()
 
-        # Luôn hiện BGM và Outro volume
+        # Luôn hiện BGM volume
         self.lbl_bgm_text.grid()
         self.slider_volume.grid()
         self.lbl_volume.grid()
-        self.lbl_video_vol.grid()
-        self.slider_video_vol.grid()
-        self.lbl_video_vol_value.grid()
 
+        if mode == "Concat with outro music":
+            self.lbl_video_vol.grid()
+            self.slider_video_vol.grid()
+            self.lbl_video_vol_value.grid()
+        else:
+            self.lbl_video_vol.grid_remove()
+            self.slider_video_vol.grid_remove()
+            self.lbl_video_vol_value.grid_remove()
+
+        # Xử lý riêng mode Reverse → ép group size = 1
         if mode == "Concat and Reverse":
-            # Reverse thì chỉ xử lý group size = 1
             self.group_size_var.set(1)
             self.combo_group_size.set("1")
             self.reload_groups()
             self._show_group_size(False)
         else:
             self._show_group_size(True)
+
 
 
     def _show_group_size(self, visible=True):
@@ -722,6 +751,12 @@ class ConcatApp(tk.Tk):
         val = self.video_volume_var.get()
         self.lbl_video_vol_value.config(text=f"{val * 100:.0f}%")
         self.save_channel_config()
+
+    def _update_main_video_volume_label(self, *args):
+        val = self.main_video_volume_var.get()
+        self.lbl_main_video_vol_value.config(text=f"{val * 100:.0f}%")
+        self.save_channel_config()
+
 
 if __name__ == '__main__':
     ConcatApp().mainloop()

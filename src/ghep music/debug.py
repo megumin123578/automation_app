@@ -27,7 +27,8 @@ class ConcatApp(tk.Tk):
         self.bgm_folder = tk.StringVar()
         self.group_size_var = tk.IntVar(value=6)
         self.bgm_volume_var = tk.DoubleVar(value=0.5)
-        self.video_volume_var = tk.DoubleVar(value=0.8)
+        self.video_volume_var = tk.DoubleVar(value=0.2)
+        self.main_video_volume_var = tk.DoubleVar(value=1.0)
         self.limit_videos_var = tk.IntVar(value=0)
         self.concat_mode = tk.StringVar(value="Concat with music background")
 
@@ -136,6 +137,18 @@ class ConcatApp(tk.Tk):
         self.lbl_volume = ttk.Label(param_frame, text=f"{self.bgm_volume_var.get() * 100:.0f}%", width=5)
         self.lbl_volume.grid(row=0, column=6, sticky="w", padx=5)
 
+        # --- Main Video Volume Slider ---
+        self.lbl_main_video_vol = ttk.Label(param_frame, text="Video Volume:", font=("Segoe UI", 10, "bold"))
+        self.lbl_main_video_vol.grid(row=2, column=4, sticky="e", padx=5)
+
+        self.slider_main_video_vol = ttk.Scale(
+            param_frame, from_=0.0, to=2.0, orient="horizontal", variable=self.main_video_volume_var, length=120
+        )
+        self.slider_main_video_vol.grid(row=2, column=5, sticky="w", padx=5)
+
+        self.lbl_main_video_vol_value = ttk.Label(param_frame, text=f"{self.main_video_volume_var.get() * 100:.0f}%", width=5)
+        self.lbl_main_video_vol_value.grid(row=2, column=6, sticky="w", padx=5)
+
         # --- Video Volume Slider ---
         self.lbl_video_vol = ttk.Label(param_frame, text="Outro Volume:", font=("Segoe UI", 10, "bold"))
         self.lbl_video_vol.grid(row=1, column=4, sticky="e", padx=5)
@@ -163,9 +176,8 @@ class ConcatApp(tk.Tk):
         folder_frame.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
         self._add_folder_row("Source Folder:", self.input_folder, 0, folder_frame, reload=True)
         self._add_folder_row("Save Folder:", self.save_folder, 1, folder_frame)
-        self.frm_music = ttk.Frame(folder_frame)
-        self._add_folder_row("Music Folder:", self.bgm_folder, 2, folder_frame, bgm=True)
-        self.frm_music = folder_frame  # để giữ tham chiếu, phục vụ ẩn/hiện
+        self.music_widgets = self._add_folder_row("Music Folder:", self.bgm_folder, 2, folder_frame, bgm=True)
+
 
         # Action buttons and progress
         action_frame = ttk.Frame(self.frm_top)
@@ -218,15 +230,22 @@ class ConcatApp(tk.Tk):
         scrollbar.config(command=self.txt_log.yview)
         self.txt_log.tag_configure("link", foreground="#1E90FF", underline=True)
 
+        self.main_video_volume_var.trace_add("write", self._update_main_video_volume_label)
+
     def _add_folder_row(self, label, var, row, parent, reload=False, bgm=False):
-        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="e", padx=5, pady=3)
+        lbl = ttk.Label(parent, text=label)
+        lbl.grid(row=row, column=0, sticky="e", padx=5, pady=3)
+
         entry = ttk.Entry(parent, textvariable=var, width=50, font=("Segoe UI", 10))
         entry.grid(row=row, column=1, columnspan=2, sticky="we", padx=5, pady=3)
         self._add_right_click_menu(entry, [("❌ Clear Path", lambda v=var: v.set(""))])
 
         btn = ttk.Button(parent, text="Browse", style="Secondary.TButton",
-                         command=lambda: self._choose_folder(var, reload=reload, bgm=bgm))
+                        command=lambda: self._choose_folder(var, reload=reload, bgm=bgm))
         btn.grid(row=row, column=3, sticky="w", padx=5, pady=3)
+
+        return (lbl, entry, btn)   # <-- TRẢ VỀ CÁC WIDGET
+
 
     def _layout(self):
         self.grid_rowconfigure(0, weight=1)
@@ -374,7 +393,8 @@ class ConcatApp(tk.Tk):
                             print(f"[DEBUG] Mixing BGM {bg_audio} into {temp}")
                             output = mix_audio_with_bgm_ffmpeg(
                             temp, bg_audio, out_dir,
-                            bgm_volume=self.bgm_volume_var.get()
+                            bgm_volume=self.bgm_volume_var.get(),
+                            video_volume=self.main_video_volume_var.get()
                         )
                         else:
                             output = get_next_output_filename(out_dir)
@@ -387,13 +407,14 @@ class ConcatApp(tk.Tk):
                             output = mix_audio_at_end_ffmpeg(
                                 temp, bg_audio, out_dir, 15,
                                 bgm_volume=self.bgm_volume_var.get(),
-                                video_volume=self.video_volume_var.get()
+                                outro_volume=self.video_volume_var.get(),
+                                video_volume= self.main_video_volume_var.get()
                             )
                         else:
                             output = get_next_output_filename(out_dir)
                             shutil.copy2(temp, output)
 
-                    elif mode == "Normal concat":
+                    elif mode == "Normal concat (no music)":
                         auto_concat(group, temp)
                         output = get_next_output_filename(out_dir)
                         shutil.copy2(temp, output)
@@ -401,8 +422,17 @@ class ConcatApp(tk.Tk):
                     elif mode == "Concat and Reverse":
                         auto_concat(group, temp)
                         tmp_out = concat_reverse(temp, out_dir, speed_reverse=3.0, use_nvenc=True)
-                        output = get_next_output_filename(out_dir)
-                        shutil.move(tmp_out, output)
+                        bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                        if bg_audio and os.path.isfile(bg_audio):
+                            print(f"[DEBUG] Mixing BGM {bg_audio} into {tmp_out}")
+                            output = mix_audio_with_bgm_ffmpeg(
+                            tmp_out, bg_audio, out_dir,
+                            bgm_volume=self.bgm_volume_var.get(),
+                            video_volume=self.main_video_volume_var.get()
+                        )
+                        else: 
+                            output = get_next_output_filename(out_dir)
+                            shutil.move(tmp_out, output)
 
                     elif mode == "Concat with time limit":
                         print("Concat with time limit")
@@ -456,7 +486,7 @@ class ConcatApp(tk.Tk):
         self.btn_concat.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.DISABLED)
         self.status_var.set("Hoàn thành" if not self.stop_flag.is_set() else "Đã dừng")
-        self.progress_infor_var.set("Hoàn thành" if not self.stop_flag.is_set() else "Đã dừng")
+        self.progress_infor_var.set("" if not self.stop_flag.is_set() else "Đã dừng")
         self.reload_groups()
 
     def _poll_worker(self):
@@ -554,9 +584,10 @@ class ConcatApp(tk.Tk):
             self.concat_mode.set(cfg.get('concat_mode','Concat with music background'))
             self.combo_mode.set(self.concat_mode.get())
             if self.concat_mode.get() == "Concat with outro music":
-                self.video_volume_var.set(cfg.get("video_volume", 0.8))
+                self.video_volume_var.set(cfg.get("video_volume", 0.2))
             else:
-                self.video_volume_var.set(0.8)
+                self.video_volume_var.set(0.2)
+            self.main_video_volume_var.set(cfg.get("main_video_volume", 1.0))
 
             self._update_mode_visibility()
 
@@ -586,6 +617,9 @@ class ConcatApp(tk.Tk):
             "bgm_volume": self.bgm_volume_var.get(),
             "limit_videos": self.limit_videos_var.get(),
             "concat_mode": self.concat_mode.get(),
+            "main_video_volume": self.main_video_volume_var.get(),
+            "outro_volume": self.video_volume_var.get(),
+
         }
 
         # Chỉ lưu video_volume khi đang ở chế độ outro
@@ -683,64 +717,30 @@ class ConcatApp(tk.Tk):
     def _update_mode_visibility(self):
         mode = self.concat_mode.get()
 
-        if mode == "Concat with music background":
-            # Hiện thanh BGM
-            self.lbl_bgm_text.grid()
-            self.slider_volume.grid()
-            self.lbl_volume.grid()
+        # Luôn hiện BGM volume
+        self.lbl_bgm_text.grid()
+        self.slider_volume.grid()
+        self.lbl_volume.grid()
 
-            # Ẩn thanh video volume
-            self.lbl_video_vol.grid_remove()
-            self.slider_video_vol.grid_remove()
-            self.lbl_video_vol_value.grid_remove()
-
-            # Hiện dòng "Music Folder"
-            self._show_music_row(True)
-            self._show_group_size(True)
-
-        elif mode == "Concat with outro music":
-            # Hiện cả 2 thanh âm lượng
-            self.lbl_bgm_text.grid()
-            self.slider_volume.grid()
-            self.lbl_volume.grid()
+        if mode == "Concat with outro music":
             self.lbl_video_vol.grid()
             self.slider_video_vol.grid()
             self.lbl_video_vol_value.grid()
-
-            # Hiện dòng "Music Folder"
-            self._show_music_row(True)
-            self._show_group_size(True)
-
-        elif mode == "Concat and Reverse":
-            self.lbl_bgm_text.grid_remove(); self.slider_volume.grid_remove(); self.lbl_volume.grid_remove()
-            self.lbl_video_vol.grid_remove(); self.slider_video_vol.grid_remove(); self.lbl_video_vol_value.grid_remove()
-            self._show_music_row(False)
-
-            self.group_size_var.set(1)
-            self.combo_group_size.set("1")      # để UI hiển thị đúng khi hiện lại
-            self.reload_groups()              
-            self._show_group_size(False)
-
         else:
-            # Normal concat / Concat with time limit
-            self.lbl_bgm_text.grid_remove()
-            self.slider_volume.grid_remove()
-            self.lbl_volume.grid_remove()
             self.lbl_video_vol.grid_remove()
             self.slider_video_vol.grid_remove()
             self.lbl_video_vol_value.grid_remove()
-            self._show_music_row(False)
+
+        # Xử lý riêng mode Reverse → ép group size = 1
+        if mode == "Concat and Reverse":
+            self.group_size_var.set(1)
+            self.combo_group_size.set("1")
+            self.reload_groups()
+            self._show_group_size(False)
+        else:
             self._show_group_size(True)
 
 
-    def _show_music_row(self, visible=True):
-        for child in self.frm_music.grid_slaves():
-            info = child.grid_info()
-            if info.get("row") == 2:  # hàng của Music Folder
-                if visible:
-                    child.grid()
-                else:
-                    child.grid_remove()
 
     def _show_group_size(self, visible=True):
         widgets = [self.lbl_group_size, self.combo_group_size]
@@ -751,6 +751,12 @@ class ConcatApp(tk.Tk):
         val = self.video_volume_var.get()
         self.lbl_video_vol_value.config(text=f"{val * 100:.0f}%")
         self.save_channel_config()
+
+    def _update_main_video_volume_label(self, *args):
+        val = self.main_video_volume_var.get()
+        self.lbl_main_video_vol_value.config(text=f"{val * 100:.0f}%")
+        self.save_channel_config()
+
 
 if __name__ == '__main__':
     ConcatApp().mainloop()

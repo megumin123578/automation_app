@@ -2,8 +2,11 @@
   "input_folder": "E:/storage2",
   "save_folder": "E:/ghep xong",
   "bgm_folder": "C:/Users/Admin/Music",
-  "group_size": 2,
+  "group_size": 1,
   "bgm_volume": 0.7222222222222222,
   "limit_videos": 0,
-  "concat_mode": "Concat and Reverse"
+  "concat_mode": "Concat with outro music",
+  "main_video_volume": 1.3777777777777778,
+  "outro_volume": 0.2,
+  "video_volume": 0.2
 }
