@@ -7,7 +7,7 @@
   "limit_videos": 0,
   "concat_mode": "Concat with time limit",
   "main_video_volume": 1.0,
-  "outro_volume": 0.2,
+  "video_volume": 0.2,
   "video_settings": {
     "resolution": "1080x1920",
     "fps": 60,
@@ -15,6 +15,7 @@
     "cq": 23,
     "v_bitrate": "12M",
     "a_bitrate": "160k",
-    "nvenc_preset": "p4"
+    "nvenc_preset": "p4",
+    "time_limit_min": 3
   }
 }

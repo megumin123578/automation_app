@@ -62,6 +62,10 @@ class ConcatApp(tk.Tk):
         self.selected_channel = tk.StringVar()
 
         self._advanced = False
+        self.time_limit_min_var = tk.IntVar(value=3)
+        self._dur_cache: dict[str, float] = {}
+
+
 
         self._tag_id = 0
         self._build_ui()
@@ -154,6 +158,20 @@ class ConcatApp(tk.Tk):
             val = self.combo_limit_videos.get()
             self.limit_videos_var.set(0 if val == "All" else int(val))
         self.combo_limit_videos.bind("<<ComboboxSelected>>", on_limit_change)
+
+        # --- Time limit (minutes) - chỉ hiện ở "Concat with time limit"
+        self.lbl_time_limit = ttk.Label(param_frame, text="Time limit (min):", font=("Segoe UI", 10, "bold"))
+        self.lbl_time_limit.grid(row=0, column=4, sticky="e", padx=(15,5))  # đẩy lệch nhẹ cho đẹp
+
+        self.combo_time_limit = ttk.Combobox(
+            param_frame, textvariable=self.time_limit_min_var, state="readonly",
+            width=6, values=list(range(1, 1000))
+        )
+        self.combo_time_limit.grid(row=0, column=5, sticky="w", padx=5)
+        self.lbl_time_limit.grid_configure(column=7)
+        self.combo_time_limit.grid_configure(column=8)
+
+
 
         self.slider_volume = ttk.Scale(param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.bgm_volume_var, length=120)
         self.slider_volume.grid(row=0, column=5, sticky="w", padx=5)
@@ -251,16 +269,12 @@ class ConcatApp(tk.Tk):
         if self.a_bitrate_var.get() and self.a_bitrate_var.get() not in a_bitrate_values:
             self.cbo_abit["values"] = [self.a_bitrate_var.get()] + a_bitrate_values
 
-
-
-
         # Folder selection
         folder_frame = ttk.LabelFrame(self.frm_top, text="📁 Folders", padding=(10, 5))
         folder_frame.grid(row=3, column=0, columnspan=4, sticky="we", pady=5)
         self._add_folder_row("Source Folder:", self.input_folder, 0, folder_frame, reload=True)
         self._add_folder_row("Save Folder:", self.save_folder, 1, folder_frame)
         self.music_widgets = self._add_folder_row("Music Folder:", self.bgm_folder, 2, folder_frame, bgm=True)
-
 
         # Action buttons and progress
         action_frame = ttk.Frame(self.frm_top)
@@ -432,9 +446,18 @@ class ConcatApp(tk.Tk):
             return messagebox.showwarning("Thiếu thư mục lưu", "Chọn thư mục lưu")
         os.makedirs(out_dir, exist_ok=True)
         limit_groups = self.limit_videos_var.get()
-        todo_groups = self.groups
-        if limit_groups > 0:
-            todo_groups = self.groups[:limit_groups]
+        mode = self.concat_mode.get()
+        limit_groups = self.limit_videos_var.get()
+
+        if mode == "Concat with time limit":
+            # nếu không chọn số lượng, mặc định xuất 1 video
+            count = limit_groups if limit_groups > 0 else 1
+            todo_groups = [None] * count  # placeholder
+        else:
+            todo_groups = self.groups
+            if limit_groups > 0:
+                todo_groups = self.groups[:limit_groups]
+
         self.stop_flag.clear()
         self.btn_concat.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.NORMAL)
@@ -458,6 +481,8 @@ class ConcatApp(tk.Tk):
         ch = self.selected_channel.get().strip() or 'default'
         log_path = os.path.join(log_dir, f"{ch}.txt")
         with open(log_path, "a", encoding="utf-8") as f_log:
+            used_global = self._get_used_videos_from_log()  # đã dùng từ trước
+            used_this_run = set()                            # dùng trong phiên chạy hiện tại
             for group in todo:
                 if self.stop_flag.is_set():
                     break
@@ -562,13 +587,54 @@ class ConcatApp(tk.Tk):
                             shutil.move(tmp_out, output)
 
                     elif mode == "Concat with time limit":
-                        print("Concat with time limit")
+                        # 1) Lấy pool còn lại (không trùng với log cũ + phiên này)
+                        folder = self.input_folder.get()
+                        all_videos = list_all_mp4_files(folder)
+                        pool = [v for v in all_videos if os.path.abspath(v) not in (used_global | used_this_run)]
+
+                        # 2) Chọn ngẫu nhiên tới gần target mà không quá dài
+                        target_seconds = float(self.time_limit_min_var.get()) * 60.0
+                        group = self._pick_videos_for_time(pool, target_seconds)
+                        if not group:
+                            # Hết clip phù hợp -> thoát hẳn vòng lặp
+                            self.after(0, lambda: self._append_log("Hết clip phù hợp cho Time Limit."))
+                            break
+
+                        # 3) Ghép + mix BGM (giống 'Concat with music background')
+                        auto_concat(
+                            group, temp,
+                            num_threads=8,
+                            width=int(self.resolution_var.get().split("x")[0]),
+                            height=int(self.resolution_var.get().split("x")[1]),
+                            fps=self.fps_var.get(),
+                            use_nvenc=self.use_nvenc_var.get(),
+                            cq=self.cq_var.get(),
+                            v_bitrate=self.v_bitrate_var.get(),
+                            a_bitrate=self.a_bitrate_var.get(),
+                            nvenc_preset=self.nvenc_preset_var.get()
+                        )
+                        bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                        if bg_audio and os.path.isfile(bg_audio):
+                            output = mix_audio_with_bgm_ffmpeg(
+                                temp, bg_audio, out_dir,
+                                bgm_volume=self.bgm_volume_var.get(),
+                                video_volume=self.main_video_volume_var.get()
+                            )
+                        else:
+                            output = get_next_output_filename(out_dir)
+                            shutil.copy2(temp, output)
+
+                        # 4) Đánh dấu đã dùng để lần xuất kế tiếp không trùng
+                        used_this_run.update(os.path.abspath(p) for p in group)
+
 
                     log_entry = {
                         "output": os.path.abspath(output),
                         "inputs": [os.path.abspath(p) for p in group],
                         "mode": mode
                     }
+                    if mode == "Concat with time limit":
+                        log_entry["time_limit_min"] = int(self.time_limit_min_var.get())
                     f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
                     self.after(0, lambda path=output: self.last_output_var.set(path))
                     self.after(0, lambda path=output: self._append_log(f"Đã ghép xong: {path}"))
@@ -699,12 +765,14 @@ class ConcatApp(tk.Tk):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
+
             self.input_folder.set(cfg.get("input_folder", ""))
             self.save_folder.set(cfg.get("save_folder", ""))
             self.bgm_folder.set(cfg.get("bgm_folder", ""))
             group_size = cfg.get("group_size")
             if group_size is None or group_size < 2:
                 group_size = 2
+            self.time_limit_min_var.set(cfg.get("time_limit_min", 3))
             self.group_size_var.set(group_size)
             self.bgm_volume_var.set(cfg.get("bgm_volume", 0.5))
             self.limit_videos_var.set(cfg.get("limit_videos", 0))
@@ -754,7 +822,7 @@ class ConcatApp(tk.Tk):
             "limit_videos": self.limit_videos_var.get(),
             "concat_mode": self.concat_mode.get(),
             "main_video_volume": self.main_video_volume_var.get(),
-            "outro_volume": self.video_volume_var.get(),
+            "video_volume": self.video_volume_var.get(),
             "video_settings": {
             "resolution": self.resolution_var.get(),
             "fps": self.fps_var.get(),
@@ -762,11 +830,11 @@ class ConcatApp(tk.Tk):
             "cq": self.cq_var.get(),
             "v_bitrate": self.v_bitrate_var.get(),
             "a_bitrate": self.a_bitrate_var.get(),
-            "nvenc_preset": self.nvenc_preset_var.get()
+            "nvenc_preset": self.nvenc_preset_var.get(),
+            "time_limit_min": self.time_limit_min_var.get(),
         }
 
         }
-
         # Chỉ lưu video_volume khi đang ở chế độ outro
         if self.concat_mode.get() == "Concat with outro music":
             cfg["video_volume"] = self.video_volume_var.get()
@@ -859,12 +927,27 @@ class ConcatApp(tk.Tk):
     def _update_mode_visibility(self):
         mode = self.concat_mode.get()
 
-        # Mặc định hiển thị BGM volume
+        # Mặc định hiển thị BGM volume (trừ "Normal no music")
         self.lbl_bgm_text.grid()
         self.slider_volume.grid()
         self.lbl_volume.grid()
 
-        # Hiện/ẩn Outro Volume tuỳ mode
+        # Time limit controls
+        if mode == "Concat with time limit":
+            self._show_time_limit(True)
+            self._show_group_size(False)  # không dùng group size
+        else:
+            self._show_time_limit(False)
+            # Reverse ép group size = 1, còn lại hiện bình thường
+            if mode == "Concat and Reverse":
+                self.group_size_var.set(1)
+                self.combo_group_size.set("1")
+                self.reload_groups()
+                self._show_group_size(False)
+            else:
+                self._show_group_size(True)
+
+        # Outro volume
         if mode == "Concat with outro music":
             self.lbl_video_vol.grid()
             self.slider_video_vol.grid()
@@ -876,37 +959,27 @@ class ConcatApp(tk.Tk):
 
         # Normal concat: ẩn BGM + Music Folder, dời Main Video Volume lên hàng 0
         if mode == "Normal concat (no music)":
-            # Ẩn BGM volume
             self.lbl_bgm_text.grid_remove()
             self.slider_volume.grid_remove()
             self.lbl_volume.grid_remove()
-            # Ẩn dòng Music Folder
             for w in self.music_widgets:
                 w.grid_remove()
-
-            # DỜI cụm Main Video Volume lên HÀNG 0 (cột 4..6)
             self.lbl_main_video_vol.grid_configure(row=0, column=4, sticky="e", padx=5)
             self.slider_main_video_vol.grid_configure(row=0, column=5, sticky="w", padx=5)
             self.lbl_main_video_vol_value.grid_configure(row=0, column=6, sticky="w", padx=5)
-
         else:
-            # Các mode khác: hiện lại Music Folder
             for w in self.music_widgets:
                 w.grid()
-
-            # Trả cụm Main Video Volume về HÀNG 2 (cột 4..6) như ban đầu
             self.lbl_main_video_vol.grid_configure(row=2, column=4, sticky="e", padx=5)
             self.slider_main_video_vol.grid_configure(row=2, column=5, sticky="w", padx=5)
             self.lbl_main_video_vol_value.grid_configure(row=2, column=6, sticky="w", padx=5)
+    
+    def _show_time_limit(self, visible=True):
+        widgets = [self.lbl_time_limit, self.combo_time_limit]
+        for w in widgets:
+            w.grid() if visible else w.grid_remove()
 
-        # Mode Reverse → ép group size = 1
-        if mode == "Concat and Reverse":
-            self.group_size_var.set(1)
-            self.combo_group_size.set("1")
-            self.reload_groups()
-            self._show_group_size(False)
-        else:
-            self._show_group_size(True)
+
 
 
     def _toggle_advanced(self):
@@ -942,6 +1015,101 @@ class ConcatApp(tk.Tk):
         val = self.main_video_volume_var.get()
         self.lbl_main_video_vol_value.config(text=f"{val * 100:.0f}%")
         self.save_channel_config()
+    
+    def _get_video_duration(self, path: str) -> float:
+        """Lấy duration (giây) bằng ffprobe, có cache."""
+        if path in self._dur_cache:
+            return self._dur_cache[path]
+        try:
+            # ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "file"
+            import subprocess, shlex
+            cmd = f'ffprobe -v error -select_streams v:0 -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "{path}"'
+            out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+            dur = float(out.decode().strip())
+            if dur < 0:
+                dur = 0.0
+        except Exception:
+            dur = 0.0
+        self._dur_cache[path] = dur
+        return dur
+
+    def _pick_videos_for_time(self, pool: list[str], target_seconds: float) -> list[str]:
+        """
+        Random greedy: cộng dồn đến >= target.
+        Nếu vượt quá nhiều, cố gắng thay clip cuối bằng clip ngắn hơn để giảm overshoot.
+        Giới hạn overshoot: max(15s, 10% target).
+        """
+        import random
+        random.shuffle(pool)
+        selected, total = [], 0.0
+
+        # bước 1: add đến khi đạt/qua target
+        for p in pool:
+            d = self._get_video_duration(p)
+            if d <= 0:
+                continue
+            selected.append(p)
+            total += d
+            if total >= target_seconds:
+                break
+
+        if not selected:
+            return []
+
+        overshoot = total - target_seconds
+        limit_over = max(15.0, 0.10 * target_seconds)  # không quá dài
+
+        if overshoot <= limit_over:
+            return selected
+
+        # bước 2: cố gắng giảm overshoot bằng cách thay clip cuối
+        last = selected[-1]
+        last_d = self._get_video_duration(last)
+        need_reduce = overshoot
+
+        # tìm ứng viên ngắn hơn clip cuối đủ để giảm overshoot
+        candidates = [p for p in pool if p not in selected]
+        best = None
+        best_gap = None
+        for c in candidates:
+            cd = self._get_video_duration(c)
+            if 0 < cd < last_d and (last_d - cd) >= need_reduce - limit_over:
+                gap = last_d - cd
+                if best is None or gap < best_gap:
+                    best = c
+                    best_gap = gap
+        if best:
+            selected[-1] = best  # thay
+            # không cần tính lại chính xác, vì đã đảm bảo overshoot <= limit_over theo điều kiện
+            return selected
+
+        # không tìm được thay thế phù hợp -> chấp nhận overshoot (vì đã cố)
+        return selected
+    
+    def _get_used_videos_from_log(self) -> set[str]:
+        used_videos = set()
+        log_dir = os.path.abspath("log")
+        os.makedirs(log_dir, exist_ok=True)
+        ch = self.selected_channel.get().strip() or 'default'
+        log_path = os.path.join(log_dir, f"{ch}.txt")
+        if os.path.exists(log_path):
+            try:
+                with open(log_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                            for p in data.get("inputs", []):
+                                used_videos.add(os.path.abspath(p))
+                        except json.JSONDecodeError:
+                            continue
+            except Exception:
+                pass
+        return used_videos
+
+
 
 
 if __name__ == '__main__':
