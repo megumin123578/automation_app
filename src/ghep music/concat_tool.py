@@ -649,10 +649,7 @@ class ConcatApp(tk.Tk):
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể tạo channel '{name}': {e}")
         finally:
-            if not self.entry_new_channel.focus_get() == self.entry_new_channel:
-                self.entry_new_channel.delete(0, "end")
-                self.entry_new_channel.insert(0, "Add channel...")
-
+            self.entry_new_channel.delete(0, 'end')
 
     def _add_right_click_menu(self, widget, menu_items: list[tuple[str, callable]]):
         """Gắn menu chuột phải cho Entry/Combobox, cả phần dropdown, và hỗ trợ phím Delete."""
@@ -717,12 +714,12 @@ class ConcatApp(tk.Tk):
     def _update_mode_visibility(self):
         mode = self.concat_mode.get()
 
-        # Luôn hiện BGM volume
+        # Mặc định hiển thị BGM volume
         self.lbl_bgm_text.grid()
         self.slider_volume.grid()
         self.lbl_volume.grid()
 
-        # Hiển thị hoặc ẩn Outro Volume tùy theo mode
+        # Hiện/ẩn Outro Volume tuỳ mode
         if mode == "Concat with outro music":
             self.lbl_video_vol.grid()
             self.slider_video_vol.grid()
@@ -732,15 +729,32 @@ class ConcatApp(tk.Tk):
             self.slider_video_vol.grid_remove()
             self.lbl_video_vol_value.grid_remove()
 
-        # Ẩn/hiện dòng chọn Music Folder nếu mode là "Normal concat (no music)"
+        # Normal concat: ẩn BGM + Music Folder, dời Main Video Volume lên hàng 0
         if mode == "Normal concat (no music)":
+            # Ẩn BGM volume
+            self.lbl_bgm_text.grid_remove()
+            self.slider_volume.grid_remove()
+            self.lbl_volume.grid_remove()
+            # Ẩn dòng Music Folder
             for w in self.music_widgets:
                 w.grid_remove()
+
+            # DỜI cụm Main Video Volume lên HÀNG 0 (cột 4..6)
+            self.lbl_main_video_vol.grid_configure(row=0, column=4, sticky="e", padx=5)
+            self.slider_main_video_vol.grid_configure(row=0, column=5, sticky="w", padx=5)
+            self.lbl_main_video_vol_value.grid_configure(row=0, column=6, sticky="w", padx=5)
+
         else:
+            # Các mode khác: hiện lại Music Folder
             for w in self.music_widgets:
                 w.grid()
 
-        # Xử lý riêng mode Reverse → ép group size = 1
+            # Trả cụm Main Video Volume về HÀNG 2 (cột 4..6) như ban đầu
+            self.lbl_main_video_vol.grid_configure(row=2, column=4, sticky="e", padx=5)
+            self.slider_main_video_vol.grid_configure(row=2, column=5, sticky="w", padx=5)
+            self.lbl_main_video_vol_value.grid_configure(row=2, column=6, sticky="w", padx=5)
+
+        # Mode Reverse → ép group size = 1
         if mode == "Concat and Reverse":
             self.group_size_var.set(1)
             self.combo_group_size.set("1")
@@ -748,6 +762,7 @@ class ConcatApp(tk.Tk):
             self._show_group_size(False)
         else:
             self._show_group_size(True)
+
 
 
 
