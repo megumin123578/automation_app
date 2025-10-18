@@ -399,12 +399,16 @@ def concat_video(video_paths, output_path):
     os.remove(list_file)
 
 
-def auto_concat(input_videos, output_path, num_threads = 8):
+def auto_concat(input_videos, output_path,
+                num_threads=8, width=1080, height=1920,
+                fps=60, use_nvenc=True, cq=23,
+                v_bitrate="12M", a_bitrate="160k",
+                nvenc_preset="p4"):
     normalized_paths = []
 
     def normalize_and_collect(i, path):
         fixed = f"normalized_{i}.mp4"
-        normalize_video(path, fixed)
+        normalize_video(path, fixed, width, height, fps, use_nvenc, cq, v_bitrate, a_bitrate, nvenc_preset)
         return fixed
 
     with ThreadPoolExecutor(max_workers=num_threads) as executor:

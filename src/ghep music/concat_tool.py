@@ -18,6 +18,12 @@ class ConcatApp(tk.Tk):
         style.configure("TEntry", font=("Segoe UI", 10))
         style.configure("TCombobox", font=("Segoe UI", 10))
 
+        style.configure("NvencOn.TButton", font=("Segoe UI", 10, "bold"), foreground="#ffffff", background="#4CAF50")
+        style.map("NvencOn.TButton", background=[("active", "#45a049")])
+
+        style.configure("NvencOff.TButton", font=("Segoe UI", 10, "bold"), foreground="#ffffff", background="#d32f2f")
+        style.map("NvencOff.TButton", background=[("active", "#b71c1c")])
+
         self.start_time = None
         self.elapsed_times = []
 
@@ -32,6 +38,16 @@ class ConcatApp(tk.Tk):
         self.limit_videos_var = tk.IntVar(value=0)
         self.concat_mode = tk.StringVar(value="Concat with music background")
 
+        # ==== Video settings ====
+        self.resolution_var = tk.StringVar(value="1080x1920")
+        self.fps_var = tk.IntVar(value=60)
+        self.use_nvenc_var = tk.BooleanVar(value=True)
+        self.cq_var = tk.IntVar(value=23)
+        self.v_bitrate_var = tk.StringVar(value="12M")
+        self.a_bitrate_var = tk.StringVar(value="160k")
+        self.nvenc_preset_var = tk.StringVar(value="p4")
+
+
         self.mp3_list: list[str] = []
         self.total_mp4 = tk.StringVar(value="0")
         self.num_groups = tk.StringVar(value="0")
@@ -44,6 +60,8 @@ class ConcatApp(tk.Tk):
         self.log_q: queue.Queue[str] = queue.Queue()
         os.makedirs(CONFIG_DIR, exist_ok=True)
         self.selected_channel = tk.StringVar()
+
+        self._advanced = False
 
         self._tag_id = 0
         self._build_ui()
@@ -105,7 +123,12 @@ class ConcatApp(tk.Tk):
         self.combo_mode.current(0)
         self.combo_mode.bind("<<ComboboxSelected>>", lambda e: (self.save_channel_config(), self._update_mode_visibility(), self.reload_groups()))
 
-        
+        self.btn_advanced = ttk.Button(
+            channel_frame, text="Advanced ▸", style="Secondary.TButton",
+            command=self._toggle_advanced
+        )
+        self.btn_advanced.grid(row=0, column=5, sticky="w", padx=8)
+
         # Parameters frame
         param_frame = ttk.Frame(self.frm_top)
         param_frame.grid(row=1, column=0, columnspan=4, sticky="we", pady=5)
@@ -171,9 +194,69 @@ class ConcatApp(tk.Tk):
         # self.btn_reload = ttk.Button(param_frame, text="↻ Reload", style="Accent.TButton", command=self.reload_groups)
         # self.btn_reload.grid(row=0, column=7, sticky="w", padx=5)
 
+        # --- Video Settings Frame ---
+        self.video_frame = ttk.LabelFrame(self.frm_top, text="🎬 Video Settings", padding=(10,5))
+        self.video_frame.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
+
+        # Preset lists
+        cq_values = [10, 12, 15, 17, 18, 20, 21, 22, 23, 24, 25, 28, 30, 32, 35, 40]
+        v_bitrate_values = ["4M", "6M", "8M", "10M", "12M", "15M", "20M", "25M", "30M"]
+        a_bitrate_values = ["96k", "128k", "160k", "192k", "256k", "320k"]
+
+        # Hàng 1
+        ttk.Label(self.video_frame, text="Resolution:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
+        ttk.Combobox(self.video_frame, textvariable=self.resolution_var, width=10, state="readonly",
+                    values=["1080x1920", "1920x1080", "720x1280", "1280x720"]).grid(row=0, column=1, sticky="w")
+
+        ttk.Label(self.video_frame, text="FPS:", font=("Segoe UI", 10, "bold")).grid(row=0, column=2, sticky="e", padx=5)
+        ttk.Combobox(self.video_frame, textvariable=self.fps_var, width=5, state="readonly",
+                    values=[24, 30, 60]).grid(row=0, column=3, sticky="w")
+
+        ttk.Label(self.video_frame, text="CQ / CRF:", font=("Segoe UI", 10, "bold")).grid(row=0, column=4, sticky="e", padx=5)
+        self.cbo_cq = ttk.Combobox(self.video_frame, textvariable=self.cq_var, width=5, state="readonly", values=cq_values)
+        self.cbo_cq.grid(row=0, column=5, sticky="w")
+
+        self.btn_nvenc = ttk.Button(
+            self.video_frame,
+            text="🟢 NVENC ON" if self.use_nvenc_var.get() else "🔴 NVENC OFF",
+            style="Secondary.TButton",
+            command=self._toggle_nvenc
+        )
+        self.btn_nvenc.grid(row=0, column=6, padx=(10,0), sticky="w")
+        self.use_nvenc_var.trace_add("write", self._update_nvenc_button)
+        self.btn_nvenc.grid(row=0, column=6, padx=(10,0), sticky="w")
+        self.use_nvenc_var.trace_add("write", self._update_nvenc_button)
+
+        # Hàng 2
+        ttk.Label(self.video_frame, text="Video Bitrate:", font=("Segoe UI", 10, "bold")).grid(row=1, column=0, sticky="e", padx=5)
+        self.cbo_vbit = ttk.Combobox(self.video_frame, textvariable=self.v_bitrate_var, width=8, state="readonly", values=v_bitrate_values)
+        self.cbo_vbit.grid(row=1, column=1, sticky="w")
+
+        ttk.Label(self.video_frame, text="Audio Bitrate:", font=("Segoe UI", 10, "bold")).grid(row=1, column=2, sticky="e", padx=5)
+        self.cbo_abit = ttk.Combobox(self.video_frame, textvariable=self.a_bitrate_var, width=8, state="readonly", values=a_bitrate_values)
+        self.cbo_abit.grid(row=1, column=3, sticky="w")
+
+        ttk.Label(self.video_frame, text="Preset:", font=("Segoe UI", 10, "bold")).grid(row=1, column=4, sticky="e", padx=5)
+        ttk.Combobox(self.video_frame, textvariable=self.nvenc_preset_var, width=6, state="readonly",
+                    values=["p1","p2","p3","p4","p5","p6","p7","medium"]).grid(row=1, column=5, sticky="w")
+
+        # ẨN mặc định (giữ logic Advanced)
+        self.video_frame.grid_remove()
+
+        # Đảm bảo giá trị hiện tại được chọn ngay cả khi không nằm trong preset
+        if self.cq_var.get() not in cq_values:
+            self.cbo_cq["values"] = [self.cq_var.get()] + cq_values
+        if self.v_bitrate_var.get() and self.v_bitrate_var.get() not in v_bitrate_values:
+            self.cbo_vbit["values"] = [self.v_bitrate_var.get()] + v_bitrate_values
+        if self.a_bitrate_var.get() and self.a_bitrate_var.get() not in a_bitrate_values:
+            self.cbo_abit["values"] = [self.a_bitrate_var.get()] + a_bitrate_values
+
+
+
+
         # Folder selection
         folder_frame = ttk.LabelFrame(self.frm_top, text="📁 Folders", padding=(10, 5))
-        folder_frame.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
+        folder_frame.grid(row=3, column=0, columnspan=4, sticky="we", pady=5)
         self._add_folder_row("Source Folder:", self.input_folder, 0, folder_frame, reload=True)
         self._add_folder_row("Save Folder:", self.save_folder, 1, folder_frame)
         self.music_widgets = self._add_folder_row("Music Folder:", self.bgm_folder, 2, folder_frame, bgm=True)
@@ -181,7 +264,7 @@ class ConcatApp(tk.Tk):
 
         # Action buttons and progress
         action_frame = ttk.Frame(self.frm_top)
-        action_frame.grid(row=3, column=0, columnspan=4, sticky="we", pady=10)
+        action_frame.grid(row=4, column=0, columnspan=4, sticky="we", pady=10)
         self.btn_concat = ttk.Button(action_frame, text="▶ Start", style="Accent.TButton", command=self.start_concat)
         self.btn_concat.grid(row=0, column=0, padx=5)
         self.btn_stop = ttk.Button(action_frame, text="■ Stop", style="Stop.TButton", command=self.stop_concat, state=tk.DISABLED)
@@ -387,7 +470,18 @@ class ConcatApp(tk.Tk):
 
                     #++++++++++++++++LOGIC+++++++++++++++++++++
                     if mode == "Concat with music background":
-                        auto_concat(group, temp)
+                        auto_concat(
+                            group, temp,
+                            num_threads=8,
+                            width=int(self.resolution_var.get().split("x")[0]),
+                            height=int(self.resolution_var.get().split("x")[1]),
+                            fps=self.fps_var.get(),
+                            use_nvenc=self.use_nvenc_var.get(),
+                            cq=self.cq_var.get(),
+                            v_bitrate=self.v_bitrate_var.get(),
+                            a_bitrate=self.a_bitrate_var.get(),
+                            nvenc_preset=self.nvenc_preset_var.get()
+                        )
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         if bg_audio and os.path.isfile(bg_audio):
                             print(f"[DEBUG] Mixing BGM {bg_audio} into {temp}")
@@ -401,7 +495,18 @@ class ConcatApp(tk.Tk):
                             shutil.copy2(temp, output)
                     
                     elif mode == "Concat with outro music":
-                        auto_concat(group, temp)
+                        auto_concat(
+                            group, temp,
+                            num_threads=8,
+                            width=int(self.resolution_var.get().split("x")[0]),
+                            height=int(self.resolution_var.get().split("x")[1]),
+                            fps=self.fps_var.get(),
+                            use_nvenc=self.use_nvenc_var.get(),
+                            cq=self.cq_var.get(),
+                            v_bitrate=self.v_bitrate_var.get(),
+                            a_bitrate=self.a_bitrate_var.get(),
+                            nvenc_preset=self.nvenc_preset_var.get()
+                        )
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         if bg_audio and os.path.isfile(bg_audio):
                             output = mix_audio_at_end_ffmpeg(
@@ -415,12 +520,34 @@ class ConcatApp(tk.Tk):
                             shutil.copy2(temp, output)
 
                     elif mode == "Normal concat (no music)":
-                        auto_concat(group, temp)
+                        auto_concat(
+                            group, temp,
+                            num_threads=8,
+                            width=int(self.resolution_var.get().split("x")[0]),
+                            height=int(self.resolution_var.get().split("x")[1]),
+                            fps=self.fps_var.get(),
+                            use_nvenc=self.use_nvenc_var.get(),
+                            cq=self.cq_var.get(),
+                            v_bitrate=self.v_bitrate_var.get(),
+                            a_bitrate=self.a_bitrate_var.get(),
+                            nvenc_preset=self.nvenc_preset_var.get()
+                        )
                         output = get_next_output_filename(out_dir)
                         shutil.copy2(temp, output)
 
                     elif mode == "Concat and Reverse":
-                        auto_concat(group, temp)
+                        auto_concat(
+                            group, temp,
+                            num_threads=8,
+                            width=int(self.resolution_var.get().split("x")[0]),
+                            height=int(self.resolution_var.get().split("x")[1]),
+                            fps=self.fps_var.get(),
+                            use_nvenc=self.use_nvenc_var.get(),
+                            cq=self.cq_var.get(),
+                            v_bitrate=self.v_bitrate_var.get(),
+                            a_bitrate=self.a_bitrate_var.get(),
+                            nvenc_preset=self.nvenc_preset_var.get()
+                        )
                         tmp_out = concat_reverse(temp, out_dir, speed_reverse=3.0, use_nvenc=True)
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         if bg_audio and os.path.isfile(bg_audio):
@@ -588,6 +715,15 @@ class ConcatApp(tk.Tk):
             else:
                 self.video_volume_var.set(0.2)
             self.main_video_volume_var.set(cfg.get("main_video_volume", 1.0))
+            vs = cfg.get("video_settings", {})
+            self.resolution_var.set(vs.get("resolution", "1080x1920"))
+            self.fps_var.set(vs.get("fps", 60))
+            self.use_nvenc_var.set(vs.get("use_nvenc", True))
+            self.cq_var.set(vs.get("cq", 23))
+            self.v_bitrate_var.set(vs.get("v_bitrate", "12M"))
+            self.a_bitrate_var.set(vs.get("a_bitrate", "160k"))
+            self.nvenc_preset_var.set(vs.get("nvenc_preset", "p4"))
+
 
             self._update_mode_visibility()
 
@@ -619,6 +755,15 @@ class ConcatApp(tk.Tk):
             "concat_mode": self.concat_mode.get(),
             "main_video_volume": self.main_video_volume_var.get(),
             "outro_volume": self.video_volume_var.get(),
+            "video_settings": {
+            "resolution": self.resolution_var.get(),
+            "fps": self.fps_var.get(),
+            "use_nvenc": self.use_nvenc_var.get(),
+            "cq": self.cq_var.get(),
+            "v_bitrate": self.v_bitrate_var.get(),
+            "a_bitrate": self.a_bitrate_var.get(),
+            "nvenc_preset": self.nvenc_preset_var.get()
+        }
 
         }
 
@@ -764,7 +909,23 @@ class ConcatApp(tk.Tk):
             self._show_group_size(True)
 
 
+    def _toggle_advanced(self):
+        self._advanced = not self._advanced
+        if self._advanced:
+            self.video_frame.grid()
+            self.btn_advanced.configure(text="Advanced ▾")
+        else:
+            self.video_frame.grid_remove()
+            self.btn_advanced.configure(text="Advanced ▸")
 
+    def _toggle_nvenc(self):
+        self.use_nvenc_var.set(not self.use_nvenc_var.get())
+
+    def _update_nvenc_button(self, *args):
+        if self.use_nvenc_var.get():
+            self.btn_nvenc.config(text="NVENC ON", style="NvencOn.TButton")
+        else:
+            self.btn_nvenc.config(text="NVENC OFF", style="NvencOff.TButton")
 
 
     def _show_group_size(self, visible=True):

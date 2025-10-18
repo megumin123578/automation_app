@@ -1,0 +1,2 @@
+{"output": "E:\\ghep xong\\43.mp4", "inputs": ["E:\\storage\\906.mp4", "E:\\storage\\903.mp4"], "mode": "Concat with music background"}
+{"output": "E:\\ghep xong\\44.mp4", "inputs": ["E:\\storage\\908.mp4", "E:\\storage\\910.mp4"], "mode": "Concat with music background"}

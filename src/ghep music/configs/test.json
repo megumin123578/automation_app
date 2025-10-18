@@ -1,11 +1,20 @@
 {
-  "input_folder": "",
-  "save_folder": "",
-  "bgm_folder": "",
+  "input_folder": "E:/storage",
+  "save_folder": "E:/ghep xong",
+  "bgm_folder": "C:/Users/Admin/Music",
   "group_size": 2,
   "bgm_volume": 0.5,
   "limit_videos": 0,
   "concat_mode": "Concat with music background",
   "main_video_volume": 1.0,
-  "outro_volume": 0.2
+  "outro_volume": 0.2,
+  "video_settings": {
+    "resolution": "1080x1920",
+    "fps": 60,
+    "use_nvenc": true,
+    "cq": 23,
+    "v_bitrate": "12M",
+    "a_bitrate": "160k",
+    "nvenc_preset": "p4"
+  }
 }
