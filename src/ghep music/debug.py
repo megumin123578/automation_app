@@ -37,6 +37,7 @@ class ConcatApp(tk.Tk):
         self.video_volume_var = tk.DoubleVar(value=0.2)
         self.main_video_volume_var = tk.DoubleVar(value=1.0)
         self.limit_videos_var = tk.IntVar(value=0)
+        
         self.concat_mode = tk.StringVar(value="Concat with music background")
 
         # ==== Video settings ====
@@ -68,6 +69,7 @@ class ConcatApp(tk.Tk):
         self._dur_cache: dict[str, float] = {}
 
         self.outro_mode_var = tk.StringVar(value="By group count")
+        self.outro_duration_var = tk.IntVar(value=15)
 
         self._tag_id = 0
         self._build_ui()
@@ -151,8 +153,7 @@ class ConcatApp(tk.Tk):
         ttk.Label(param_frame, text="Total Videos to Export:", font=("Segoe UI", 10, "bold")).grid(row=0, column=2, sticky="e", padx=5)
         limit_display = ["All"] + [str(i) for i in range(1, 101)]
         self.combo_limit_videos = ttk.Combobox(
-            param_frame, width=8, state="readonly", textvariable=self.limit_videos_var, values=limit_display
-
+            param_frame, width=8, state="readonly", textvariable=tk.StringVar(), values=limit_display
         )
         self.combo_limit_videos.current(0)
         self.combo_limit_videos.grid(row=0, column=3, sticky="w", padx=5)
@@ -212,6 +213,18 @@ class ConcatApp(tk.Tk):
 
         self.lbl_video_vol_value = ttk.Label(param_frame, text=f"{self.video_volume_var.get() * 100:.0f}%", width=5)
         self.lbl_video_vol_value.grid(row=1, column=6, sticky="w", padx=5)
+
+        # --- Outro Length (seconds) ---
+        self.lbl_outro_dur = ttk.Label(param_frame, text="Outro length (s):", font=("Segoe UI", 10, "bold"))
+        self.lbl_outro_dur.grid(row=1, column=7, sticky="e", padx=5)
+
+        self.cbo_outro_dur = ttk.Combobox(
+            param_frame, textvariable=self.outro_duration_var, state="readonly", width=6,
+            values= [5, 10, 12, 15, 20, 30, 45, 60, 90, 120]
+        )
+        self.cbo_outro_dur.grid(row=1, column=8, sticky="w", padx=5)
+        # lưu config khi đổi lựa chọn
+        self.cbo_outro_dur.bind("<<ComboboxSelected>>", lambda e: self.save_channel_config())
 
         self.video_volume_var.trace_add("write", self._update_video_volume_label)
         self.bgm_volume_var.trace_add("write", self._update_volume_label)
@@ -564,7 +577,7 @@ class ConcatApp(tk.Tk):
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         if bg_audio and os.path.isfile(bg_audio):
                             output = mix_audio_at_end_ffmpeg(
-                                temp, bg_audio, out_dir, 15,
+                                temp, bg_audio, out_dir, self.outro_duration_var.get(),
                                 bgm_volume=self.bgm_volume_var.get(),
                                 outro_volume=self.video_volume_var.get(),
                                 video_volume= self.main_video_volume_var.get()
@@ -825,6 +838,10 @@ class ConcatApp(tk.Tk):
             self.time_limit_sec_var.set(str(vs.get("time_limit_sec", 0)))
             self.outro_mode_var.set(cfg.get('outro_mode', 'By group count'))
             self.combo_outro_mode.set(self.outro_mode_var.get())
+            self.outro_duration_var.set(int(cfg.get("outro_duration",15)))
+            odv = self.outro_duration_var.get()
+            if str(odv) not in [str(v) for v in self.cbo_outro_dur["values"]]:
+                self.cbo_outro_dur["values"] = [odv] + list(self.cbo_outro_dur["values"])
 
             self._update_mode_visibility()
 
@@ -862,6 +879,7 @@ class ConcatApp(tk.Tk):
             "main_video_volume": self.main_video_volume_var.get(),
             "video_volume": self.video_volume_var.get(),
             "outro_mode": self.outro_mode_var.get(),
+            "outro_duration": int(self.outro_duration_var.get() or 15),
             "video_settings": {
                 "resolution": self.resolution_var.get(),
                 "fps": self.fps_var.get(),
@@ -998,12 +1016,16 @@ class ConcatApp(tk.Tk):
             self.lbl_video_vol_value.grid()
             self.lbl_outro_mode.grid()
             self.combo_outro_mode.grid()
+            self.lbl_outro_dur.grid()
+            self.cbo_outro_dur.grid()
         else:
             self.lbl_video_vol.grid_remove()
             self.slider_video_vol.grid_remove()
             self.lbl_video_vol_value.grid_remove()
             self.lbl_outro_mode.grid_remove()
             self.combo_outro_mode.grid_remove()
+            self.lbl_outro_dur.grid_remove()
+            self.cbo_outro_dur.grid_remove()
 
         # Normal concat: ẩn BGM + Music Folder, dời Main Video Volume lên hàng 0
         if mode == "Normal concat (no music)":
