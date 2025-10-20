@@ -67,7 +67,7 @@ class ConcatApp(tk.Tk):
         self.time_limit_sec_var = tk.StringVar(value="0")
         self._dur_cache: dict[str, float] = {}
 
-
+        self.outro_mode_var = tk.StringVar(value="By group count")
 
         self._tag_id = 0
         self._build_ui()
@@ -133,7 +133,7 @@ class ConcatApp(tk.Tk):
             channel_frame, text="Advanced ▸", style="Secondary.TButton",
             command=self._toggle_advanced
         )
-        self.btn_advanced.grid(row=0, column=5, sticky="w", padx=8)
+        self.btn_advanced.grid(row=0, column=7, sticky="w", padx=8)
 
         # Parameters frame
         param_frame = ttk.Frame(self.frm_top)
@@ -151,7 +151,8 @@ class ConcatApp(tk.Tk):
         ttk.Label(param_frame, text="Total Videos to Export:", font=("Segoe UI", 10, "bold")).grid(row=0, column=2, sticky="e", padx=5)
         limit_display = ["All"] + [str(i) for i in range(1, 101)]
         self.combo_limit_videos = ttk.Combobox(
-            param_frame, width=8, state="readonly", textvariable=tk.StringVar(), values=limit_display
+            param_frame, width=8, state="readonly", textvariable=self.limit_videos_var, values=limit_display
+
         )
         self.combo_limit_videos.current(0)
         self.combo_limit_videos.grid(row=0, column=3, sticky="w", padx=5)
@@ -218,6 +219,18 @@ class ConcatApp(tk.Tk):
         self.lbl_bgm_text = ttk.Label(param_frame, text="BGM Volume:", font=("Segoe UI", 10, "bold"))
         self.lbl_bgm_text.grid(row=0, column=4, sticky="e", padx=5)
 
+        # --- Outro Mode ---
+        self.lbl_outro_mode = ttk.Label(channel_frame, text="Outro mode:", font=("Segoe UI", 10, "bold"))
+        self.lbl_outro_mode.grid(row=0, column=5, sticky="e", padx=(10, 5))
+        self.combo_outro_mode = ttk.Combobox(
+            channel_frame,
+            textvariable=self.outro_mode_var,
+            state="readonly",
+            width=15,
+            values=["By group count", "By time limit"]
+        )
+        self.combo_outro_mode.grid(row=0, column=6, sticky="w", padx=5)
+        self.combo_outro_mode.bind("<<ComboboxSelected>>", lambda e: (self.save_channel_config(), self._update_mode_visibility()))
 
         # self.btn_reload = ttk.Button(param_frame, text="↻ Reload", style="Accent.TButton", command=self.reload_groups)
         # self.btn_reload.grid(row=0, column=7, sticky="w", padx=5)
@@ -307,11 +320,8 @@ class ConcatApp(tk.Tk):
         )
         self.lbl_progress_info.grid(row=1, column=4, columnspan=2, padx=5, pady=(3,0), sticky='w')
 
-
-
         self.lbl_status = ttk.Label(action_frame, textvariable=self.status_var, font=("Segoe UI", 10, "italic"))
         self.lbl_status.grid(row=0, column=5, padx=5, sticky="w")
-
 
         # Log and stats frame
         self.frm_logstats = ttk.LabelFrame(self, text="📜 Log & Statistics", padding=(10, 10))
@@ -353,7 +363,6 @@ class ConcatApp(tk.Tk):
 
         return (lbl, entry, btn)   # <-- TRẢ VỀ CÁC WIDGET
 
-
     def _layout(self):
         self.grid_rowconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=2)
@@ -388,7 +397,6 @@ class ConcatApp(tk.Tk):
             self.txt_log.insert("end", text + "\n")
         self.txt_log.see("end")
         self.txt_log.configure(state="disabled")
-
 
     def reload_groups(self):
         folder = self.input_folder.get()
@@ -530,6 +538,17 @@ class ConcatApp(tk.Tk):
                             shutil.copy2(temp, output)
                     
                     elif mode == "Concat with outro music":
+                        outro_mode = self.outro_mode_var.get()
+                        if outro_mode == "By time limit":
+                            folder = self.input_folder.get()
+                            all_videos = list_all_mp4_files(folder)
+                            pool = [v for v in all_videos if os.path.abspath(v) not in (used_global | used_this_run)]
+                            target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
+                            group = self._pick_videos_for_time(pool, target_seconds)
+                            if not group:
+                                self.after(0, lambda: self._append_log("Hết clip phù hợp cho Outro Time Limit."))
+                                break
+
                         auto_concat(
                             group, temp,
                             num_threads=8,
@@ -790,6 +809,7 @@ class ConcatApp(tk.Tk):
             self.combo_mode.set(self.concat_mode.get())
             if self.concat_mode.get() == "Concat with outro music":
                 self.video_volume_var.set(cfg.get("video_volume", 0.2))
+                
             else:
                 self.video_volume_var.set(0.2)
             self.main_video_volume_var.set(cfg.get("main_video_volume", 1.0))
@@ -803,6 +823,8 @@ class ConcatApp(tk.Tk):
             self.nvenc_preset_var.set(vs.get("nvenc_preset", "p4"))
             self.time_limit_min_var.set(str(vs.get("time_limit_min", 0)))
             self.time_limit_sec_var.set(str(vs.get("time_limit_sec", 0)))
+            self.outro_mode_var.set(cfg.get('outro_mode', 'By group count'))
+            self.combo_outro_mode.set(self.outro_mode_var.get())
 
             self._update_mode_visibility()
 
@@ -839,17 +861,19 @@ class ConcatApp(tk.Tk):
             "concat_mode": self.concat_mode.get(),
             "main_video_volume": self.main_video_volume_var.get(),
             "video_volume": self.video_volume_var.get(),
+            "outro_mode": self.outro_mode_var.get(),
             "video_settings": {
-            "resolution": self.resolution_var.get(),
-            "fps": self.fps_var.get(),
-            "use_nvenc": self.use_nvenc_var.get(),
-            "cq": self.cq_var.get(),
-            "v_bitrate": self.v_bitrate_var.get(),
-            "a_bitrate": self.a_bitrate_var.get(),
-            "nvenc_preset": self.nvenc_preset_var.get(),
-            "time_limit_min": int(self.time_limit_min_var.get() or 0),
-            "time_limit_sec": int(self.time_limit_sec_var.get() or 0)
-        }
+                "resolution": self.resolution_var.get(),
+                "fps": self.fps_var.get(),
+                "use_nvenc": self.use_nvenc_var.get(),
+                "cq": self.cq_var.get(),
+                "v_bitrate": self.v_bitrate_var.get(),
+                "a_bitrate": self.a_bitrate_var.get(),
+                "nvenc_preset": self.nvenc_preset_var.get(),
+                "time_limit_min": int(self.time_limit_min_var.get() or 0),
+                "time_limit_sec": int(self.time_limit_sec_var.get() or 0),
+                
+            }
 
         }
         # Chỉ lưu video_volume khi đang ở chế độ outro
@@ -950,7 +974,10 @@ class ConcatApp(tk.Tk):
         self.lbl_volume.grid()
 
         # Time limit controls
-        if mode == "Concat with time limit":
+        if (
+                mode == "Concat with time limit"
+                or (mode == "Concat with outro music" and self.outro_mode_var.get() == "By time limit")
+            ):
             self._show_time_limit(True)
             self._show_group_size(False)  # không dùng group size
         else:
@@ -969,10 +996,14 @@ class ConcatApp(tk.Tk):
             self.lbl_video_vol.grid()
             self.slider_video_vol.grid()
             self.lbl_video_vol_value.grid()
+            self.lbl_outro_mode.grid()
+            self.combo_outro_mode.grid()
         else:
             self.lbl_video_vol.grid_remove()
             self.slider_video_vol.grid_remove()
             self.lbl_video_vol_value.grid_remove()
+            self.lbl_outro_mode.grid_remove()
+            self.combo_outro_mode.grid_remove()
 
         # Normal concat: ẩn BGM + Music Folder, dời Main Video Volume lên hàng 0
         if mode == "Normal concat (no music)":
