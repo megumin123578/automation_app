@@ -471,8 +471,6 @@ def concat_reverse(
     print(f"[OK] Created: {output_path}")
     return output_path
 
-
-
 def run_ffmpeg(cmd: list):
     try:
         p = subprocess.run(cmd, check=True, text=True,
@@ -500,3 +498,11 @@ def nvenc_supports_preset(preset: str) -> bool:
     except Exception:
         return False
     
+
+def safe_remove(file):
+    for _ in range(3):
+        try:
+            os.remove(file)
+            break
+        except PermissionError:
+            time.sleep(1)
