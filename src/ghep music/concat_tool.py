@@ -159,7 +159,6 @@ class ConcatApp(tk.Tk):
         )
         self.combo_limit_videos.set("All")  # hiển thị "All"
 
-        
         def on_limit_change(event=None):
             val = self.combo_limit_videos.get()
             self.limit_videos_var.set(0 if val == "All" else int(val))
@@ -610,6 +609,8 @@ class ConcatApp(tk.Tk):
                         else:
                             output = get_next_output_filename(out_dir)
                             shutil.copy2(temp, output)
+
+                        used_this_run.update(os.path.abspath(p) for p in group)
 
                     elif mode == "Normal concat (no music)":
                         auto_concat(
@@ -1149,7 +1150,7 @@ class ConcatApp(tk.Tk):
             return []
 
         overshoot = total - target_seconds
-        limit_over = max(15.0, 0.10 * target_seconds)  # không quá dài
+        limit_over = max(60.0, 0.5 * target_seconds)  # không quá dài
 
         if overshoot <= limit_over:
             return selected
