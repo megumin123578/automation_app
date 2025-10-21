@@ -2,12 +2,14 @@
   "input_folder": "E:/storage",
   "save_folder": "E:/ghep xong",
   "bgm_folder": "C:/Users/Admin/Music",
-  "group_size": 2,
+  "group_size": 6,
   "bgm_volume": 0.5,
-  "limit_videos": 0,
+  "limit_videos": 6,
   "concat_mode": "Concat with outro music",
   "main_video_volume": 1.0,
   "video_volume": 0.2,
+  "outro_mode": "By group count",
+  "outro_duration": 15,
   "video_settings": {
     "resolution": "1080x1920",
     "fps": 60,
@@ -16,6 +18,7 @@
     "v_bitrate": "12M",
     "a_bitrate": "160k",
     "nvenc_preset": "p4",
-    "time_limit_min": 3
+    "time_limit_min": 3,
+    "time_limit_sec": 0
   }
 }

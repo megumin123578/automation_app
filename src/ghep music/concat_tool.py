@@ -152,16 +152,20 @@ class ConcatApp(tk.Tk):
 
         ttk.Label(param_frame, text="Total Videos to Export:", font=("Segoe UI", 10, "bold")).grid(row=0, column=2, sticky="e", padx=5)
         limit_display = ["All"] + [str(i) for i in range(1, 101)]
+        self.limit_videos_display = tk.StringVar(value="All")  # StringVar để hiển thị
         self.combo_limit_videos = ttk.Combobox(
-            param_frame, width=8, state="readonly", textvariable=tk.StringVar(), values=limit_display
+            param_frame, width=8, state="readonly",
+            textvariable=self.limit_videos_display, values=limit_display
         )
-        self.combo_limit_videos.current(0)
-        self.combo_limit_videos.grid(row=0, column=3, sticky="w", padx=5)
+        self.combo_limit_videos.set("All")  # hiển thị "All"
+
         
         def on_limit_change(event=None):
             val = self.combo_limit_videos.get()
             self.limit_videos_var.set(0 if val == "All" else int(val))
+            self.save_channel_config()
         self.combo_limit_videos.bind("<<ComboboxSelected>>", on_limit_change)
+        self.combo_limit_videos.grid(row=0, column=3, sticky="w", padx=5)
 
         # --- Time limit (minutes) - chỉ hiện ở "Concat with time limit"
         self.lbl_time_limit = ttk.Label(param_frame, text="Time limit (min):", font=("Segoe UI", 10, "bold"))
@@ -818,6 +822,9 @@ class ConcatApp(tk.Tk):
             self.group_size_var.set(group_size)
             self.bgm_volume_var.set(cfg.get("bgm_volume", 0.5))
             self.limit_videos_var.set(cfg.get("limit_videos", 0))
+            #đồng bộ hiển thị
+            lv = self.limit_videos_var.get()
+            self.combo_limit_videos.set("All" if lv == 0 else str(lv))
             self.concat_mode.set(cfg.get('concat_mode','Concat with music background'))
             self.combo_mode.set(self.concat_mode.get())
             if self.concat_mode.get() == "Concat with outro music":
