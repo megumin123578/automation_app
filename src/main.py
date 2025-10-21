@@ -334,8 +334,15 @@ class App(tk.Tk):
         for i, (ch, t, d) in enumerate(assignments):
 
             pt = times[i] if i < len(times) else ""
-            #if time ->> date = today
-            pd = datetime.date.today().strftime("%m/%d/%Y") if pt else ""
+
+            try:
+                selected_date = self.date_entry.get_date().strftime("%m/%d/%Y")
+            except Exception:
+                selected_date = datetime.date.today().strftime("%m/%d/%Y")
+
+            for i, (ch, t, d) in enumerate(assignments):
+                pt = times[i] if i < len(times) else ""
+                pd = selected_date if pt else ""   
 
             if folder_path and os.path.isdir(folder_path):
                 directory = get_random_unused_mp4(folder_path, used_paths | session_used)

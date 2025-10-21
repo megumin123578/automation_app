@@ -8,6 +8,8 @@
   "concat_mode": "Concat and Reverse",
   "main_video_volume": 1.0,
   "video_volume": 0.2,
+  "outro_mode": "By group count",
+  "outro_duration": 15,
   "video_settings": {
     "resolution": "1080x1920",
     "fps": 60,
@@ -16,6 +18,7 @@
     "v_bitrate": "12M",
     "a_bitrate": "160k",
     "nvenc_preset": "p4",
-    "time_limit_min": 3
+    "time_limit_min": 3,
+    "time_limit_sec": 0
   }
 }
