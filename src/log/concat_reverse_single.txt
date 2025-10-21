@@ -8,43 +8,45 @@ ffmpeg version 2025-10-12-git-0bc54cddb1-full_build-www.gyan.dev Copyright (c) 2
   libavfilter    11.  9.100 / 11.  9.100
   libswscale      9.  3.100 /  9.  3.100
   libswresample   6.  2.100 /  6.  2.100
-Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp_25292.mp4':
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '//nasfmc/Ổ Sever Mới/Định/Satisfy ASMR/New folder/45s - MUSIC/Tuấn/Funny Crushing Experiment - HP Crunchy\V1051 - V1065H\1056H.mp4':
   Metadata:
-    major_brand     : isom
-    minor_version   : 512
-    compatible_brands: isomiso2avc1mp41
-    encoder         : Lavf62.6.101
-  Duration: 00:00:29.06, start: 0.000000, bitrate: 12109 kb/s
-  Stream #0:0[0x1](eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 11933 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42mp41
+    creation_time   : 2025-07-11T08:43:53.000000Z
+  Duration: 00:00:29.47, start: 0.000000, bitrate: 16048 kb/s
+  Stream #0:0[0x1](eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 15717 kb/s, 60 fps, 60 tbr, 60k tbn (default)
     Metadata:
+      creation_time   : 2025-07-11T08:43:53.000000Z
       handler_name    : ?Mainconcept Video Media Handler
       vendor_id       : [0][0][0][0]
-      encoder         : Lavc62.16.100 h264_nvenc
-  Stream #0:1[0x2](eng): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 172 kb/s (default)
+      encoder         : AVC Coding
+  Stream #0:1[0x2](eng): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 317 kb/s (default)
     Metadata:
+      creation_time   : 2025-07-11T08:43:53.000000Z
       handler_name    : #Mainconcept MP4 Sound Media Handler
       vendor_id       : [0][0][0][0]
 Stream mapping:
-  Stream #0:0 (h264) -> reverse:default
-  Stream #0:0 (h264) -> concat
-  Stream #0:1 (aac) -> atempo:default
+  Stream #0:0 (h264) -> scale:default
+  Stream #0:1 (aac) -> aformat:default
   concat:out:v0 -> Stream #0:0 (h264_nvenc)
-  apad:default -> Stream #0:1 (aac)
+  concat:out:a0 -> Stream #0:1 (aac)
 Press [q] to stop, [?] for help
-Output #0, mp4, to 'F:/1\temp_25292_rev.mp4':
+Output #0, mp4, to 'F:/1\pal_1761029330876.mp4':
   Metadata:
-    major_brand     : isom
-    minor_version   : 512
-    compatible_brands: isomiso2avc1mp41
+    major_brand     : mp42
+    minor_version   : 0
+    compatible_brands: mp42mp41
     encoder         : Lavf62.6.101
-  Stream #0:0: Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 4000 kb/s, 60 fps, 15360 tbn
+  Stream #0:0: Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 60 fps, 15360 tbn
     Metadata:
       encoder         : Lavc62.16.100 h264_nvenc
     Side data:
-      CPB properties: bitrate max/min/avg: 0/0/4000000 buffer size: 8000000 vbv_delay: N/A
-  Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+  Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 160 kb/s
     Metadata:
       encoder         : Lavc62.16.100 aac
-frame=  126 fps=0.0 q=37.0 size=    1280KiB time=00:00:02.09 bitrate=5015.7kbits/s speed=4.09x elapsed=0:00:00.51    frame=  292 fps=285 q=34.0 size=    2560KiB time=00:00:04.86 bitrate=4311.7kbits/s speed=4.74x elapsed=0:00:01.02    frame=  649 fps=421 q=36.0 size=    3840KiB time=00:00:06.99 bitrate=4495.7kbits/s speed=4.53x elapsed=0:00:01.54    frame= 1018 fps=494 q=32.0 size=    4864KiB time=00:00:09.06 bitrate=4394.8kbits/s speed= 4.4x elapsed=0:00:02.05    frame= 1437 fps=558 q=32.0 size=   12032KiB time=00:00:23.96 bitrate=4112.7kbits/s speed=9.31x elapsed=0:00:02.57    frame= 1917 fps=620 q=33.0 size=   16128KiB time=00:00:31.98 bitrate=4130.9kbits/s dup=0 drop=357 speed=10.3x elapsed=0:00:03.09    [out#0/mp4 @ 00000275ad06c400] video:20739KiB audio:168KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.209287%
-frame= 2324 fps=654 q=38.0 Lsize=   20951KiB time=00:00:38.76 bitrate=4427.7kbits/s dup=0 drop=1161 speed=10.9x elapsed=0:00:03.55    
-[aac @ 00000275ad8ffbc0] Qavg: 49246.074
+frame=  127 fps=0.0 q=25.0 size=    6400KiB time=00:00:02.06 bitrate=25369.0kbits/s speed=4.04x elapsed=0:00:00.51    frame=  358 fps=348 q=23.0 size=   17920KiB time=00:00:05.91 bitrate=24811.4kbits/s speed=5.76x elapsed=0:00:01.02    frame=  592 fps=382 q=23.0 size=   28672KiB time=00:00:09.81 bitrate=23926.8kbits/s speed=6.33x elapsed=0:00:01.55    frame=  822 fps=399 q=25.0 size=   39424KiB time=00:00:13.65 bitrate=23660.2kbits/s speed=6.62x elapsed=0:00:02.06    frame= 1050 fps=408 q=22.0 size=   50688KiB time=00:00:17.45 bitrate=23795.8kbits/s speed=6.78x elapsed=0:00:02.57    frame= 1282 fps=414 q=24.0 size=   62208KiB time=00:00:21.31 bitrate=23906.6kbits/s speed=6.89x elapsed=0:00:03.09    frame= 1511 fps=419 q=24.0 size=   73472KiB time=00:00:25.13 bitrate=23947.6kbits/s speed=6.96x elapsed=0:00:03.60    frame= 1744 fps=422 q=23.0 size=   83712KiB time=00:00:29.01 bitrate=23633.6kbits/s speed=7.03x elapsed=0:00:04.12    frame= 1968 fps=425 q=22.0 size=   97024KiB time=00:00:32.75 bitrate=24269.3kbits/s dup=0 drop=430 speed=7.07x elapsed=0:00:04.63    frame= 2198 fps=427 q=25.0 size=  111104KiB time=00:00:36.56 bitrate=24890.5kbits/s dup=0 drop=888 speed= 7.1x elapsed=0:00:05.14    frame= 2343 fps=413 q=27.0 size=  119808KiB time=N/A bitrate=N/A dup=0 drop=1178 speed=N/A elapsed=0:00:05.67    [mp4 @ 000001dd0576cb00] Starting second pass: moving the moov atom to the beginning of the file
+[out#0/mp4 @ 000001dd043f00c0] video:119962KiB audio:832KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.053355%
+frame= 2359 fps=402 q=27.0 Lsize=  120858KiB time=00:00:39.26 bitrate=25213.9kbits/s dup=0 drop=1178 speed=6.69x elapsed=0:00:05.87    
+[aac @ 000001dd04c87780] Qavg: 631.281

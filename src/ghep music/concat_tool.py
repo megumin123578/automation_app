@@ -282,8 +282,6 @@ class ConcatApp(tk.Tk):
         )
         self.btn_nvenc.grid(row=0, column=6, padx=(10,0), sticky="w")
         self.use_nvenc_var.trace_add("write", self._update_nvenc_button)
-        self.btn_nvenc.grid(row=0, column=6, padx=(10,0), sticky="w")
-        self.use_nvenc_var.trace_add("write", self._update_nvenc_button)
 
         # Hàng 2
         ttk.Label(self.video_frame, text="Video Bitrate:", font=("Segoe UI", 10, "bold")).grid(row=1, column=0, sticky="e", padx=5)
@@ -543,6 +541,8 @@ class ConcatApp(tk.Tk):
                     break
                 start_group_time = time.time()
                 temp = f"temp_{threading.get_ident()}.mp4"
+                tmp_out = None
+                output = None
 
                 try:
                     mode = self.concat_mode.get()
@@ -629,9 +629,8 @@ class ConcatApp(tk.Tk):
                         shutil.copy2(temp, output)
 
                     elif mode == "Concat and Reverse":
-                        auto_concat(
-                            group, temp,
-                            num_threads=8,
+                        base = concat_reverse(
+                            group, out_dir,
                             width=int(self.resolution_var.get().split("x")[0]),
                             height=int(self.resolution_var.get().split("x")[1]),
                             fps=self.fps_var.get(),
@@ -639,21 +638,23 @@ class ConcatApp(tk.Tk):
                             cq=self.cq_var.get(),
                             v_bitrate=self.v_bitrate_var.get(),
                             a_bitrate=self.a_bitrate_var.get(),
-                            nvenc_preset=self.nvenc_preset_var.get()
+                            preset=self.nvenc_preset_var.get(),
+                            speed_reverse=3.0
                         )
-                        tmp_out = concat_reverse(temp, out_dir, speed_reverse=3.0, use_nvenc=True)
+
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         if bg_audio and os.path.isfile(bg_audio):
-                            print(f"[DEBUG] Mixing BGM {bg_audio} into {tmp_out}")
                             output = mix_audio_with_bgm_ffmpeg(
-                            tmp_out, bg_audio, out_dir,
-                            bgm_volume=self.bgm_volume_var.get(),
-                            video_volume=self.main_video_volume_var.get()
-                        )
-                        else: 
+                                base, bg_audio, out_dir,
+                                bgm_volume=self.bgm_volume_var.get(),
+                                video_volume=self.main_video_volume_var.get()
+                            )
+                            # dọn base sau khi mix
+                            try: os.remove(base)
+                            except: pass
+                        else:
                             output = get_next_output_filename(out_dir)
-                            shutil.move(tmp_out, output)
-
+                            shutil.move(base, output)
                     elif mode == "Concat with time limit":
                         # 1) Lấy pool còn lại (không trùng với log cũ + phiên này)
                         folder = self.input_folder.get()
@@ -713,12 +714,10 @@ class ConcatApp(tk.Tk):
                 finally:
                     time.sleep(0.5)
                     if os.path.exists(temp):
-                        for _ in range(3):
-                            try:
-                                os.remove(temp)
-                                break
-                            except PermissionError:
-                                time.sleep(1)
+                        safe_remove(temp)
+                    if tmp_out and os.path.exists(tmp_out):
+                        safe_remove(tmp_out)
+
                 f_log.flush()
                 elapsed = time.time() - start_group_time
                 self.elapsed_times.append(elapsed)

@@ -8,10 +8,10 @@ ffmpeg version 2025-10-12-git-0bc54cddb1-full_build-www.gyan.dev Copyright (c) 2
   libavfilter    11.  9.100 / 11.  9.100
   libswscale      9.  3.100 /  9.  3.100
   libswresample   6.  2.100 /  6.  2.100
-[mov,mp4,m4a,3gp,3g2,mj2 @ 000001c127f85bc0] Auto-inserting h264_mp4toannexb bitstream filter
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002765f4e5bc0] Auto-inserting h264_mp4toannexb bitstream filter
 Input #0, concat, from 'temp.txt':
-  Duration: N/A, start: -0.021333, bitrate: 12105 kb/s
-  Stream #0:0(eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 11933 kb/s, 60 fps, 60 tbr, 15360 tbn
+  Duration: N/A, start: -0.021333, bitrate: 12086 kb/s
+  Stream #0:0(eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 11913 kb/s, 60 fps, 60 tbr, 15360 tbn
     Metadata:
       handler_name    : ?Mainconcept Video Media Handler
       vendor_id       : [0][0][0][0]
@@ -23,10 +23,10 @@ Input #0, concat, from 'temp.txt':
 Stream mapping:
   Stream #0:0 -> #0:0 (copy)
   Stream #0:1 -> #0:1 (copy)
-Output #0, mp4, to 'temp_25292.mp4':
+Output #0, mp4, to 'temp_21068.mp4':
   Metadata:
     encoder         : Lavf62.6.101
-  Stream #0:0(eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 11933 kb/s, 60 fps, 60 tbr, 15360 tbn
+  Stream #0:0(eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 11913 kb/s, 60 fps, 60 tbr, 15360 tbn
     Metadata:
       handler_name    : ?Mainconcept Video Media Handler
       vendor_id       : [0][0][0][0]
@@ -36,5 +36,5 @@ Output #0, mp4, to 'temp_25292.mp4':
       handler_name    : #Mainconcept MP4 Sound Media Handler
       vendor_id       : [0][0][0][0]
 Press [q] to stop, [?] for help
-[out#0/mp4 @ 000001c12801ee00] video:42292KiB audio:610KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.112930%
-frame= 1742 fps=0.0 q=-1.0 Lsize=   42951KiB time=00:00:29.00 bitrate=12130.8kbits/s speed= 204x elapsed=0:00:00.14    
+[out#0/mp4 @ 000002765f4e45c0] video:43168KiB audio:627KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.113037%
+frame= 1781 fps=0.0 q=-1.0 Lsize=   43845KiB time=00:00:29.65 bitrate=12111.9kbits/s speed= 628x elapsed=0:00:00.04    

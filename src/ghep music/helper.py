@@ -421,56 +421,6 @@ def auto_concat(input_videos, output_path,
     for path in normalized_paths:
         os.remove(path)
 
-def concat_reverse(
-    input_video: str,
-    output_dir: str,
-    speed_reverse: float = 3.0,
-    use_nvenc: bool = True,
-    keep_audio: bool = True  # 🔥 sửa mặc định thành True
-):
-    os.makedirs(output_dir, exist_ok=True)
-    base = os.path.splitext(os.path.basename(input_video))[0]
-    output_path = os.path.join(output_dir, f"{base}_rev.mp4")
-
-    vcodec = "h264_nvenc" if use_nvenc else "libx264"
-
-    if keep_audio:
-        # Giữ lại audio gốc
-        filter_complex = (
-            f"[0:v]reverse,setpts=PTS/{speed_reverse}[revv];"
-            f"[0:v][revv]concat=n=2:v=1:a=0[v];"
-            f"[0:a]atempo={speed_reverse},apad[aout]"
-        )
-        map_args = ["-map", "[v]", "-map", "[aout]"]
-    else:
-        # Không cần âm gốc
-        filter_complex = (
-            f"[0:v]reverse,setpts=PTS/{speed_reverse}[revv];"
-            f"[0:v][revv]concat=n=2:v=1:a=0[v]"
-        )
-        map_args = ["-map", "[v]"]
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", input_video,
-        "-filter_complex", filter_complex,
-        *map_args,
-        "-c:v", vcodec,
-        "-preset", "fast",
-        "-b:v", "4M",
-        "-c:a", "aac",
-        "-shortest",
-        output_path
-    ]
-
-    log_path = "log/concat_reverse_single.txt"
-    os.makedirs("log", exist_ok=True)
-    with open(log_path, "w", encoding="utf-8") as lf:
-        subprocess.run(cmd, check=True, stdout=lf, stderr=lf)
-
-    print(f"[OK] Created: {output_path}")
-    return output_path
-
 def run_ffmpeg(cmd: list):
     try:
         p = subprocess.run(cmd, check=True, text=True,
@@ -499,10 +449,85 @@ def nvenc_supports_preset(preset: str) -> bool:
         return False
     
 
-def safe_remove(file):
-    for _ in range(3):
-        try:
-            os.remove(file)
-            break
-        except PermissionError:
-            time.sleep(1)
+def _atempo_chain(speed: float) -> str:
+    chain = []
+    s = float(speed)
+    while s > 2.0:
+        chain.append("atempo=2.0")
+        s /= 2.0
+    chain.append(f"atempo={s:.6g}")
+    return ",".join(chain)
+
+def concat_reverse(
+    inputs: list[str],
+    out_dir: str,
+    width: int, height: int, fps: int,
+    use_nvenc: bool = True,
+    cq: int = 23,
+    v_bitrate: str = "12M",
+    a_bitrate: str = "160k",
+    preset: str = "p4",
+    speed_reverse: float = 3.0) -> str:
+    os.makedirs(out_dir, exist_ok=True)
+    out = os.path.join(out_dir, f"pal_{int(time.time()*1000)}.mp4")
+
+    # inputs
+    cmd = ["ffmpeg", "-y"]
+    for p in inputs:
+        cmd += ["-i", p]
+
+    # build filter graph
+    n = len(inputs)
+    v_labels = []
+    a_labels = []
+    fc_parts = []
+
+    # chuẩn hoá từng input: scale + fps + định dạng cho video, aformat cho audio
+    for i in range(n):
+        v_in = f"[{i}:v]"
+        a_in = f"[{i}:a]"
+        v_i = f"[v{i}]"
+        a_i = f"[a{i}]"
+        fc_parts.append(
+            f"{v_in}scale={width}:{height}:flags=lanczos,fps={fps},format=yuv420p{v_i}"
+        )
+        # Ép audio về stereo/44100 để concat ổn định (nếu input nào không có audio, ffmpeg sẽ báo lỗi;
+        # nếu có thể gặp clip mute hoàn toàn, nên bổ sung anullsrc ngoài luồng)
+        fc_parts.append(
+            f"{a_in}aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo{a_i}"
+        )
+        v_labels.append(v_i)
+        a_labels.append(a_i)
+
+    # concat N clip thành một stream [V][A]
+    fc_parts.append(
+        f"{''.join(v_labels)}{''.join(a_labels)}concat=n={n}:v=1:a=1[V][A]"
+    )
+
+    # tách forward/reverse và ghép lại (video)
+    # reverse rồi tua nhanh bằng setpts=PTS/speed_reverse
+    fc_parts.append("[V]split[VF][VR]")
+    fc_parts.append(f"[VR]reverse,setpts=PTS/{speed_reverse}[VR2]")
+    fc_parts.append("[VF][VR2]concat=n=2:v=1:a=0[VOUT]")
+
+    # audio: reverse + atempo cho khớp tốc độ rồi concat lại
+    fc_parts.append("[A]asplit[AF][AR]")
+    fc_parts.append(f"[AR]areverse,{_atempo_chain(speed_reverse)}[AR2]")
+    fc_parts.append("[AF][AR2]concat=n=2:v=0:a=1[AOUT]")
+
+    filter_complex = ";".join(fc_parts)
+    cmd += ["-filter_complex", filter_complex, "-map", "[VOUT]", "-map", "[AOUT]"]
+
+    # encoder
+    if use_nvenc:
+        cmd += ["-c:v", "h264_nvenc", "-preset", preset, "-cq", str(cq), "-b:v", v_bitrate]
+    else:
+        # libx264 dùng CRF gần tương đương CQ
+        cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", str(cq)]
+    cmd += ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", a_bitrate, "-movflags", "+faststart", out]
+
+    log_path = "log/concat_reverse_single.txt"
+    os.makedirs("log", exist_ok=True)
+    with open(log_path, "w", encoding="utf-8") as lf:
+        subprocess.run(cmd, check=True, stdout=lf, stderr=lf)
+    return out
