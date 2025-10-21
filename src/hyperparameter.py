@@ -1,10 +1,6 @@
 import os
 
-<<<<<<< HEAD
-APP_VERSION = "1.0.24"
-=======
 APP_VERSION = "1.0.25"
->>>>>>> 3ad8966 (limit error)
 UPDATE_MANIFEST = "https://ghproxy.net/https://raw.githubusercontent.com/megumin123578/upload-short-with-gpm-handle-excel-file/main/manifest.json"
 APP_TITLE = "AUTO GENERATE UPLOAD SHORT YOUTUBE"
 
