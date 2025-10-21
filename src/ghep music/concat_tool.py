@@ -163,6 +163,7 @@ class ConcatApp(tk.Tk):
         def on_limit_change(event=None):
             val = self.combo_limit_videos.get()
             self.limit_videos_var.set(0 if val == "All" else int(val))
+            self.reload_groups()
             self.save_channel_config()
         self.combo_limit_videos.bind("<<ComboboxSelected>>", on_limit_change)
         self.combo_limit_videos.grid(row=0, column=3, sticky="w", padx=5)
@@ -418,12 +419,22 @@ class ConcatApp(tk.Tk):
     def reload_groups(self):
         folder = self.input_folder.get()
         if not folder or not os.path.isdir(folder):
+            self.groups = []
+            self.total_mp4.set("0")
+            # NEW: hiển thị số job dự kiến nếu đang ở time limit, ngược lại 0
+            if self.concat_mode.get() == "Concat with time limit":
+                planned = self.limit_videos_var.get() or 1
+                self.num_groups.set(str(planned))
+            else:
+                self.num_groups.set("0")
             return
+
         try:
             all_videos = list_all_mp4_files(folder)
         except Exception as e:
             messagebox.showerror("Lỗi", f"Đọc video lỗi: {e}")
             return
+
         used_videos = set()
         log_dir = os.path.abspath("log")
         os.makedirs(log_dir, exist_ok=True)
@@ -444,16 +455,26 @@ class ConcatApp(tk.Tk):
                             continue
             except Exception as e:
                 messagebox.showwarning("Log", f"Lỗi đọc log: {e}")
+
         all_videos = [v for v in all_videos if os.path.abspath(v) not in used_videos]
         gsize = self.group_size_var.get() or 6
         all_groups = get_all_random_video_groups(all_videos, group_size=gsize)
+
         limit_groups = self.limit_videos_var.get()
         if limit_groups > 0:
             self.groups = all_groups[:limit_groups]
         else:
             self.groups = all_groups
+
         self.total_mp4.set(str(len(all_videos)))
-        self.num_groups.set(str(len(self.groups)))
+
+        # NEW: hiển thị Remaining theo mode:
+        if self.concat_mode.get() == "Concat with time limit":
+            planned = limit_groups or 1  # All => 1 job theo logic hiện tại
+            self.num_groups.set(str(planned))
+        else:
+            self.num_groups.set(str(len(self.groups)))
+
 
     def _choose_folder(self, var: tk.StringVar, reload=False, bgm=False):
         folder = filedialog.askdirectory(title="Select folder")
