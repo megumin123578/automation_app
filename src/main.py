@@ -148,7 +148,7 @@ class App(tk.Tk):
         sp_step = tk.Spinbox(frm3, from_=0, to=1440, increment=5, width=5, textvariable=self.step_min_var)
         sp_step.pack(side=tk.LEFT, padx=(6, 12))
 
-        ttk.Button(frm3, text="Apply Datetime to all", command=self._apply_date_time_all).pack(side=tk.LEFT, padx=(12, 0))
+        ttk.Button(frm3, text="Apply", command=self._apply_date_time_all).pack(side=tk.LEFT, padx=(12, 0))
 
 
     # ---------- Inputs ----------
@@ -334,15 +334,17 @@ class App(tk.Tk):
         for i, (ch, t, d) in enumerate(assignments):
 
             pt = times[i] if i < len(times) else ""
-
+            #if time ->> date = today
             try:
-                selected_date = self.date_entry.get_date().strftime("%m/%d/%Y")
+                selected_date = self.date_entry.get_date().strftime('%m/%d/%Y')
             except Exception:
-                selected_date = datetime.date.today().strftime("%m/%d/%Y")
+                selected_date = datetime.date.today().strftime('%m/%d/%Y')
 
+            
             for i, (ch, t, d) in enumerate(assignments):
                 pt = times[i] if i < len(times) else ""
-                pd = selected_date if pt else ""   
+                pd = selected_date if pt else "" 
+
 
             if folder_path and os.path.isdir(folder_path):
                 directory = get_random_unused_mp4(folder_path, used_paths | session_used)
@@ -516,8 +518,6 @@ class App(tk.Tk):
         win.bind("<Return>", lambda e: on_save())
         win.bind("<Escape>", lambda e: win.destroy())
         ent_title.focus_set()
-
-
 
     # ---------- Apply date/time to ALL ----------
     def _apply_date_time_all(self):
