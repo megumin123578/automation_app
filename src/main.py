@@ -306,7 +306,7 @@ class App(tk.Tk):
 
         titles = normalize_lines(self.txt_titles.get("1.0", tk.END))
         descs = normalize_lines(self.txt_descs.get("1.0", tk.END))
-        times = normalize_lines(self.txt_times.get("1.0", tk.END))   # <== thêm dòng này
+        times = normalize_lines(self.txt_times.get("1.0", tk.END))
         channels = self._channels_cache
         mode = self.mode_var.get()
 
@@ -330,21 +330,13 @@ class App(tk.Tk):
         session_used = set()
         self.tree.delete(*self.tree.get_children())
         extended = []
-
+        try:
+            selected_date = self.date_entry.get_date().strftime('%m/%d/%Y')
+        except Exception:
+            selected_date = datetime.date.today().strftime('%m/%d/%Y')
         for i, (ch, t, d) in enumerate(assignments):
-
             pt = times[i] if i < len(times) else ""
-            #if time ->> date = today
-            try:
-                selected_date = self.date_entry.get_date().strftime('%m/%d/%Y')
-            except Exception:
-                selected_date = datetime.date.today().strftime('%m/%d/%Y')
-
-            
-            for i, (ch, t, d) in enumerate(assignments):
-                pt = times[i] if i < len(times) else ""
-                pd = selected_date if pt else "" 
-
+            pd = selected_date if pt else ""
 
             if folder_path and os.path.isdir(folder_path):
                 directory = get_random_unused_mp4(folder_path, used_paths | session_used)
@@ -357,11 +349,7 @@ class App(tk.Tk):
             extended.append((ch, directory, t, d, pd, pt))
 
         self._last_assignments = extended
-        if mode == "titles":
-            self._set_status(f"Previewed {len(assignments)} rows")
-        else:
-            self._set_status(f"Previewed {len(assignments)} rows")
-
+        self._set_status(f"Previewed {len(assignments)} rows")
 
 
     def _save_excel(self):
