@@ -521,7 +521,7 @@ class App(tk.Tk):
 
     # ---------- Apply date/time to ALL ----------
     def _apply_date_time_all(self):
-    # --- get date ---
+        # --- Lấy ngày từ DateEntry ---
         if hasattr(self.date_entry, "get_date"):
             try:
                 d = self.date_entry.get_date()
@@ -537,7 +537,7 @@ class App(tk.Tk):
             messagebox.showerror("Invalid date", "Định dạng ngày phải là MM/DD/YYYY.")
             return
 
-        # --- get time ---
+        # --- Lấy giờ và bước ---
         hh = self.time_h_var.get().strip()
         mm = self.time_m_var.get().strip()
         step = self.step_min_var.get()
@@ -559,11 +559,16 @@ class App(tk.Tk):
             messagebox.showerror("Invalid step", "Step (min) không được âm.")
             return
 
-        base_dt = datetime.datetime(2000, 1, 1, h, m)
-        ids = self.tree.get_children()
+        # --- Lấy các hàng được chọn ---
+        selected_items = self.tree.selection()
+        if not selected_items:
+            messagebox.showwarning("No selection", "Hãy chọn ít nhất 1 dòng trong preview trước khi Apply.")
+            return
 
-        for i, iid in enumerate(ids):
-            tm = (base_dt + datetime.timedelta(minutes=step)).time()
+        base_dt = datetime.datetime(2000, 1, 1, h, m)
+
+        for i, iid in enumerate(selected_items):
+            tm = (base_dt + datetime.timedelta(minutes=step * i)).time()
             time_str = f"{tm.hour:02d}:{tm.minute:02d}"
 
             vals = list(self.tree.item(iid, "values"))
@@ -572,10 +577,18 @@ class App(tk.Tk):
             new_vals = (ch, directory, t, desc, date_str, time_str)
 
             self.tree.item(iid, values=new_vals)
-            if self._last_assignments and i < len(self._last_assignments):
-                self._last_assignments[i] = new_vals    
 
-        self._set_status(f"Tổng cộng có: {len(ids)} dòng.")
+            # cập nhật lại trong danh sách assignments gốc nếu có
+            if self._last_assignments:
+                try:
+                    index = self.tree.index(iid)
+                    if 0 <= index < len(self._last_assignments):
+                        self._last_assignments[index] = new_vals
+                except Exception:
+                    pass
+
+        self._set_status(f"Đã áp dụng ngày {date_str} cho {len(selected_items)} dòng được chọn.")
+
 
     def _combine_excels(self):
         input_dir = OUTPUT_DIR
