@@ -54,7 +54,7 @@ class App(tk.Tk):
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label="Check for Updates (Default)...", command=self._check_for_updates)
         help_menu.add_separator()
-        help_menu.add_command(label=f"About (v{APP_VERSION})", command=lambda: messagebox.showinfo("About", f"Update concat and insert music background feature"))
+        help_menu.add_command(label=f"About (v{APP_VERSION})", command=lambda: messagebox.showinfo("About", f"Update concat file name saved, update apply date time"))
         menubar.add_cascade(label="Help", menu=help_menu)
 
 
