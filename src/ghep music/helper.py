@@ -70,21 +70,42 @@ def get_all_random_video_groups(videos, group_size=6):
     return groups
 
 
-def get_next_output_filename(folder: str) -> str:
-    max_index = 0
-    pattern = re.compile(r"(\d+)\.mp4$", re.IGNORECASE)
+# def get_next_output_filename(folder: str) -> str:
+#     max_index = 0
+#     pattern = re.compile(r"(\d+)\.mp4$", re.IGNORECASE)
 
-    for filename in os.listdir(folder):
-        match = pattern.match(filename)
-        if match:
-            index = int(match.group(1))
-            if index > max_index:
-                max_index = index
+#     for filename in os.listdir(folder):
+#         match = pattern.match(filename)
+#         if match:
+#             index = int(match.group(1))
+#             if index > max_index:
+#                 max_index = index
 
-    next_index = max_index + 1
-    return os.path.join(folder, f"{next_index}.mp4")
+#     next_index = max_index + 1
+#     return os.path.join(folder, f"{next_index}.mp4")
 
-#musc helper functions
+from typing import Optional
+def get_first_vids_name(folder: str, first_video_path: Optional[str]) -> str:
+    os.makedirs(folder, exist_ok=True)
+    base_name = "output"
+    if first_video_path:
+        base_name = os.path.splitext(os.path.basename(first_video_path))[0]
+    base_name = re.sub(r'[<>:"/\\|?*\n\r]+', "_", base_name).strip(" _.")
+    if not base_name:
+        base_name = "output"
+
+    out0 = os.path.join(folder, f"{base_name}.mp4")
+    if not os.path.exists(out0):
+        return out0
+
+    i = 1
+    while True:
+        cand = os.path.join(folder, f"{base_name}_{i}.mp4")
+        if not os.path.exists(cand):
+            return cand
+        i += 1
+
+
 def get_audio_duration(bgm_audio: str) -> float:
     try:
         result = subprocess.run(
@@ -109,22 +130,23 @@ def mix_audio_with_bgm_ffmpeg(
     bgm_volume: float = 0.5,
     video_volume: float = 0.8
 ):
-    output_video = get_next_output_filename(output_dir)
+    output_video = get_first_vids_name(output_dir, input_video)
     temp_output = "temp.mp4"
 
     # === lấy độ dài nhạc và chọn điểm bắt đầu random ===
     bgm_duration = get_audio_duration(bgm_audio)
-    if bgm_duration > 10:  # chỉ random nếu nhạc dài hơn 10s
+    if bgm_duration > 10:
         start_delay = random.uniform(0, bgm_duration - 10)
     else:
         start_delay = 0
 
-    # === lệnh ffmpeg với đoạn random ===
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs("log", exist_ok=True)
     cmd = [
         "ffmpeg", "-y",
-        "-i", input_video,                  # 0:v, 0:a
-        "-ss", str(start_delay),            # random start position
-        "-i", bgm_audio,                    # 1:a
+        "-i", input_video,               # 0:v, 0:a
+        "-ss", str(start_delay),
+        "-stream_loop", "-1", "-i", bgm_audio,  # 1:a, lặp vô hạn
         "-filter_complex",
         f"[1:a]volume={bgm_volume}[a_bgm];"
         f"[0:a][a_bgm]amix=inputs=2:duration=first:dropout_transition=3[aout]",
@@ -132,22 +154,23 @@ def mix_audio_with_bgm_ffmpeg(
         "-map", "[aout]",
         "-c:v", "copy",
         "-c:a", "aac",
-        "-shortest",
+        "-shortest",                     # cắt nhạc đúng theo độ dài video
         output_video
     ]
 
-    os.makedirs("log", exist_ok=True)
-    with open("log/insert_mp3.txt", "w", encoding="utf-8") as log_file:
+    log_path = "log/insert_mp3.txt"
+    with open(log_path, "w", encoding="utf-8") as log_file:
         try:
             subprocess.run(cmd, check=True, stdout=log_file, stderr=log_file)
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             if os.path.exists(temp_output):
                 os.remove(temp_output)
-            print(f"FFmpeg error: {e}")
+            print(f"[ERROR] FFmpeg mix failed, xem log: {log_path}")
             raise
 
-    print(f"Added random BGM from {start_delay:.1f}s → {output_video}")
+    print(f"[OK] Added random looping BGM from {start_delay:.1f}s → {output_video}")
     return output_video
+
 
 def mix_audio_at_end_ffmpeg(
     input_video: str,
@@ -159,7 +182,7 @@ def mix_audio_at_end_ffmpeg(
     video_volume: float = 1.0, # âm lượng tổng thể video gốc (slider mới)
 ):
     os.makedirs(output_dir, exist_ok=True)
-    output_video = get_next_output_filename(output_dir)
+    output_video = get_first_vids_name(output_dir, input_video)
     log_path = "log/mix_end_bgm.txt"
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 

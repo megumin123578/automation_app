@@ -563,16 +563,22 @@ class ConcatApp(tk.Tk):
                             nvenc_preset=self.nvenc_preset_var.get()
                         )
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                        desired = get_first_vids_name(out_dir, group[0])
                         if bg_audio and os.path.isfile(bg_audio):
-                            print(f"[DEBUG] Mixing BGM {bg_audio} into {temp}")
-                            output = mix_audio_with_bgm_ffmpeg(
-                            temp, bg_audio, out_dir,
-                            bgm_volume=self.bgm_volume_var.get(),
-                            video_volume=self.main_video_volume_var.get()
-                        )
+                            tmp = mix_audio_with_bgm_ffmpeg(
+                                temp, bg_audio, out_dir,
+                                bgm_volume=self.bgm_volume_var.get(),
+                                video_volume=self.main_video_volume_var.get()
+                            )
+                            # đổi tên file mix ra thành desired
+                            if os.path.abspath(tmp) != os.path.abspath(desired):
+                                shutil.move(tmp, desired)
+                            output = desired
                         else:
-                            output = get_next_output_filename(out_dir)
+                            output = desired
                             shutil.copy2(temp, output)
+                        
+                        used_this_run.update(os.path.abspath(p) for p in group)
                     
                     elif mode == "Concat with outro music":
                         outro_mode = self.outro_mode_var.get()
@@ -599,15 +605,19 @@ class ConcatApp(tk.Tk):
                             nvenc_preset=self.nvenc_preset_var.get()
                         )
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                        desired = get_first_vids_name(out_dir, group[0]) 
                         if bg_audio and os.path.isfile(bg_audio):
-                            output = mix_audio_at_end_ffmpeg(
+                            tmp = mix_audio_at_end_ffmpeg(
                                 temp, bg_audio, out_dir, self.outro_duration_var.get(),
                                 bgm_volume=self.bgm_volume_var.get(),
                                 outro_volume=self.video_volume_var.get(),
-                                video_volume= self.main_video_volume_var.get()
+                                video_volume=self.main_video_volume_var.get()
                             )
+                            if os.path.abspath(tmp) != os.path.abspath(desired):
+                                shutil.move(tmp, desired)
+                            output = desired
                         else:
-                            output = get_next_output_filename(out_dir)
+                            output = desired
                             shutil.copy2(temp, output)
 
                         used_this_run.update(os.path.abspath(p) for p in group)
@@ -625,8 +635,10 @@ class ConcatApp(tk.Tk):
                             a_bitrate=self.a_bitrate_var.get(),
                             nvenc_preset=self.nvenc_preset_var.get()
                         )
-                        output = get_next_output_filename(out_dir)
+                        output = get_first_vids_name(out_dir, group[0])
                         shutil.copy2(temp, output)
+
+                        used_this_run.update(os.path.abspath(p) for p in group)
 
                     elif mode == "Concat and Reverse":
                         base = concat_reverse(
@@ -643,18 +655,22 @@ class ConcatApp(tk.Tk):
                         )
 
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                        desired = get_first_vids_name(out_dir, group[0])
                         if bg_audio and os.path.isfile(bg_audio):
-                            output = mix_audio_with_bgm_ffmpeg(
+                            tmp = mix_audio_with_bgm_ffmpeg(
                                 base, bg_audio, out_dir,
                                 bgm_volume=self.bgm_volume_var.get(),
                                 video_volume=self.main_video_volume_var.get()
                             )
-                            # dọn base sau khi mix
                             try: os.remove(base)
                             except: pass
+                            if os.path.abspath(tmp) != os.path.abspath(desired):
+                                shutil.move(tmp, desired)
+                            output = desired
                         else:
-                            output = get_next_output_filename(out_dir)
-                            shutil.move(base, output)
+                            shutil.move(base, desired)
+                            output = desired
+
                     elif mode == "Concat with time limit":
                         # 1) Lấy pool còn lại (không trùng với log cũ + phiên này)
                         folder = self.input_folder.get()
@@ -683,14 +699,18 @@ class ConcatApp(tk.Tk):
                             nvenc_preset=self.nvenc_preset_var.get()
                         )
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
+                        desired = get_first_vids_name(out_dir, group[0]) 
                         if bg_audio and os.path.isfile(bg_audio):
-                            output = mix_audio_with_bgm_ffmpeg(
+                            tmp = mix_audio_with_bgm_ffmpeg(
                                 temp, bg_audio, out_dir,
                                 bgm_volume=self.bgm_volume_var.get(),
                                 video_volume=self.main_video_volume_var.get()
                             )
+                            if os.path.abspath(tmp) != os.path.abspath(desired):
+                                shutil.move(tmp, desired)
+                            output = desired
                         else:
-                            output = get_next_output_filename(out_dir)
+                            output = desired
                             shutil.copy2(temp, output)
 
                         # 4) Đánh dấu đã dùng để lần xuất kế tiếp không trùng
