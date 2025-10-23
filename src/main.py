@@ -57,7 +57,6 @@ class App(tk.Tk):
         help_menu.add_command(label=f"About (v{APP_VERSION})", command=lambda: messagebox.showinfo("About", f"Update concat file name saved, update apply date time"))
         menubar.add_cascade(label="Help", menu=help_menu)
 
-
         self.group_file_var = tk.StringVar(value="")
         self.mode_var = tk.StringVar(value="titles") 
         self.status_var = tk.StringVar(value="Ready.")

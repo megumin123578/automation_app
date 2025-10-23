@@ -521,7 +521,7 @@ class ConcatApp(tk.Tk):
         self.groups_done.set("0")
         self.worker = threading.Thread(target=self._do_concat_worker, args=(todo_groups, out_dir), daemon=True)
         self.worker.start()
-        self.after(200, self._poll_worker)
+        self.after(1000, self._poll_worker)
 
     def stop_concat(self):
         self.stop_flag.set()
@@ -771,7 +771,7 @@ class ConcatApp(tk.Tk):
 
     def _poll_worker(self):
         if self.worker and self.worker.is_alive():
-            self.after(200, self._poll_worker)
+            self.after(500, self._poll_worker)
         else:
             self._on_done()
 
