@@ -320,10 +320,16 @@ def generate_index_html():
                 return `<li><a href='#' onclick='loadFile("${f}")'>${name}</a></li>`;
             }).join('');
 
-            if (files.length > 0) loadFile(files[0]);
-            else {
+            // Giữ lại channel đang mở nếu vẫn còn
+            if (currentFile && files.includes(currentFile)) {
+                await loadFile(currentFile);
+            } else {
+                // Không tự động load channel đầu tiên nữa
                 document.getElementById('iframeViewer').srcdoc =
-                    "<h3 style='text-align:center;margin-top:40px;color:gray;'>Không có file nào</h3>";
+                    (files.length > 0)
+                    ? "<h3 style='text-align:center;margin-top:40px;color:gray;'>Chọn một kênh để xem nội dung</h3>"
+                    : "<h3 style='text-align:center;margin-top:40px;color:gray;'>Không có file nào</h3>";
+
                 document.getElementById('filenameLabel').innerText = `${currentDate} / ${currentTab}`;
             }
         }
@@ -331,6 +337,7 @@ def generate_index_html():
         // Khi click chọn kênh (hoặc load tự động)
         async function loadFile(name) {
             if (!name) return;
+            currentFile = name;
             const cleanName = name.replace(/\\.html$/i, "");
             document.getElementById('filenameLabel').innerText =
                 `${currentDate} / ${currentTab} / ${cleanName}`;
