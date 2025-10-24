@@ -8,6 +8,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # lấy t
 GROUPS_DIR = os.path.join(BASE_DIR, "group")
 OUTPUT_DIR = os.path.join(BASE_DIR, "upload")
 EXCEL_DIR = os.path.join(BASE_DIR, "upload_data.xlsx")
+EXCEL_DIR_NP = os.path.join(BASE_DIR, "upload_data_with_monetization.xlsx")
 
 
 CHANNEL_HEADER_HINTS = [

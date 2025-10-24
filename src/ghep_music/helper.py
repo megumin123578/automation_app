@@ -13,9 +13,9 @@ from tkinter import ttk, filedialog, messagebox
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from moviepy import VideoClip, concatenate_videoclips, VideoFileClip, vfx
-CONFIG_FILE = "ghep music/config.json"
-CONFIG_DIR = "ghep music/configs"
-LAST_CHANNEL_FILE = "ghep music/last_channel.json"
+CONFIG_FILE = "ghep_music/config.json"
+CONFIG_DIR = "ghep_music/configs"
+LAST_CHANNEL_FILE = "ghep_music/last_channel.json"
 
 
 import time, gc, threading, os, shutil

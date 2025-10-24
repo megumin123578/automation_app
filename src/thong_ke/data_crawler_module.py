@@ -4,9 +4,16 @@ from bs4 import BeautifulSoup
 import csv
 import os
 import pandas as pd
+import tkinter as tk
+from tkinter import ttk, messagebox
+import datetime
+import pandas as pd
+import os, sys
+import threading
 
-CSV_PATH = r"statistics\data\orders_all.csv"
-CLEAN_CSV_PATH = r"statistics\data\orders_clean.csv"
+
+CSV_PATH = r"thong_ke\data\orders_all.csv"
+CLEAN_CSV_PATH = r"thong_ke\data\orders_clean.csv"
 session = requests.Session()
 
 headers = {
@@ -16,7 +23,7 @@ headers = {
 }
 #read older csv
 existing_ids = set()
-COOKIE_TXT = "statistics\cookie.txt"
+COOKIE_TXT = "thong_ke\cookie.txt"
 API_KEY = "AIzaSyDwWltIR-XP9V61V7RNTTz-G04mVfHKlsQ"
 
 def url_to_channel(url: str):
@@ -158,7 +165,7 @@ def pre_process_data(file):
     return filtered_df
 
 
-def clean_data(input_path = "statistics\data\orders_all.csv", output_path="statistics\data\orders_clean.csv", expected_cols = 9 ):
+def clean_data(input_path = "thong_ke\data\orders_all.csv", output_path="thong_ke\data\orders_clean.csv", expected_cols = 9 ):
     with open(input_path, encoding="utf-8-sig") as infile, \
         open(output_path, "w", encoding="utf-8-sig", newline="") as outfile:
 
@@ -183,7 +190,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def replace_link_with_channel(df, month, max_workers=10):
     df = df.copy()
-    output_file = f"statistics/data/orders_with_channels_{month}.csv"
+    output_file = f"thong_ke/data/orders_with_channels_{month}.csv"
 
     # === 1. Xử lý cột ngày ===
     date_col = next((c for c in df.columns if 'date' in c.lower()), None)

@@ -1,11 +1,8 @@
-from helper import *
+from .helper import *
 
-class ConcatApp(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Video Concatenation Tool")
-        # self.state("zoomed") 
-        self.minsize(900, 600)
+class ConcatPage(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
 
         self._loading = False
 
@@ -72,9 +69,10 @@ class ConcatApp(tk.Tk):
         self.outro_duration_var = tk.IntVar(value=15)
 
         self._tag_id = 0
+
         self._build_ui()
         self._layout()
-        self.bind_all("<Delete>", self._on_global_delete)
+        self.bind("<Delete>", self._on_global_delete) 
 
         self.load_last_channel()
         if self.input_folder.get():
@@ -973,7 +971,7 @@ class ConcatApp(tk.Tk):
 
     def _add_right_click_menu(self, widget, menu_items: list[tuple[str, callable]]):
         """Gắn menu chuột phải cho Entry/Combobox, cả phần dropdown, và hỗ trợ phím Delete."""
-        menu = tk.Menu(self, tearoff=0)
+        menu = tk.Menu(self.winfo_toplevel(), tearoff=0)
         for label, command in menu_items:
             menu.add_command(label=label, command=command)
 
@@ -1220,6 +1218,3 @@ class ConcatApp(tk.Tk):
             except Exception:
                 pass
         return used_videos
-
-if __name__ == '__main__':
-    ConcatApp().mainloop()

@@ -11,26 +11,41 @@ import glob
 from ui_theme import setup_theme
 from excel_helper import save_assignments_to_excel, combine_excels
 import tkinter.simpledialog as sd
-from hyperparameter import APP_VERSION, UPDATE_MANIFEST
 from update_manager import check_and_update, install_from_zip
 import sys,subprocess
 from module import *
 from hyperparameter import *
-
+from ghep_music.concat_page import ConcatPage
+from thong_ke.stats_page import StatisticsPage
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         style = ttk.Style()
-        style.theme_use("clam") 
+        style.theme_use("clam")
         setup_theme(style, self)
 
         self.title(APP_TITLE)
-        self.state("zoomed") 
-        self.minsize(880, 580)
+        self.state("zoomed")
+        self.minsize(1000, 600)
 
+        # ====== STATE ======
+        self.group_file_var = tk.StringVar(value="")
+        self.mode_var = tk.StringVar(value="titles")  # titles (Repeat) | channels (No Repeat)
+        self.status_var = tk.StringVar(value="Ready.")
+        self._channels_cache = []
+        self._last_assignments = None
+
+        self.date_entry = None
+        now = datetime.datetime.now()
+        self.time_h_var = tk.StringVar(value=f"{now.hour:02d}")
+        self.time_m_var = tk.StringVar(value=f"{now.minute:02d}")
+        self.step_min_var = tk.IntVar(value=0)
+
+        # ====== MENUBAR (Profiles + Help) ======
         menubar = tk.Menu(self)
         self.config(menu=menubar)
+
         profiles_menu = tk.Menu(menubar, tearoff=0)
         profiles_menu.add_command(label="Manage Profiles", command=self._open_profile_manager)
         profiles_menu.add_command(label="Add Group", command=self._add_group)
@@ -38,66 +53,128 @@ class App(tk.Tk):
         profiles_menu.add_command(label="Map Group Folder...", command=self._map_group_folder)
         menubar.add_cascade(label="Profiles", menu=profiles_menu)
 
-        #concat videos
-        concat_menu = tk.Menu(menubar, tearoff=0)
-        concat_menu.add_command(label="Concat video + music", command=self._open_concat_window)
-        menubar.add_cascade(label="Video and Music", menu=concat_menu)
-
-        #manage channels
-        manage_menu = tk.Menu(menubar, tearoff=0)
-        manage_menu.add_command(label="Manage Channel", command=self._open_manage_channel_window)
-        manage_menu.add_command(label="Statistics", command=self.__open_statistics_channel_window)
-        menubar.add_cascade(label="Manage Channel", menu=manage_menu)
-
-
-        # Menu Help
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label="Check for Updates (Default)...", command=self._check_for_updates)
         help_menu.add_separator()
-        help_menu.add_command(label=f"About (v{APP_VERSION})", command=lambda: messagebox.showinfo("About", f"Update concat file name saved, update apply date time"))
+        help_menu.add_command(label=f"About (v{APP_VERSION})",
+                               command=lambda: messagebox.showinfo("About", "Update concat file name saved, update apply date time"))
         menubar.add_cascade(label="Help", menu=help_menu)
 
-        self.group_file_var = tk.StringVar(value="")
-        self.mode_var = tk.StringVar(value="titles") 
-        self.status_var = tk.StringVar(value="Ready.")
+        self._build_shell()
 
-        # Cache & state
-        self._channels_cache = []
-        self._last_assignments = None  # list[(channel, title, desc, publish_date, publish_time)]
+        # ====== PAGES ======
+        self.pages = {}
+        self._build_assign_page()      # giao diện phân phối nhóm
+        self._build_concat_page()      # trang ghép video + nhạc
+        self._build_manage_page()      # trang quản lý kênh
+        self._build_statistics_page()  # trang thống kê
 
-        # Date/Time header controls state
-        self.date_entry = None  
-        now = datetime.datetime.now()
-        self.time_h_var = tk.StringVar(value=f"{now.hour:02d}")
-        self.time_m_var = tk.StringVar(value=f"{now.minute:02d}")
-        self.step_min_var = tk.IntVar(value=0) 
+        # Hiển thị page mặc định
+        self._show_page("assign")
 
-        self._build_header()
-        self._build_inputs()
-        self._build_preview()
-        self._build_footer()
+        # Khởi động dữ liệu + preview binding
         self._refresh_group_files()
         self._bind_text_preview()
 
-        self.after(1500, self._auto_check_update) #1.5s after UI ready
+        # Auto check update sau khi UI sẵn sàng
+        self.after(1500, self._auto_check_update)
 
-    # ---------- Header ----------
+    # =========================
+    # Shell: Sidebar + Content
+    # =========================
+    def _build_shell(self):
+        # container chính
+        self._root_container = ttk.Frame(self)
+        self._root_container.pack(fill="both", expand=True)
 
-    def _schedule_preview(self):
-        if hasattr(self, "_preview_job"):
-            self.after_cancel(self._preview_job)
-        self._preview_job = self.after(500, self._preview)  # 500ms delay
+        # Sidebar
+        self._sidebar = tk.Frame(self._root_container, width=220)
+        self._sidebar.pack(side="left", fill="y")
+        self._sidebar.pack_propagate(False)
 
-    def _bind_text_preview(self):
-        def on_change(event):
-            event.widget.edit_modified(False)
-            self._schedule_preview()
-        self.txt_titles.bind("<<Modified>>", on_change)
-        self.txt_descs.bind("<<Modified>>", on_change)
-        self.txt_times.bind("<<Modified>>", on_change)
+        # Content
+        self._content = ttk.Frame(self._root_container)
+        self._content.pack(side="right", fill="both", expand=True)
 
-    def _build_header(self):
-        frm = ttk.Frame(self, padding=(10, 10, 10, 0))
+        # Sidebar buttons
+        self._nav_buttons = {}
+        def add_btn(text, key, cmd):
+            b = tk.Button(self._sidebar, text=text, anchor="w", relief="flat",
+                          pady=10, padx=12, font=("Segoe UI", 10, "bold"),
+                          command=lambda: (cmd(), self._highlight_nav(key)))
+            b.pack(fill="x")
+            self._nav_buttons[key] = b
+
+        add_btn("Auto Upload", "assign", lambda: self._show_page("assign"))
+        add_btn("Concatenation", "concat", lambda: self._show_page("concat"))
+        add_btn("Manage Channels", "manage", lambda: self._show_page("manage"))
+        add_btn("Statistics", "stats", lambda: self._show_page("stats"))
+
+        # Status bar
+        bar = ttk.Frame(self, relief=tk.SUNKEN, padding=6)
+        bar.pack(fill=tk.X, side=tk.BOTTOM)
+        ttk.Label(bar, textvariable=self.status_var).pack(side=tk.LEFT)
+
+    def _highlight_nav(self, active_key):
+        for k, btn in self._nav_buttons.items():
+            if k == active_key:
+                btn.configure(bg="#E6F0FF", fg="#000000") 
+            else:
+                btn.configure(bg=self._sidebar.cget("bg"), fg="#ffffff")  
+
+
+    def _show_page(self, key: str):
+        for k, f in self.pages.items():
+            f.pack_forget()
+        self.pages[key].pack(fill="both", expand=True)
+        self._highlight_nav(key)
+
+    # =========================
+    # PAGES
+    # =========================
+    def _build_assign_page(self):
+        page = ttk.Frame(self._content)
+        self.pages["assign"] = page
+
+        # ---- Build giao diện cũ vào page này ----
+        # Header / Inputs / Preview / Footer sẽ build vào `page`
+        self._build_header(parent=page)
+        self._build_inputs(parent=page)
+        self._build_preview(parent=page)
+        self._build_footer(parent=page)
+
+    def _build_concat_page(self):
+        page = ttk.Frame(self._content)       # khung trang
+        self.pages["concat"] = page
+
+        # Nhúng UI concat vào đây:
+        self.concat_page = ConcatPage(page)   # truyền parent là 'page'
+        self.concat_page.pack(fill="both", expand=True)
+
+
+    def _build_manage_page(self):
+        page = ttk.Frame(self._content, padding=16)
+        self.pages["manage"] = page
+
+        ttk.Label(page, text="Manage channel", font=("Segoe UI", 14, "bold")).pack(anchor="w")
+        ttk.Label(page, text="Manage channel",
+                  padding=(0, 8)).pack(anchor="w")
+
+        ttk.Button(page, text="Open manage channel app",
+                   command=self._open_manage_channel_window).pack(anchor="w", pady=6)
+
+    def _build_statistics_page(self):
+        page = ttk.Frame(self._content)
+        self.pages["stats"] = page
+
+        self.stats_page = StatisticsPage(page)  # nhúng trang thống kê
+        self.stats_page.pack(fill="both", expand=True)
+
+    # =========================
+    #      BUILD SECTIONS     #
+    # =========================
+    def _build_header(self, parent):
+        frm = ttk.Frame(parent, padding=(10, 10, 10, 0))
         frm.pack(fill=tk.X)
 
         ttk.Label(frm, text="Group:").grid(row=0, column=0, sticky="w")
@@ -110,14 +187,14 @@ class App(tk.Tk):
         frm.columnconfigure(1, weight=1)
 
         # Distribution mode
-        frm2 = ttk.Frame(self, padding=(10, 6, 10, 0))
+        frm2 = ttk.Frame(parent, padding=(10, 6, 10, 0))
         frm2.pack(fill=tk.X)
         ttk.Label(frm2, text="Distribution mode:").pack(side=tk.LEFT)
         ttk.Radiobutton(frm2, text="Repeat", variable=self.mode_var, value="titles").pack(side=tk.LEFT, padx=(8, 0))
         ttk.Radiobutton(frm2, text="No Repeat", variable=self.mode_var, value="channels").pack(side=tk.LEFT, padx=(8, 0))
 
         # Date/Time controls (apply to ALL rows)
-        frm3 = ttk.Frame(self, padding=(10, 6, 10, 0))
+        frm3 = ttk.Frame(parent, padding=(10, 6, 10, 0))
         frm3.pack(fill=tk.X)
 
         ttk.Label(frm3, text="Publish date:").pack(side=tk.LEFT)
@@ -125,12 +202,11 @@ class App(tk.Tk):
         self.date_entry = DateEntry(
             frm3,
             width=12,
-            date_pattern="mm/dd/yyyy",   # định dạng ngày
-            state="readonly"             # không cho gõ tay, chỉ chọn
+            date_pattern="mm/dd/yyyy",
+            state="readonly"
         )
         self.date_entry.set_date(datetime.date.today())
         self.date_entry.pack(side=tk.LEFT, padx=(6, 16))
-
 
         ttk.Label(frm3, text="Publish time:").pack(side=tk.LEFT)
 
@@ -149,48 +225,44 @@ class App(tk.Tk):
 
         ttk.Button(frm3, text="Apply", command=self._apply_date_time_all).pack(side=tk.LEFT, padx=(12, 0))
 
-
-    # ---------- Inputs ----------
-    def _build_inputs(self):
-        frm = ttk.Frame(self, padding=10)
+    def _build_inputs(self, parent):
+        frm = ttk.Frame(parent, padding=10)
         frm.pack(fill=tk.BOTH, expand=True)
 
-        # === Titles ===
+        # Titles
         left = ttk.Frame(frm)
         left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         ttk.Label(left, text="Titles (one per line)").pack(anchor="w")
         self.txt_titles = tk.Text(left, height=12, wrap=tk.WORD)
         self.txt_titles.pack(fill=tk.BOTH, expand=True)
 
-        # === Descriptions ===
+        # Descriptions
         mid = ttk.Frame(frm)
         mid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
         ttk.Label(mid, text="Descriptions (1 line for all, or multiple lines)").pack(anchor="w")
         self.txt_descs = tk.Text(mid, height=12, wrap=tk.WORD)
         self.txt_descs.pack(fill=tk.BOTH, expand=True)
 
-        # === Time column ===
+        # Times
         right = ttk.Frame(frm)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
         ttk.Label(right, text="Time (HH:MM or per line)").pack(anchor="w")
         self.txt_times = tk.Text(right, height=12, wrap=tk.WORD)
         self.txt_times.pack(fill=tk.BOTH, expand=True)
 
-        # === Buttons ===
-        btns = ttk.Frame(self, padding=(10, 0, 10, 0))
+        # Buttons
+        btns = ttk.Frame(parent, padding=(10, 0, 10, 0))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Clear Inputs", command=self._clear_inputs).pack(side=tk.LEFT, padx=6)
         ttk.Button(btns, text="Generate titles and des", command=self._generate_titles_descs).pack(side=tk.LEFT, padx=6)
 
-
-    # ---------- Preview / Tree ----------
-    def _build_preview(self):
-        frm = ttk.Frame(self, padding=10)
+    def _build_preview(self, parent):
+        frm = ttk.Frame(parent, padding=10)
         frm.pack(fill=tk.BOTH, expand=True)
 
         cols = ("channel", "directory", "title", "description", "publish_date", "publish_time")
         self.tree = ttk.Treeview(frm, columns=cols, show="headings", height=12)
-        
+
         for col in cols:
             self.tree.heading(col, text=col.capitalize())
             if col == "description":
@@ -212,22 +284,20 @@ class App(tk.Tk):
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.pack(side=tk.LEFT, fill=tk.Y)
 
-        # Double-click edit row
+        # bindings
         self.tree.bind("<Double-1>", self._on_tree_double_click)
-
         self.tree.bind("<Delete>", self._delete_selected_rows)
         self.tree.bind("<Button-3>", self._show_tree_menu)
 
-
-        btns = ttk.Frame(self, padding=(10, 0, 10, 10))
+        btns = ttk.Frame(parent, padding=(10, 0, 10, 10))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Save Excel", command=self._save_excel).pack(side=tk.LEFT)
 
-    def _build_footer(self):
-        bar = ttk.Frame(self, relief=tk.SUNKEN, padding=6)
+    def _build_footer(self, parent):
+        bar = ttk.Frame(parent, relief=tk.SUNKEN, padding=6)
         bar.pack(fill=tk.X, side=tk.BOTTOM)
 
-        self.move_folder_var = tk.StringVar(value="")  # đường dẫn video mới
+        self.move_folder_var = tk.StringVar(value="")
 
         ttk.Label(bar, text="Save to:").pack(side=tk.LEFT, padx=(0, 4))
         ent = ttk.Entry(bar, textvariable=self.move_folder_var, width=50)
@@ -242,12 +312,24 @@ class App(tk.Tk):
                     save_group_config(group_name, folder)
 
         ttk.Button(bar, text="Browse", command=choose_folder).pack(side=tk.LEFT, padx=(0, 8))
-
         ttk.Button(bar, text="Combine", command=self._combine_excels).pack(side=tk.RIGHT)
-        ttk.Label(bar, textvariable=self.status_var).pack(side=tk.LEFT)
 
+    # =========================
+    # Logic gốc (không đổi)
+    # =========================
+    def _schedule_preview(self):
+        if hasattr(self, "_preview_job"):
+            self.after_cancel(self._preview_job)
+        self._preview_job = self.after(500, self._preview)
 
-    # ---------- Actions ----------
+    def _bind_text_preview(self):
+        def on_change(event):
+            event.widget.edit_modified(False)
+            self._schedule_preview()
+        self.txt_titles.bind("<<Modified>>", on_change)
+        self.txt_descs.bind("<<Modified>>", on_change)
+        self.txt_times.bind("<<Modified>>", on_change)
+
     def _refresh_group_files(self):
         files = list_group_csvs(GROUPS_DIR)
         groups = [os.path.splitext(f)[0] for f in files]
@@ -262,12 +344,9 @@ class App(tk.Tk):
             return
 
         if cur not in groups:
-            self.group_file_var.set(groups[0])   # <== set tên không .csv
+            self.group_file_var.set(groups[0])
 
         self._load_channels()
-
-
-    
 
     def _load_channels(self):
         name = self.group_file_var.get().strip()
@@ -278,17 +357,13 @@ class App(tk.Tk):
         self._channels_cache = channels
         self.channel_count_lbl.config(text=f"{len(channels)} channels")
 
-    
         group_dirs = load_group_dirs()
         mapped_dir = group_dirs.get(name) or group_dirs.get(f"{name}.csv") or ""
-
-        # Status map
         mapped_note = f" | mapped: {mapped_dir}" if mapped_dir else " | mapped: (none)"
         self._set_status(f"Loaded {len(channels)} channels from {name}{mapped_note}")
 
         last_folder = load_group_config(name + ".csv")
         self.move_folder_var.set(last_folder)
-
 
     def _clear_inputs(self):
         self.txt_titles.delete("1.0", tk.END)
@@ -333,6 +408,7 @@ class App(tk.Tk):
             selected_date = self.date_entry.get_date().strftime('%m/%d/%Y')
         except Exception:
             selected_date = datetime.date.today().strftime('%m/%d/%Y')
+
         for i, (ch, t, d) in enumerate(assignments):
             pt = times[i] if i < len(times) else ""
             pd = selected_date if pt else ""
@@ -350,7 +426,6 @@ class App(tk.Tk):
         self._last_assignments = extended
         self._set_status(f"Previewed {len(assignments)} rows")
 
-
     def _save_excel(self):
         if not self._last_assignments:
             messagebox.showwarning("Nothing to save", "Click Preview first.")
@@ -361,7 +436,6 @@ class App(tk.Tk):
                 base = os.path.splitext(self.group_file_var.get().strip())[0] or "group"
                 out_name = f"{base}.xlsx"
                 out_path = os.path.join(OUTPUT_DIR, out_name)
-
                 save_assignments_to_excel(self._last_assignments, out_path)
                 self._set_status(f"Saved Excel: {out_path}")
             except Exception as e:
@@ -369,13 +443,9 @@ class App(tk.Tk):
 
         threading.Thread(target=worker, daemon=True).start()
 
-
-
-
     def _set_status(self, msg: str):
         self.after(0, lambda: self.status_var.set(msg))
 
-    # ---------- Edit row by double click----------
     def _on_tree_double_click(self, event):
         region = self.tree.identify("region", event.x, event.y)
         if region != "cell":
@@ -385,7 +455,6 @@ class App(tk.Tk):
             return
         index = self.tree.index(item_id)
         self._edit_row_dialog(item_id, index)
-
 
     def _edit_row_dialog(self, item_id, index):
         vals = list(self.tree.item(item_id, "values"))
@@ -400,64 +469,53 @@ class App(tk.Tk):
         frm = ttk.Frame(win, padding=10)
         frm.pack(fill=tk.BOTH, expand=True)
 
-        # --- Profile (Combobox) ---
         ttk.Label(frm, text="Profile:").grid(row=0, column=0, sticky="e", padx=6, pady=4)
-        ent_ch = ttk.Combobox(frm, values=[c for c in self._channels_cache],
-                            state="readonly", width=60)
+        ent_ch = ttk.Combobox(frm, values=[c for c in self._channels_cache], state="readonly", width=60)
         ent_ch.grid(row=0, column=1, sticky="we")
         ent_ch.set(ch_cur)
 
-        # --- Directory ---
         ttk.Label(frm, text="Directory:").grid(row=1, column=0, sticky="e", padx=6, pady=4)
         ent_dir = ttk.Entry(frm, width=60)
         ent_dir.grid(row=1, column=1, sticky="we")
         ent_dir.insert(0, dir_cur)
 
-        # --- Title ---
         ttk.Label(frm, text="Title:").grid(row=2, column=0, sticky="e", padx=6, pady=4)
         ent_title = ttk.Entry(frm, width=60)
         ent_title.grid(row=2, column=1, sticky="we")
         ent_title.insert(0, title_cur)
 
-        # --- Description ---
         ttk.Label(frm, text="Description:").grid(row=3, column=0, sticky="ne", padx=6, pady=4)
         txt_desc = tk.Text(frm, width=60, height=6, wrap=tk.WORD)
         txt_desc.grid(row=3, column=1, sticky="we")
         txt_desc.insert("1.0", desc_cur)
 
-        # --- Publish date ---
-        ttk.Label(frm, text="Publish date:").grid(row=4, column=0, sticky="e", padx=6, pady=4)
-        import datetime
+        import datetime as _dt
         if pd_cur:
             try:
-                init_date = datetime.datetime.strptime(pd_cur, "%m/%d/%Y").date()
+                init_date = _dt.datetime.strptime(pd_cur, "%m/%d/%Y").date()
             except Exception:
-                init_date = datetime.date.today()
+                init_date = _dt.date.today()
         else:
-            init_date = datetime.date.today()
+            init_date = _dt.date.today()
 
+        ttk.Label(frm, text="Publish date:").grid(row=4, column=0, sticky="e", padx=6, pady=4)
         ent_pd = DateEntry(frm, width=12, date_pattern="mm/dd/yyyy")
         ent_pd.grid(row=4, column=1, sticky="w")
         ent_pd.set_date(init_date)
 
-        # --- Publish time (giờ/phút dropdown) ---
         ttk.Label(frm, text="Publish time:").grid(row=5, column=0, sticky="e", padx=6, pady=4)
-
-        # Tách giờ:phút cũ
         try:
             h_cur, m_cur = (pt_cur.split(":") if pt_cur else ("", ""))
         except Exception:
             h_cur, m_cur = ("", "")
 
         hours = [f"{i:02d}" for i in range(24)]
-        minutes = [f"{i:02d}" for i in range(0, 60, 5)]  # step 5 phút cho dễ chọn
+        minutes = [f"{i:02d}" for i in range(0, 60, 5)]
 
         cb_h = ttk.Combobox(frm, values=hours, width=3, state="readonly")
         cb_h.grid(row=5, column=1, sticky="w", padx=(0, 2))
         cb_h.set(h_cur if h_cur in hours else "00")
-
         ttk.Label(frm, text=":").grid(row=5, column=1, padx=(50, 0), sticky="w")
-
         cb_m = ttk.Combobox(frm, values=minutes, width=3, state="readonly")
         cb_m.grid(row=5, column=1, padx=(65, 0), sticky="w")
         cb_m.set(m_cur if m_cur in minutes else "00")
@@ -471,44 +529,30 @@ class App(tk.Tk):
             d = txt_desc.get("1.0", tk.END).strip()
             pd = ent_pd.get_date().strftime("%m/%d/%Y")
             pt = f"{cb_h.get()}:{cb_m.get()}"
-
             if not ch or not t:
                 messagebox.showwarning("Missing", "Channel và Title không được để trống.")
                 return
-
             new_vals = (ch, directory, t, d, pd, pt)
             self.tree.item(item_id, values=new_vals)
-
             if 0 <= index < len(self._last_assignments):
                 self._last_assignments[index] = new_vals
-
             self._set_status(f"Updated row {index+1}.")
             win.destroy()
 
-        # --- Buttons ---
         btns = ttk.Frame(win, padding=(0, 8))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Save", command=on_save).pack(side=tk.LEFT)
         ttk.Button(btns, text="Cancel", command=win.destroy).pack(side=tk.LEFT, padx=6)
 
-        # --- Center window ---
         win.update_idletasks()
-        w = win.winfo_width()
-        h = win.winfo_height()
-        sw = win.winfo_screenwidth()
-        sh = win.winfo_screenheight()
-        x = (sw // 2) - (w // 2)
-        y = (sh // 2) - (h // 2)
+        w = win.winfo_width(); h = win.winfo_height()
+        sw = win.winfo_screenwidth(); sh = win.winfo_screenheight()
+        x = (sw // 2) - (w // 2); y = (sh // 2) - (h // 2)
         win.geometry(f"{w}x{h}+{x}+{y}")
-
-
-        win.bind("<Return>", lambda e: on_save())
-        win.bind("<Escape>", lambda e: win.destroy())
+        win.bind("<Return>", lambda e: on_save()); win.bind("<Escape>", lambda e: win.destroy())
         ent_title.focus_set()
 
-    # ---------- Apply date/time to ALL ----------
     def _apply_date_time_all(self):
-        # --- Lấy ngày từ DateEntry ---
         if hasattr(self.date_entry, "get_date"):
             try:
                 d = self.date_entry.get_date()
@@ -524,7 +568,6 @@ class App(tk.Tk):
             messagebox.showerror("Invalid date", "Định dạng ngày phải là MM/DD/YYYY.")
             return
 
-        # --- Lấy giờ và bước ---
         hh = self.time_h_var.get().strip()
         mm = self.time_m_var.get().strip()
         step = self.step_min_var.get()
@@ -546,25 +589,20 @@ class App(tk.Tk):
             messagebox.showerror("Invalid step", "Step (min) không được âm.")
             return
 
-        # --- Lấy các hàng được chọn ---
         selected_items = self.tree.selection()
         if not selected_items:
-            selected_items = self.tree.get_children() 
+            selected_items = self.tree.get_children()
 
         base_dt = datetime.datetime(2000, 1, 1, h, m)
 
         for i, iid in enumerate(selected_items):
             tm = (base_dt + datetime.timedelta(minutes=step * i)).time()
             time_str = f"{tm.hour:02d}:{tm.minute:02d}"
-
             vals = list(self.tree.item(iid, "values"))
             vals += [""] * max(0, 6 - len(vals))
             ch, directory, t, desc, _, _ = vals
             new_vals = (ch, directory, t, desc, date_str, time_str)
-
             self.tree.item(iid, values=new_vals)
-
-            # cập nhật lại trong danh sách assignments gốc nếu có
             if self._last_assignments:
                 try:
                     index = self.tree.index(iid)
@@ -575,19 +613,21 @@ class App(tk.Tk):
 
         self._set_status(f"Đã áp dụng ngày {date_str} cho {len(selected_items)} dòng được chọn.")
 
-
     def _combine_excels(self):
         input_dir = OUTPUT_DIR
-        output_file = EXCEL_DIR
         move_folder = self.move_folder_var.get().strip()
-
+        # Repeat / No Repeat
+        if self.mode_var.get() == "channels":
+            output_file = EXCEL_DIR_NP
+        else:
+            output_file = EXCEL_DIR
         try:
             count, files = combine_excels(input_dir, output_file, move_folder, get_mp4_filename)
             if count == 0:
                 messagebox.showwarning("No files", f"Không tìm thấy file Excel nào trong:\n{input_dir}")
                 return
             self._set_status(f"Combined {count} files → {output_file}")
-            messagebox.showinfo("Done", f"Combined successfully")
+            messagebox.showinfo("Done", "Combined successfully")
         except Exception as e:
             messagebox.showerror("Error", f"Lỗi khi combine:\n{e}")
 
@@ -598,23 +638,19 @@ class App(tk.Tk):
         confirm = messagebox.askyesno("Confirm delete", f"Delete {len(items)} row(s)?")
         if not confirm:
             return
-
         for item_id in items:
             index = self.tree.index(item_id)
             self.tree.delete(item_id)
             if self._last_assignments and 0 <= index < len(self._last_assignments):
                 self._last_assignments.pop(index)
-
         self._set_status(f"Deleted {len(items)} row(s).")
 
     def _show_tree_menu(self, event):
         item_id = self.tree.identify_row(event.y)
         if not item_id:
             return
-
         if item_id not in self.tree.selection():
             self.tree.selection_set(item_id)
-
         menu = tk.Menu(self, tearoff=0)
         menu.add_command(label="Delete", command=lambda: self._delete_selected_rows())
         menu.post(event.x_root, event.y_root)
@@ -624,7 +660,6 @@ class App(tk.Tk):
         if not group_file:
             messagebox.showwarning("No group", "Hãy chọn một group CSV trước.")
             return
-
         csv_path = os.path.join(GROUPS_DIR, f"{group_file}.csv")
 
         win = tk.Toplevel(self)
@@ -636,11 +671,9 @@ class App(tk.Tk):
         frm.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(frm, text="Danh sách channel (mỗi dòng 1 channel):").pack(anchor="w")
-
         txt = tk.Text(frm, width=50, height=20)
         txt.pack(fill=tk.BOTH, expand=True)
 
-        # load danh sách hiện tại
         for ch in self._channels_cache:
             txt.insert(tk.END, ch + "\n")
 
@@ -662,7 +695,6 @@ class App(tk.Tk):
         ttk.Button(btns, text="Save", command=save_profiles).pack(side=tk.LEFT)
         ttk.Button(btns, text="Cancel", command=win.destroy).pack(side=tk.LEFT, padx=6)
 
-        # Center window
         win.update_idletasks()
         w, h = win.winfo_width(), win.winfo_height()
         sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
@@ -670,28 +702,22 @@ class App(tk.Tk):
         win.geometry(f"{w}x{h}+{x}+{y}")
 
     def _add_group(self):
-
-
         name = sd.askstring("Add Group", "Enter new group name:")
         if not name:
             return
-
         if name.lower().endswith(".csv"):
-            name = name[:-4]  # bỏ đuôi csv nếu người dùng nhập
-
+            name = name[:-4]
         filename = name + ".csv"
         path = os.path.join(GROUPS_DIR, filename)
         if os.path.exists(path):
             messagebox.showwarning("Exists", f"Group '{name}' already exists")
             return
-
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write("")
-
             self._set_status(f"Created new group: {name}")
             self._refresh_group_files()
-            self.group_file_var.set(name)   # không .csv
+            self.group_file_var.set(name)
             self._load_channels()
         except Exception as e:
             messagebox.showerror("Error", f"Error when creating group:\n{e}")
@@ -699,7 +725,7 @@ class App(tk.Tk):
     def _delete_group(self):
         name = self.group_file_var.get().strip()
         if not name:
-            messagebox.showwarninng("No group", "Select a group to delete first.")
+            messagebox.showwarning("No group", "Select a group to delete first.")
             return
         confirm = messagebox.askyesno("Confirm delete", f"Delete group '{name}' ?")
         if not confirm:
@@ -718,13 +744,10 @@ class App(tk.Tk):
         if not name:
             messagebox.showwarning("No group", "Select group first.")
             return
-
         folder = filedialog.askdirectory(title=f"Select folder for group '{name}'")
         if not folder:
             return
-
         folder = os.path.abspath(folder)
-
         lines = []
         if os.path.exists(CONFIG_PATH):
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -738,7 +761,6 @@ class App(tk.Tk):
                         continue
                     lines.append(line)
         lines.append(f"{name}:{folder}")
-
         try:
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines) + ("\n" if lines else ""))
@@ -746,7 +768,6 @@ class App(tk.Tk):
         except Exception as e:
             messagebox.showerror("Error", f"Error when write:\n{e}")
             return
-
         self._load_channels()
 
     def _check_for_updates(self):
@@ -762,13 +783,10 @@ class App(tk.Tk):
             except Exception as e:
                 print(f"Update from {UPDATE_MANIFEST}")
                 messagebox.showerror("Update error", str(e))
-
                 self._set_status("Update failed.")
         threading.Thread(target=worker, daemon=True).start()
 
-
     def _restart_app(self):
-
         python = sys.executable
         script = os.path.abspath(sys.argv[0])
         args = sys.argv[1:]
@@ -776,47 +794,41 @@ class App(tk.Tk):
         self.destroy()
         sys.exit(0)
 
-
     def _open_concat_window(self):
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ghep music/concat_tool.py")
         if not os.path.exists(script_path):
             messagebox.showerror("Not found", f"can't find file: \n{script_path}")
             return
         subprocess.Popen([sys.executable, script_path], shell=False)
-    
+
     def _open_manage_channel_window(self):
-        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manage_channel\data\preview.py")
+        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manage_channel\data\manage_page.py")
         if not os.path.exists(script_path):
             messagebox.showerror("Not found", f"can't find file: \n{script_path}")
             return
         subprocess.Popen([sys.executable, script_path], shell=False)
 
     def __open_statistics_channel_window(self):
-        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "statistics\crawl_data.py")
+        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "thong_ke\crawl_data.py")
         if not os.path.exists(script_path):
             messagebox.showerror("Not found", f"can't find file: \n{script_path}")
             return
         subprocess.Popen([sys.executable, script_path], shell=False)
-    
+
     def _auto_check_update(self):
-        """Tự động kiểm tra update khi mở app."""
         def worker():
             try:
                 self._set_status("Checking for new version...")
                 msg = check_and_update(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
-
                 if msg.startswith("Installed update"):
-                    # Đã cài xong luôn (trường hợp auto-install)
                     self._set_status("Update successfully.")
                     if messagebox.askyesno("Notice", "Have new version to update, do you want to update ?"):
                         self._restart_app()
-
                 elif "New version" in msg or "update available" in msg.lower():
                     self._set_status("Have new version")
                     if messagebox.askyesno("Have new version", f"{msg}\n\nDo you want to update?"):
                         try:
-                            # cài đặt trực tiếp
-                            install_from_zip("update.zip")  # nếu file zip đã được tải
+                            install_from_zip("update.zip")
                             self._set_status("Installed new version.")
                             if messagebox.askyesno("Done", "Updated restart app to apply ?"):
                                 self._restart_app()
@@ -827,29 +839,27 @@ class App(tk.Tk):
             except Exception as e:
                 self._set_status(f"Inspect the Eror: {e}")
                 print("Update error:", e)
-
         threading.Thread(target=worker, daemon=True).start()
-    
 
     def _generate_titles_descs(self):
         try:
-            topic = self.group_file_var().get().strip() or "Short videos youtube"
+            # fix nhỏ: self.group_file_var.get() (không phải self.group_file_var())
+            topic = self.group_file_var.get().strip() or "Short videos youtube"
             prompt = f"Create 10 titles mesmerizing and 10 short description for {topic}"
 
             response = openai.ChatCompletion.create(
-                model = "gpt-3.5-turbo",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.8,
             )
-
             text = response["choices"][0]["message"]["content"]
             self.txt_titles.delete("1.0", tk.END)
             self.txt_descs.delete("1.0", tk.END)
             self.txt_titles.insert(tk.END, text)
-
             self._set_status("Generated tiles and description.")
         except Exception as e:
             messagebox.showerror("Error", f"Error when generate content: {e}")
+
 
 if __name__ == "__main__":
     app = App()

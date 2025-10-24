@@ -6,7 +6,7 @@ from datetime import datetime
 import re
 from yt_data_helper import *
 
-class App(tk.Tk):
+class App(tk.Frame):
     def __init__(self):
         super().__init__()
         self.title("YouTube Channel Data")
