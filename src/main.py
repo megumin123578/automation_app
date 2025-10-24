@@ -70,7 +70,7 @@ class App(tk.Tk):
         now = datetime.datetime.now()
         self.time_h_var = tk.StringVar(value=f"{now.hour:02d}")
         self.time_m_var = tk.StringVar(value=f"{now.minute:02d}")
-        self.step_min_var = tk.IntVar(value=5) 
+        self.step_min_var = tk.IntVar(value=0) 
 
         self._build_header()
         self._build_inputs()
