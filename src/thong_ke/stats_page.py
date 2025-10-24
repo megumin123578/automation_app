@@ -89,26 +89,26 @@ class StatisticsPage(ttk.Frame):
         top_frame = ttk.Frame(self, padding=10)
         top_frame.grid(row=0, column=0, sticky="ew")
 
-        ttk.Label(top_frame, text="Chọn tháng:", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", padx=5)
+        ttk.Label(top_frame, text="Month:", font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", padx=5)
         self.month_var = tk.StringVar(value=datetime.datetime.now().strftime("%m"))
         month_cb = ttk.Combobox(top_frame, textvariable=self.month_var, width=5, state="readonly",
                                 values=[f"{i:02d}" for i in range(1, 13)])
         month_cb.grid(row=0, column=1, padx=5)
 
-        ttk.Label(top_frame, text="Chọn năm:", font=("Segoe UI", 10)).grid(row=0, column=2, sticky="w", padx=5)
+        ttk.Label(top_frame, text="Year:", font=("Segoe UI", 10)).grid(row=0, column=2, sticky="w", padx=5)
         current_year = datetime.datetime.now().year
         self.year_var = tk.StringVar(value=str(current_year))
         year_cb = ttk.Combobox(top_frame, textvariable=self.year_var, width=6, state="readonly",
                                values=[str(y) for y in range(current_year - 3, current_year + 2)])
         year_cb.grid(row=0, column=3, padx=5)
 
-        ttk.Button(top_frame, text="Update dữ liệu", command=self._run_process).grid(row=0, column=4, padx=15)
+        ttk.Button(top_frame, text="Update data", command=self._run_process).grid(row=0, column=4, padx=15)
 
         month_cb.bind("<<ComboboxSelected>>", self._on_month_year_change)
         year_cb.bind("<<ComboboxSelected>>", self._on_month_year_change)
 
         # ==== Ô nhập cookie & nút extract ====
-        cookie_frame = ttk.LabelFrame(self, text="Nhập chuỗi Cookie để lấy PHPSESSID", padding=10)
+        cookie_frame = ttk.LabelFrame(self, text="Paste here to get cookies", padding=10)
         cookie_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
 
         self.cookie_entry = tk.Text(cookie_frame, height=4, wrap="word", font=("Consolas", 9))
@@ -117,7 +117,7 @@ class StatisticsPage(ttk.Frame):
         extract_btn = ttk.Button(cookie_frame, text="Extract PHPSESSID", command=self._extract_cookie_action)
         extract_btn.pack(side="right", padx=10)
 
-        self.cookie_status_label = ttk.Label(self, text="Cookies hiện tại: (chưa có)", wraplength=1000)
+        self.cookie_status_label = ttk.Label(self, text="Cookies in use: (chưa có)", wraplength=1000)
         self.cookie_status_label.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
         self._update_cookie_label()
 
@@ -142,14 +142,14 @@ class StatisticsPage(ttk.Frame):
         scroll_x.grid(row=1, column=0, sticky="ew")
 
         # ==== Hai vùng log song song ====
-        log_frame = ttk.LabelFrame(self, text="Log tiến trình & Thống kê chi phí", padding=5)
+        log_frame = ttk.LabelFrame(self, text="Log", padding=5)
         log_frame.grid(row=4, column=0, sticky="nsew", padx=10, pady=5)
         log_frame.columnconfigure(0, weight=1)
         log_frame.columnconfigure(1, weight=1)
         log_frame.rowconfigure(1, weight=1)
 
-        ttk.Label(log_frame, text="📜 Tiến trình xử lý", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", padx=5)
-        ttk.Label(log_frame, text="📊 Thống kê chi phí", font=("Segoe UI", 10, "bold")).grid(row=0, column=1, sticky="w", padx=5)
+        ttk.Label(log_frame, text="📜 Process log", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", padx=5)
+        ttk.Label(log_frame, text="📊 Statistics", font=("Segoe UI", 10, "bold")).grid(row=0, column=1, sticky="w", padx=5)
 
         self.process_text = tk.Text(log_frame, height=14, wrap="word", font=("Consolas", 9),
                                     bg="#1e1e1e", fg="#dcdcdc", insertbackground="white")
@@ -162,7 +162,7 @@ class StatisticsPage(ttk.Frame):
         self.redirector = TextRedirector(self.process_text, self.stat_text)
 
         # Count label
-        self.count_label = ttk.Label(self, text="Chưa tải dữ liệu", font=("Segoe UI", 9, "italic"), padding=5)
+        self.count_label = ttk.Label(self, text="Haven't loaded data yet", font=("Segoe UI", 9, "italic"), padding=5)
         self.count_label.grid(row=5, column=0, sticky="e")
 
         # Hiển thị tháng hiện tại
@@ -252,7 +252,7 @@ class StatisticsPage(ttk.Frame):
         for _, row in df.iterrows():
             self.tree.insert("", "end", values=list(row.values))
 
-        self.count_label.config(text=f"Hiển thị {len(df)} dòng dữ liệu cho {month_str}")
+        self.count_label.config(text=f"{len(df)} lines")
 
         # === Thống kê tổng charge theo kênh ===
         try:

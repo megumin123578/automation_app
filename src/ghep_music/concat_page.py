@@ -85,20 +85,21 @@ class ConcatPage(tk.Frame):
         # Channel selection + Concat mode cùng hàng
         channel_frame = ttk.Frame(self.frm_top)
         channel_frame.grid(row=0, column=0, columnspan=4, sticky="we", pady=5)
-        channel_frame.columnconfigure(7, weight=1)
+        for c in (1, 2, 4, 6, 7):
+            channel_frame.grid_columnconfigure(c, weight=1)
 
         ttk.Label(channel_frame, text="Channel:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
         self.combo_channel = ttk.Combobox(
             channel_frame, textvariable=self.selected_channel, values=self._list_channels(),
             width=25, state="readonly", font=("Segoe UI", 10)
         )
-        self.combo_channel.grid(row=0, column=1, sticky="w", padx=5)
+        self.combo_channel.grid(row=0, column=1, sticky="ew", padx=5)
         self.combo_channel.bind("<<ComboboxSelected>>", self._on_channel_change)
         self._add_right_click_menu(self.combo_channel,[("🗑 Delete Channel", self._clear_channel_selection),])
 
         # --- Input để nhập tên channel mới ---
         self.entry_new_channel = ttk.Entry(channel_frame, width=20, font=("Segoe UI", 10))
-        self.entry_new_channel.grid(row=0, column=2, sticky="w", padx=5)
+        self.entry_new_channel.grid(row=0, column=2, sticky="ew", padx=5)
 
         def on_focus_in(e):
             if self.entry_new_channel.get() == "Enter channel name...":
@@ -125,7 +126,7 @@ class ConcatPage(tk.Frame):
                 "Concat with time limit",
             ]
         )
-        self.combo_mode.grid(row=0, column=4, sticky="w", padx=5)
+        self.combo_mode.grid(row=0, column=4, sticky="ew", padx=5)
         self.combo_mode.current(0)
         self.combo_mode.bind("<<ComboboxSelected>>", lambda e: (self.save_channel_config(), self._update_mode_visibility(), self.reload_groups()))
 
@@ -138,6 +139,9 @@ class ConcatPage(tk.Frame):
         # Parameters frame
         param_frame = ttk.Frame(self.frm_top)
         param_frame.grid(row=1, column=0, columnspan=4, sticky="we", pady=5)
+        param_frame.grid_columnconfigure(5, weight=1)   
+        param_frame.grid_columnconfigure(1, weight=0)  
+
         
         self.lbl_group_size = ttk.Label(param_frame, text="Videos per Group:", font=("Segoe UI", 10, "bold"))
         self.lbl_group_size.grid(row=0, column=0, sticky="e", padx=5)
@@ -148,13 +152,16 @@ class ConcatPage(tk.Frame):
         self.combo_group_size.grid(row=0, column=1, sticky="w", padx=5)
         self.combo_group_size.bind("<<ComboboxSelected>>", self._on_group_size_change)
 
-        ttk.Label(param_frame, text="Total Videos to Export:", font=("Segoe UI", 10, "bold")).grid(row=0, column=2, sticky="e", padx=5)
+        ttk.Label(param_frame, text="Total Videos to Export:", font=("Segoe UI", 10, "bold"))\
+            .grid(row=0, column=2, sticky="e", padx=(10, 4))
+        
         limit_display = ["All"] + [str(i) for i in range(1, 101)]
         self.limit_videos_display = tk.StringVar(value="All")  # StringVar để hiển thị
         self.combo_limit_videos = ttk.Combobox(
             param_frame, width=8, state="readonly",
             textvariable=self.limit_videos_display, values=limit_display
         )
+        self.combo_limit_videos.grid(row=0, column=3, sticky="w", padx=(0, 5))
         self.combo_limit_videos.set("All")  # hiển thị "All"
 
         def on_limit_change(event=None):
@@ -163,7 +170,7 @@ class ConcatPage(tk.Frame):
             self.reload_groups()
             self.save_channel_config()
         self.combo_limit_videos.bind("<<ComboboxSelected>>", on_limit_change)
-        self.combo_limit_videos.grid(row=0, column=3, sticky="w", padx=5)
+        self.combo_limit_videos.grid(row=0, column=3, sticky="ew", padx=5)
 
         # --- Time limit (minutes) - chỉ hiện ở "Concat with time limit"
         self.lbl_time_limit = ttk.Label(param_frame, text="Time limit (min):", font=("Segoe UI", 10, "bold"))
@@ -188,9 +195,9 @@ class ConcatPage(tk.Frame):
         self.combo_time_limit_sec.bind("<<ComboboxSelected>>", lambda e: self.save_channel_config())
 
         self.slider_volume = ttk.Scale(param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.bgm_volume_var, length=120)
-        self.slider_volume.grid(row=0, column=5, sticky="w", padx=5)
+        self.slider_volume.grid(row=0, column=5, sticky="ew", padx=5)
         self.lbl_volume = ttk.Label(param_frame, text=f"{self.bgm_volume_var.get() * 100:.0f}%", width=5)
-        self.lbl_volume.grid(row=0, column=6, sticky="w", padx=5)
+        self.lbl_volume.grid(row=0, column=6, sticky="ew", padx=5)
 
         # --- Main Video Volume Slider ---
         self.lbl_main_video_vol = ttk.Label(param_frame, text="Video Volume:", font=("Segoe UI", 10, "bold"))
@@ -199,10 +206,10 @@ class ConcatPage(tk.Frame):
         self.slider_main_video_vol = ttk.Scale(
             param_frame, from_=0.0, to=2.0, orient="horizontal", variable=self.main_video_volume_var, length=120
         )
-        self.slider_main_video_vol.grid(row=2, column=5, sticky="w", padx=5)
+        self.slider_main_video_vol.grid(row=2, column=5, sticky="ew", padx=5)
 
         self.lbl_main_video_vol_value = ttk.Label(param_frame, text=f"{self.main_video_volume_var.get() * 100:.0f}%", width=5)
-        self.lbl_main_video_vol_value.grid(row=2, column=6, sticky="w", padx=5)
+        self.lbl_main_video_vol_value.grid(row=2, column=6, sticky="ew", padx=5)
 
         # --- Video Volume Slider ---
         self.lbl_video_vol = ttk.Label(param_frame, text="Outro Volume:", font=("Segoe UI", 10, "bold"))
@@ -211,7 +218,7 @@ class ConcatPage(tk.Frame):
         self.slider_video_vol = ttk.Scale(
             param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.video_volume_var, length=120
         )
-        self.slider_video_vol.grid(row=1, column=5, sticky="w", padx=5)
+        self.slider_video_vol.grid(row=1, column=5, sticky="ew", padx=5)
 
         self.lbl_video_vol_value = ttk.Label(param_frame, text=f"{self.video_volume_var.get() * 100:.0f}%", width=5)
         self.lbl_video_vol_value.grid(row=1, column=6, sticky="w", padx=5)
@@ -244,7 +251,7 @@ class ConcatPage(tk.Frame):
             width=15,
             values=["By group count", "By time limit"]
         )
-        self.combo_outro_mode.grid(row=0, column=6, sticky="w", padx=5)
+        self.combo_outro_mode.grid(row=0, column=6, sticky="ew", padx=5)
         self.combo_outro_mode.bind("<<ComboboxSelected>>", lambda e: (self.save_channel_config(), self._update_mode_visibility()))
 
         # self.btn_reload = ttk.Button(param_frame, text="↻ Reload", style="Accent.TButton", command=self.reload_groups)
@@ -253,6 +260,8 @@ class ConcatPage(tk.Frame):
         # --- Video Settings Frame ---
         self.video_frame = ttk.LabelFrame(self.frm_top, text="🎬 Video Settings", padding=(10,5))
         self.video_frame.grid(row=2, column=0, columnspan=4, sticky="we", pady=5)
+        for c in (1,3,5,6):
+            self.video_frame.grid_columnconfigure(c, weight=1)
 
         # Preset lists
         cq_values = [10, 12, 15, 17, 18, 20, 21, 22, 23, 24, 25, 28, 30, 32, 35, 40]
@@ -308,6 +317,8 @@ class ConcatPage(tk.Frame):
         # Folder selection
         folder_frame = ttk.LabelFrame(self.frm_top, text="📁 Folders", padding=(10, 5))
         folder_frame.grid(row=3, column=0, columnspan=4, sticky="we", pady=5)
+        folder_frame.grid_columnconfigure(1, weight=1)
+        folder_frame.grid_columnconfigure(2, weight=1)
         self._add_folder_row("Source Folder:", self.input_folder, 0, folder_frame, reload=True)
         self._add_folder_row("Save Folder:", self.save_folder, 1, folder_frame)
         self.music_widgets = self._add_folder_row("Music Folder:", self.bgm_folder, 2, folder_frame, bgm=True)
@@ -315,6 +326,8 @@ class ConcatPage(tk.Frame):
         # Action buttons and progress
         action_frame = ttk.Frame(self.frm_top)
         action_frame.grid(row=4, column=0, columnspan=4, sticky="we", pady=10)
+        action_frame.grid_columnconfigure(4, weight=1)
+        action_frame.grid_columnconfigure(5, weight=1)
         self.btn_concat = ttk.Button(action_frame, text="▶ Start", style="Accent.TButton", command=self.start_concat)
         self.btn_concat.grid(row=0, column=0, padx=5)
         self.btn_stop = ttk.Button(action_frame, text="■ Stop", style="Stop.TButton", command=self.stop_concat, state=tk.DISABLED)
@@ -325,7 +338,7 @@ class ConcatPage(tk.Frame):
         self.btn_clear.grid(row=0, column=3, padx=5)
         
         self.progress = ttk.Progressbar(action_frame, orient="horizontal", mode="determinate", length=300)
-        self.progress.grid(row=0, column=4, padx=5, sticky="we")
+        self.progress.grid(row=0, column=4, padx=5, sticky="ew")
 
         self.progress_infor_var = tk.StringVar(value='')
         self.lbl_progress_info = ttk.Label(
@@ -334,7 +347,7 @@ class ConcatPage(tk.Frame):
         self.lbl_progress_info.grid(row=1, column=4, columnspan=2, padx=5, pady=(3,0), sticky='w')
 
         self.lbl_status = ttk.Label(action_frame, textvariable=self.status_var, font=("Segoe UI", 10, "italic"))
-        self.lbl_status.grid(row=0, column=5, padx=5, sticky="w")
+        self.lbl_status.grid(row=0, column=5, padx=5, sticky="ew")
 
         # Log and stats frame
         self.frm_logstats = ttk.LabelFrame(self, text="📜 Log & Statistics", padding=(10, 10))
@@ -354,7 +367,7 @@ class ConcatPage(tk.Frame):
         scrollbar.pack(side="right", fill="y")
         self.txt_log = tk.Text(
             log_frame, height=12, wrap="word", state="disabled", font=("Consolas", 11),
-            bg="#f5f5f5", fg="#333333", borderwidth=1, relief="solid"
+            bg="#1e1e1e", fg="#dcdcdc", borderwidth=1, relief="solid", insertbackground="#ffffff"
         )
         self.txt_log.pack(fill="both", expand=True)
         scrollbar.config(command=self.txt_log.yview)
@@ -1081,13 +1094,13 @@ class ConcatPage(tk.Frame):
             for w in self.music_widgets:
                 w.grid_remove()
             self.lbl_main_video_vol.grid_configure(row=0, column=4, sticky="e", padx=5)
-            self.slider_main_video_vol.grid_configure(row=0, column=5, sticky="w", padx=5)
+            self.slider_main_video_vol.grid_configure(row=0, column=5, sticky="ew", padx=5)
             self.lbl_main_video_vol_value.grid_configure(row=0, column=6, sticky="w", padx=5)
         else:
             for w in self.music_widgets:
                 w.grid()
             self.lbl_main_video_vol.grid_configure(row=2, column=4, sticky="e", padx=5)
-            self.slider_main_video_vol.grid_configure(row=2, column=5, sticky="w", padx=5)
+            self.slider_main_video_vol.grid_configure(row=2, column=5, sticky="ew", padx=5)
             self.lbl_main_video_vol_value.grid_configure(row=2, column=6, sticky="w", padx=5)
     
     def _show_time_limit(self, visible=True):

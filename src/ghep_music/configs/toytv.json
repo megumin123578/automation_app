@@ -5,10 +5,10 @@
   "group_size": 2,
   "bgm_volume": 1.0,
   "limit_videos": 0,
-  "concat_mode": "Concat with music background",
+  "concat_mode": "Concat with outro music",
   "main_video_volume": 1.0,
-  "video_volume": 0.2,
-  "outro_mode": "By time limit",
+  "video_volume": 0.22272727272727272,
+  "outro_mode": "By group count",
   "outro_duration": 30,
   "video_settings": {
     "resolution": "1080x1920",

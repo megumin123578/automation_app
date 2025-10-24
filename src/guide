@@ -1,2 +1,8 @@
 #encrupt code
 python setup.py build_ext --inplace  
+
+#create requirements.txt
+pip freeze > requirements.txt
+
+#install all requirements
+pip install -r requirements.txt

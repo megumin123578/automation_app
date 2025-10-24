@@ -8,24 +8,24 @@ ffmpeg version 2025-10-12-git-0bc54cddb1-full_build-www.gyan.dev Copyright (c) 2
   libavfilter    11.  9.100 / 11.  9.100
   libswscale      9.  3.100 /  9.  3.100
   libswresample   6.  2.100 /  6.  2.100
-Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp_1688.mp4':
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'temp_35820.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
     compatible_brands: isomiso2avc1mp41
     encoder         : Lavf62.6.101
-  Duration: 00:00:50.09, start: 0.000000, bitrate: 12052 kb/s
-  Stream #0:0[0x1](eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 11877 kb/s, 59.99 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
+  Duration: 00:00:53.93, start: 0.000000, bitrate: 12146 kb/s
+  Stream #0:0[0x1](eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 11963 kb/s, 60 fps, 60 tbr, 15360 tbn, start 0.021029 (default)
     Metadata:
       handler_name    : ?Mainconcept Video Media Handler
       vendor_id       : [0][0][0][0]
       encoder         : Lavc62.16.100 h264_nvenc
-  Stream #0:1[0x2](eng): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 169 kb/s (default)
+  Stream #0:1[0x2](eng): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 176 kb/s (default)
     Metadata:
       handler_name    : #Mainconcept MP4 Sound Media Handler
       vendor_id       : [0][0][0][0]
-[mp3 @ 000001c85d1cb0c0] Estimating duration from bitrate, this may be inaccurate
-Input #1, mp3, from '//nasfmc/Ổ Sever Mới/Định/Satisfy ASMR/SHORT AI/render nhac\5.mp3':
+[mp3 @ 000001ba9e71af80] Estimating duration from bitrate, this may be inaccurate
+Input #1, mp3, from '//nasfmc/Ổ Sever Mới/Định/Satisfy ASMR/SHORT AI/render nhac\6.mp3':
   Metadata:
     date            : 2025-09-30 08:19
     id3v2_priv.XMP  : <?xpacket begin="\xef\xbb\xbf" id="W5M0MpCehiHzreSzNTczkc9d"?>\x0a<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 7.1-c000 79.4d2f597, 2021/09/01-20:51:22        ">\x0a <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\x0a  <rd
@@ -37,13 +37,13 @@ Stream mapping:
   Stream #0:0 -> #0:0 (copy)
   concat:out:a0 -> Stream #0:1 (aac)
 Press [q] to stop, [?] for help
-Output #0, mp4, to 'F:/1\139.mp4':
+Output #0, mp4, to 'F:/1\temp_35820.mp4':
   Metadata:
     major_brand     : isom
     minor_version   : 512
     compatible_brands: isomiso2avc1mp41
     encoder         : Lavf62.6.101
-  Stream #0:0(eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 11877 kb/s, 59.99 fps, 60 tbr, 15360 tbn (default)
+  Stream #0:0(eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 11963 kb/s, 60 fps, 60 tbr, 15360 tbn (default)
     Metadata:
       handler_name    : ?Mainconcept Video Media Handler
       vendor_id       : [0][0][0][0]
@@ -51,6 +51,6 @@ Output #0, mp4, to 'F:/1\139.mp4':
   Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 128 kb/s
     Metadata:
       encoder         : Lavc62.16.100 aac
-frame= 1177 fps=0.0 q=-1.0 size=   28928KiB time=00:00:19.66 bitrate=12048.1kbits/s speed=37.5x elapsed=0:00:00.52    frame= 2811 fps=2702 q=-1.0 size=   68864KiB time=00:00:46.93 bitrate=12020.0kbits/s speed=45.1x elapsed=0:00:01.04    [out#0/mp4 @ 000001c85cbdc500] video:72580KiB audio:798KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.108397%
-frame= 3003 fps=2754 q=-1.0 Lsize=   73457KiB time=00:00:50.03 bitrate=12028.0kbits/s speed=45.9x elapsed=0:00:01.09    
-[aac @ 000001c85cc568c0] Qavg: 558.567
+frame=  673 fps=0.0 q=-1.0 size=   16384KiB time=00:00:11.28 bitrate=11893.1kbits/s speed=22.2x elapsed=0:00:00.50    frame= 1427 fps=1403 q=-1.0 size=   34560KiB time=00:00:23.82 bitrate=11881.0kbits/s speed=23.4x elapsed=0:00:01.01    frame= 2626 fps=1712 q=-1.0 size=   64512KiB time=00:00:43.81 bitrate=12060.8kbits/s speed=28.6x elapsed=0:00:01.53    [out#0/mp4 @ 000001ba9e1fc780] video:78720KiB audio:865KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.107501%
+frame= 3234 fps=1773 q=-1.0 Lsize=   79671KiB time=00:00:53.87 bitrate=12114.9kbits/s speed=29.5x elapsed=0:00:01.82    
+[aac @ 000001ba9e2006c0] Qavg: 565.004
