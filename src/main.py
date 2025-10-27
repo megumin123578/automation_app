@@ -190,8 +190,8 @@ class App(tk.Tk):
         frm2 = ttk.Frame(parent, padding=(10, 6, 10, 0))
         frm2.pack(fill=tk.X)
         ttk.Label(frm2, text="Distribution mode:").pack(side=tk.LEFT)
-        ttk.Radiobutton(frm2, text="Repeat", variable=self.mode_var, value="titles").pack(side=tk.LEFT, padx=(8, 0))
-        ttk.Radiobutton(frm2, text="No Repeat", variable=self.mode_var, value="channels").pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Radiobutton(frm2, text="Profile", variable=self.mode_var, value="titles").pack(side=tk.LEFT, padx=(8, 0))
+        ttk.Radiobutton(frm2, text="Channel", variable=self.mode_var, value="channels").pack(side=tk.LEFT, padx=(8, 0))
 
         # Date/Time controls (apply to ALL rows)
         frm3 = ttk.Frame(parent, padding=(10, 6, 10, 0))

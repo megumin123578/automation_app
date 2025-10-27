@@ -232,12 +232,12 @@ class StatisticsPage(ttk.Frame):
                 file_path = CLEAN_CSV_PATH
             df = pd.read_csv(file_path, encoding="utf-8-sig")
         except Exception as e:
-            self._error("Lỗi đọc file", str(e))
+            print("Lỗi đọc file", str(e))
             self.redirector.write(f"[LỖI] Không đọc được file: {e}\n")
             return
 
         if "Date" not in df.columns:
-            self._error("Lỗi", "Không tìm thấy cột 'Date' trong file CSV.")
+            self.redirector.write("Lỗi", "Không tìm thấy cột 'Date' trong file CSV.")
             return
 
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
