@@ -17,6 +17,7 @@ from module import *
 from hyperparameter import *
 from ghep_music.concat_page import ConcatPage
 from thong_ke.stats_page import StatisticsPage
+import json
 
 class App(tk.Tk):
     def __init__(self):
@@ -726,8 +727,12 @@ class App(tk.Tk):
             with open(csv_path, "w", encoding="utf-8") as f:
                 for ch in lines:
                     f.write(ch + "\n")
+
             self._channels_cache = lines
             self.channel_count_lbl.config(text=f"{len(lines)} channels")
+            self._update_profile_combo()
+            self._on_mode_change()
+            self._schedule_preview()
             self._set_status(f"Saved {len(lines)} channels to {group_file}")
             win.destroy()
 
@@ -908,16 +913,29 @@ class App(tk.Tk):
                 
             except Exception:
                 pass
+            
+            #chọn profile đầu
+            cur = self.selected_profile_var.get().strip()
+            if (not cur) or cur not in self._channels_cache:
+                if self._channels_cache:
+                    self.selected_profile_var.set(self._channels_cache[0])
         else:
             self.profile_slot.pack_forget()
 
     def _update_profile_combo(self):
-        cur = self.selected_profile_var.get().strip()
         self.profile_combo['values'] = self._channels_cache or []
-        if cur and cur in self._channels_cache:
-            pass
+        cur = self.selected_profile_var.get().strip()
+
+        if self.mode_var.get() == 'channels':
+            # Ở channel mode: luôn cố gắng có 1 profile hợp lệ
+            if (not cur) or (cur not in self._channels_cache):
+                if self._channels_cache:
+                    self.selected_profile_var.set(self._channels_cache[0])
         else:
-            self.selected_profile_var.set('')
+            # Ở profile mode: nếu selection cũ không còn hợp lệ thì clear
+            if cur and cur not in self._channels_cache:
+                self.selected_profile_var.set('')
+
 
 if __name__ == "__main__":
     app = App()
