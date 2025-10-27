@@ -35,6 +35,7 @@ class App(tk.Tk):
         self.status_var = tk.StringVar(value="Ready.")
         self._channels_cache = []
         self._last_assignments = None
+        self.selected_profile_var = tk.StringVar(value="")
 
         self.date_entry = None
         now = datetime.datetime.now()
@@ -189,9 +190,29 @@ class App(tk.Tk):
         # Distribution mode
         frm2 = ttk.Frame(parent, padding=(10, 6, 10, 0))
         frm2.pack(fill=tk.X)
+    
         ttk.Label(frm2, text="Distribution mode:").pack(side=tk.LEFT)
         ttk.Radiobutton(frm2, text="Profile", variable=self.mode_var, value="titles").pack(side=tk.LEFT, padx=(8, 0))
         ttk.Radiobutton(frm2, text="Channel", variable=self.mode_var, value="channels").pack(side=tk.LEFT, padx=(8, 0))
+
+        # --- slot riêng cho label + combobox profile ---
+        self.profile_slot = ttk.Frame(frm2)  # luôn dùng pack cho frm2, grid bên trong slot
+        ttk.Label(self.profile_slot, text="Select channel:").grid(row=0, column=0, padx=(16,6))
+        self.profile_combo = ttk.Combobox(
+            self.profile_slot, state='readonly', width=40,
+            textvariable=self.selected_profile_var, values=[]
+        )
+        self.profile_combo.grid(row=0, column=1)
+        self.profile_slot.pack_forget()  # ẩn cả slot lúc đầu
+
+        # auto refresh preview khi chọn profile
+        self.selected_profile_var.trace_add('write', lambda *a: self._schedule_preview())
+
+        # show/hide theo mode
+        self.mode_var.trace_add('write', lambda *a: self._on_mode_change())
+        self._on_mode_change()
+
+
 
         # Date/Time controls (apply to ALL rows)
         frm3 = ttk.Frame(parent, padding=(10, 6, 10, 0))
@@ -355,6 +376,8 @@ class App(tk.Tk):
         csv_path = os.path.join(GROUPS_DIR, name + ".csv")
         channels = read_channels_from_csv(csv_path)
         self._channels_cache = channels
+        self._update_profile_combo()
+        self._on_mode_change() 
         self.channel_count_lbl.config(text=f"{len(channels)} channels")
 
         group_dirs = load_group_dirs()
@@ -391,7 +414,25 @@ class App(tk.Tk):
             return
 
         try:
-            assignments = assign_pairs(channels, titles, descs, mode=mode)
+            if mode == 'channels':
+                
+                chosen = self.selected_profile_var.get().strip()
+                if chosen:
+                    # NEW: Lặp 1 channel cho MỌI dòng tiêu đề
+                    n = max(len(titles), 1)
+                    if n == 0:
+                        self._set_status("Enter at least one title.")
+                        return
+                    assignments = []
+                    for i in range(n):
+                        t = titles[i] if i < len(titles) else (titles[0] if titles else "")
+                        d = descs[i]  if i < len(descs)  else (descs[0]  if descs  else "")
+                        assignments.append((chosen, t, d))
+                else:
+                    # Không chọn channel cụ thể -> giữ logic cũ
+                    assignments = assign_pairs(channels, titles, descs, mode=mode)
+            else:
+                assignments = assign_pairs(channels, titles, descs, mode=mode)
         except Exception as e:
             messagebox.showerror("Error", str(e))
             return
@@ -859,7 +900,24 @@ class App(tk.Tk):
             self._set_status("Generated tiles and description.")
         except Exception as e:
             messagebox.showerror("Error", f"Error when generate content: {e}")
+    
+    def _on_mode_change(self):
+        if self.mode_var.get() == 'channels':
+            try:
+                self.profile_slot.pack(side=tk.LEFT, padx=(8,0))
+                
+            except Exception:
+                pass
+        else:
+            self.profile_slot.pack_forget()
 
+    def _update_profile_combo(self):
+        cur = self.selected_profile_var.get().strip()
+        self.profile_combo['values'] = self._channels_cache or []
+        if cur and cur in self._channels_cache:
+            pass
+        else:
+            self.selected_profile_var.set('')
 
 if __name__ == "__main__":
     app = App()
