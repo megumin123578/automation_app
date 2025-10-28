@@ -113,6 +113,7 @@ class App(tk.Tk):
         add_btn("Statistics", "stats", lambda: self._show_page("stats"))
 
         # Status bar
+        self._root_container.pack(fill="both", expand=True)
         bar = ttk.Frame(self, relief=tk.SUNKEN, padding=6)
         bar.pack(fill=tk.X, side=tk.BOTTOM)
         ttk.Label(bar, textvariable=self.status_var).pack(side=tk.LEFT)
