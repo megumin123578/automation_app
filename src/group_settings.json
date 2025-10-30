@@ -1,0 +1,37 @@
+{
+  "Siuuu": {
+    "mode": "channels",
+    "selected_profile": "dkm",
+    "monetization": false,
+    "move_folder": "",
+    "_default": {
+      "mode": "channels",
+      "monetization": false,
+      "move_folder": ""
+    },
+    "skibidi": {
+      "mode": "channels",
+      "monetization": false,
+      "move_folder": ""
+    },
+    "yolo": {
+      "mode": "channels",
+      "monetization": false,
+      "move_folder": ""
+    },
+    "dkm": {
+      "mode": "channels",
+      "monetization": false,
+      "move_folder": ""
+    },
+    "cringe": {
+      "mode": "channels",
+      "monetization": false,
+      "move_folder": ""
+    },
+    "__meta__": {
+      "mode": "channels",
+      "last_profile": "skibidi"
+    }
+  }
+}

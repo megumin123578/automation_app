@@ -3,22 +3,40 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font
 
-def save_assignments_to_excel(assignments, out_path):
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font
+import os
+
+def save_assignments_to_excel(assignments, out_path, extra_col_name=None):
     wb = Workbook()
     ws = wb.active
     ws.title = "Assignments"
 
-    headers = ["channel", "directory", "title", "description", "publish_date", "publish_time"]
-    ws.append(headers)
-    for col_idx, h in enumerate(headers, start=1):
-        ws.cell(row=1, column=col_idx).font = Font(bold=True)
+    # ===== Header mặc định =====
+    base_headers = ["channel", "directory", "title", "description", "publish_date", "publish_time"]
+    ws.append(base_headers)
 
-    for row in assignments:
-        ws.append(row)
+    # ===== Nếu có cột extra → thêm header vào cột H =====
+    if extra_col_name:
+        ws["H1"] = extra_col_name
+        ws["H1"].font = Font(bold=True)
 
-    # Auto width
-    desc_idx = headers.index("description") + 1
-    for col_idx in range(1, ws.max_column + 1):
+    # ===== Ghi dữ liệu =====
+    for r_idx, row in enumerate(assignments, start=2):
+        # Ghi 6 cột đầu như bình thường
+        for c_idx, val in enumerate(row[:6], start=1):
+            ws.cell(row=r_idx, column=c_idx).value = val
+
+        # Nếu có cột extra → ghi vào cột H (cột 8)
+        if extra_col_name and len(row) >= 7:
+            ws.cell(row=r_idx, column=8).value = row[6]
+        elif extra_col_name:
+            # Nếu dữ liệu không có giá trị extra, để trống
+            ws.cell(row=r_idx, column=8).value = ""
+
+    # ===== Auto width =====
+    for col_idx in range(1, 9 if extra_col_name else 7):
         col_letter = get_column_letter(col_idx)
         max_len = 0
         for row in ws.iter_rows(min_row=1, max_row=ws.max_row,
@@ -27,26 +45,19 @@ def save_assignments_to_excel(assignments, out_path):
             if val is None:
                 continue
             s = str(val)
-            if col_idx == desc_idx:
+            if col_idx == 4:  # cột description
                 s = s[:120]
             max_len = max(max_len, len(s))
-
-        header_name = headers[col_idx - 1]
-        if header_name in ("publish_date", "publish_time"):
-            ws.column_dimensions[col_letter].width = max(12, min(max_len + 2, 18))
-        else:
-            ws.column_dimensions[col_letter].width = min(max_len + 2, 80)
+        ws.column_dimensions[col_letter].width = min(max_len + 2, 80)
 
     ws.auto_filter.ref = ws.dimensions
     ws.freeze_panes = "A2"
 
-    # Ghi đè nếu tồn tại
+    # ===== Ghi đè nếu tồn tại =====
     if os.path.exists(out_path):
         os.remove(out_path)
-
     wb.save(out_path)
     return out_path
-
 
 def combine_excels(input_dir, output_file, move_folder, get_mp4_filename):
     import glob

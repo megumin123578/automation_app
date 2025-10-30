@@ -1,23 +1,14 @@
-import os
-import threading
-import datetime
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-import openai
-from tkcalendar  import DateEntry
-from openpyxl.styles import Font
+
 from random_vids import get_random_unused_mp4
-import glob
 from ui_theme import setup_theme
 from excel_helper import save_assignments_to_excel, combine_excels
-import tkinter.simpledialog as sd
+
 from update_manager import check_and_update, install_from_zip
-import sys,subprocess
 from module import *
 from hyperparameter import *
 from ghep_music.concat_page import ConcatPage
 from thong_ke.stats_page import StatisticsPage
-import json
+
 
 class App(tk.Tk):
     def __init__(self):
@@ -43,6 +34,12 @@ class App(tk.Tk):
         self.time_h_var = tk.StringVar(value=f"{now.hour:02d}")
         self.time_m_var = tk.StringVar(value=f"{now.minute:02d}")
         self.step_min_var = tk.IntVar(value=0)
+
+        self._monetization_vars = {}
+        self.monetization_var = tk.BooleanVar(value=False)  # giữ biến tạm thời cho UI
+
+        self._group_settings = load_group_settings()
+        self._restoring = False
 
         # ====== MENUBAR (Profiles + Help) ======
         menubar = tk.Menu(self)
@@ -77,6 +74,16 @@ class App(tk.Tk):
         # Khởi động dữ liệu + preview binding
         self._refresh_group_files()
         self._bind_text_preview()
+        def on_monetization_toggle(*_):
+            if getattr(self, "_restoring", False):
+                return  # đừng lưu khi đang nạp cấu hình
+            profile = self.selected_profile_var.get().strip()
+            if not profile:
+                return
+            self._monetization_vars[profile] = self.monetization_var.get()
+            self._save_group_settings()
+
+        self.monetization_var.trace_add('write', on_monetization_toggle)
 
         # Auto check update sau khi UI sẵn sàng
         self.after(1500, self._auto_check_update)
@@ -113,7 +120,6 @@ class App(tk.Tk):
         add_btn("Statistics", "stats", lambda: self._show_page("stats"))
 
         # Status bar
-        self._root_container.pack(fill="both", expand=True)
         bar = ttk.Frame(self, relief=tk.SUNKEN, padding=6)
         bar.pack(fill=tk.X, side=tk.BOTTOM)
         ttk.Label(bar, textvariable=self.status_var).pack(side=tk.LEFT)
@@ -160,8 +166,6 @@ class App(tk.Tk):
         self.pages["manage"] = page
 
         ttk.Label(page, text="Manage channel", font=("Segoe UI", 14, "bold")).pack(anchor="w")
-        ttk.Label(page, text="Manage channel",
-                  padding=(0, 8)).pack(anchor="w")
 
         ttk.Button(page, text="Open manage channel app",
                    command=self._open_manage_channel_window).pack(anchor="w", pady=6)
@@ -208,13 +212,18 @@ class App(tk.Tk):
         self.profile_slot.pack_forget()  # ẩn cả slot lúc đầu
 
         # auto refresh preview khi chọn profile
-        self.selected_profile_var.trace_add('write', lambda *a: self._schedule_preview())
+        def _on_profile_change(*_):
+            profile = self.selected_profile_var.get().strip()
+            # nạp giá trị theo profile (mặc định False nếu chưa có)
+            val = self._monetization_vars.get(profile, False) if profile else False
+            self.monetization_var.set(val)  # KHÔNG gọi _save_group_settings ở đây
+            self._schedule_preview()
+
+        self.selected_profile_var.trace_add('write', _on_profile_change)
 
         # show/hide theo mode
         self.mode_var.trace_add('write', lambda *a: self._on_mode_change())
         self._on_mode_change()
-
-
 
         # Date/Time controls (apply to ALL rows)
         frm3 = ttk.Frame(parent, padding=(10, 6, 10, 0))
@@ -375,13 +384,49 @@ class App(tk.Tk):
         name = self.group_file_var.get().strip()
         if not name:
             return
+
+        self._restoring = True  # BẮT ĐẦU nạp
+
         csv_path = os.path.join(GROUPS_DIR, name + ".csv")
         channels = read_channels_from_csv(csv_path)
         self._channels_cache = channels
         self._update_profile_combo()
-        self._on_mode_change() 
-        self.channel_count_lbl.config(text=f"{len(channels)} channels")
 
+        settings_all = self._group_settings.get(name, {})
+        meta = settings_all.get("__meta__", {}) if isinstance(settings_all, dict) else {}
+
+        # 1) Khôi phục mode
+        loaded_mode = meta.get("mode")
+        if loaded_mode in ("titles", "channels"):
+            self.mode_var.set(loaded_mode)
+
+        # 2) Khôi phục last profile
+        last_profile = meta.get("last_profile", "")
+        if last_profile and (last_profile in self._channels_cache):
+            self.selected_profile_var.set(last_profile)
+        else:
+            if self.mode_var.get() == "channels" and self._channels_cache:
+                for ch in self._channels_cache:
+                    if ch in settings_all:
+                        self.selected_profile_var.set(ch)
+                        break
+                else:
+                    self.selected_profile_var.set(self._channels_cache[0])
+
+        # 3) NẠP monetization CHO PROFILE ĐÃ CHỌN (TRƯỚC khi gọi _on_mode_change)
+        profile = self.selected_profile_var.get().strip()
+        if profile:
+            monet = settings_all.get(profile, {}).get("monetization", False)
+            self._monetization_vars[profile] = monet
+            self.monetization_var.set(monet)
+        else:
+            self.monetization_var.set(False)
+
+        # 4) Render UI theo mode/profile (không cho phép lưu trong lúc restoring)
+        self._on_mode_change()
+
+        # --- phần còn lại giữ nguyên ---
+        self.channel_count_lbl.config(text=f"{len(channels)} channels")
         group_dirs = load_group_dirs()
         mapped_dir = group_dirs.get(name) or group_dirs.get(f"{name}.csv") or ""
         mapped_note = f" | mapped: {mapped_dir}" if mapped_dir else " | mapped: (none)"
@@ -389,6 +434,12 @@ class App(tk.Tk):
 
         last_folder = load_group_config(name + ".csv")
         self.move_folder_var.set(last_folder)
+
+        self._restoring = False  # KẾT THÚC nạp
+
+
+
+
 
     def _clear_inputs(self):
         self.txt_titles.delete("1.0", tk.END)
@@ -479,10 +530,25 @@ class App(tk.Tk):
                 base = os.path.splitext(self.group_file_var.get().strip())[0] or "group"
                 out_name = f"{base}.xlsx"
                 out_path = os.path.join(OUTPUT_DIR, out_name)
-                save_assignments_to_excel(self._last_assignments, out_path)
+
+                # Nếu đang ở chế độ Channel → thêm cột Monetization
+                if self.mode_var.get() == "channels":
+                    group = os.path.splitext(self.group_file_var.get().strip())[0]
+                    settings_all = self._group_settings.get(group, {})
+
+                    def monet_for_channel(ch):
+                        return "ON" if settings_all.get(ch, {}).get("monetization", False) else "OFF"
+
+                    assignments = [(*row, monet_for_channel(row[0])) for row in self._last_assignments]
+                    save_assignments_to_excel(assignments, out_path, extra_col_name="monetization")
+                else:
+                    save_assignments_to_excel(self._last_assignments, out_path)
+
+                self._save_group_settings()
                 self._set_status(f"Saved Excel: {out_path}")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to save Excel:\n{e}")
+
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -841,22 +907,9 @@ class App(tk.Tk):
         self.destroy()
         sys.exit(0)
 
-    def _open_concat_window(self):
-        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ghep music/concat_tool.py")
-        if not os.path.exists(script_path):
-            messagebox.showerror("Not found", f"can't find file: \n{script_path}")
-            return
-        subprocess.Popen([sys.executable, script_path], shell=False)
 
     def _open_manage_channel_window(self):
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manage_channel\data\manage_page.py")
-        if not os.path.exists(script_path):
-            messagebox.showerror("Not found", f"can't find file: \n{script_path}")
-            return
-        subprocess.Popen([sys.executable, script_path], shell=False)
-
-    def __open_statistics_channel_window(self):
-        script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "thong_ke\crawl_data.py")
         if not os.path.exists(script_path):
             messagebox.showerror("Not found", f"can't find file: \n{script_path}")
             return
@@ -909,19 +962,31 @@ class App(tk.Tk):
     
     def _on_mode_change(self):
         if self.mode_var.get() == 'channels':
-            try:
-                self.profile_slot.pack(side=tk.LEFT, padx=(8,0))
-                
-            except Exception:
-                pass
-            
-            #chọn profile đầu
+            self.profile_slot.pack(side=tk.LEFT, padx=(8,0))
+            if not hasattr(self, "_monetization_check"):
+                self._monetization_check = ttk.Checkbutton(
+                    self.profile_slot, text="Monetization", variable=self.monetization_var
+                )
+                self._monetization_check.grid(row=0, column=2, padx=(16, 0))
+            else:
+                self._monetization_check.grid(row=0, column=2, padx=(16, 0))
+
+            # bảo đảm luôn có selection hợp lệ trước khi set/ghi
             cur = self.selected_profile_var.get().strip()
             if (not cur) or cur not in self._channels_cache:
                 if self._channels_cache:
                     self.selected_profile_var.set(self._channels_cache[0])
+                    cur = self._channels_cache[0]
+
+            val = self._monetization_vars.get(cur, False)
+            self.monetization_var.set(val)
         else:
             self.profile_slot.pack_forget()
+
+        # CHỈ save khi đã có profile
+        if self.selected_profile_var.get().strip() and not getattr(self, "_restoring", False):
+            self._save_group_settings()
+                
 
     def _update_profile_combo(self):
         self.profile_combo['values'] = self._channels_cache or []
@@ -937,6 +1002,26 @@ class App(tk.Tk):
             if cur and cur not in self._channels_cache:
                 self.selected_profile_var.set('')
 
+    def _save_group_settings(self):
+        group = self.group_file_var.get().strip()
+        profile = self.selected_profile_var.get().strip() 
+        if not group or not profile:
+            return
+        if group not in self._group_settings:
+            self._group_settings[group] = {}
+
+        monetize = self._monetization_vars.get(profile, self.monetization_var.get())
+        self._group_settings[group][profile] = {
+            "mode": self.mode_var.get(),              
+            "monetization": monetize,
+            "move_folder": self.move_folder_var.get().strip()
+        }
+        # LƯU META CHO GROUP: chế độ hiện tại + profile cuối
+        self._group_settings[group]["__meta__"] = {
+            "mode": self.mode_var.get(),
+            "last_profile": profile
+        }
+        save_group_settings(self._group_settings)
 
 if __name__ == "__main__":
     app = App()

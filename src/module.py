@@ -4,32 +4,36 @@ from hyperparameter import CHANNEL_HEADER_HINTS
 import os
 import csv
 import json
+import threading
+import datetime
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import openai
+from tkcalendar  import DateEntry
+import sys,subprocess
+import tkinter.simpledialog as sd
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # lấy thư mục gốc
-CONFIG_FILE = os.path.join(BASE_DIR,"config.json")
-USED_LOG_FILE = os.path.join(BASE_DIR,"log.txt")
-CONFIG_PATH = os.path.join(BASE_DIR,"config_dir")
 
-def _pythonw_exe():
-    import sys, os
-    exe = sys.executable
-    if os.name == "nt":
-        cand = os.path.join(os.path.dirname(exe), "pythonw.exe")
-        if os.path.exists(cand):
-            return cand
-    return exe  # fallback (không ưu tiên)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # thư mục gốc
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+USED_LOG_FILE = os.path.join(BASE_DIR, "log.txt")
+CONFIG_PATH = os.path.join(BASE_DIR, "config_dir")
 
-def _popen_gui(args):
-    import subprocess, os
-    if os.name == "nt":
-        # Ẩn cửa sổ console của process con
-        return subprocess.Popen(
-            args,
-            shell=False,
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
-    else:
-        return subprocess.Popen(args, shell=False)
+GROUP_SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "group_settings.json")
+
+def load_group_settings():
+    if not os.path.exists(GROUP_SETTINGS_PATH):
+        return {}
+    try:
+        with open(GROUP_SETTINGS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_group_settings(data):
+    os.makedirs(os.path.dirname(GROUP_SETTINGS_PATH), exist_ok=True)
+    with open(GROUP_SETTINGS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 def list_group_csvs(groups_dir: str):
     if not os.path.isdir(groups_dir):
