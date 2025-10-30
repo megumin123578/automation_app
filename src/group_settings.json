@@ -12,12 +12,12 @@
     "skibidi": {
       "mode": "channels",
       "monetization": false,
-      "move_folder": ""
+      "move_folder": "E:\\storage"
     },
     "yolo": {
       "mode": "channels",
       "monetization": true,
-      "move_folder": ""
+      "move_folder": "C:\\Users\\Admin\\Music"
     },
     "dkm": {
       "mode": "channels",
@@ -31,7 +31,7 @@
     },
     "__meta__": {
       "mode": "channels",
-      "last_profile": "dkm"
+      "last_profile": "skibidi"
     }
   }
 }

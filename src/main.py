@@ -247,6 +247,8 @@ class App(tk.Tk):
             self.monetization_var.set(val)
             self._monetization_vars[profile] = val
 
+            cur_map = self._get_mapped_folder(group, profile)
+            self._set_status(f"Profile '{profile}' selected | mapped: {cur_map or '(none)'}")
             self._schedule_preview()
 
         self.selected_profile_var.trace_add('write', _on_profile_change)
@@ -457,10 +459,10 @@ class App(tk.Tk):
 
         # --- phần còn lại giữ nguyên ---
         self.channel_count_lbl.config(text=f"{len(channels)} channels")
-        group_dirs = load_group_dirs()
-        mapped_dir = group_dirs.get(name) or group_dirs.get(f"{name}.csv") or ""
-        mapped_note = f" | mapped: {mapped_dir}" if mapped_dir else " | mapped: (none)"
+        mapped_dir = self._get_mapped_folder(name, self.selected_profile_var.get().strip())
+        mapped_note = f" | mapped: {mapped_dir or '(none)'}"
         self._set_status(f"Loaded {len(channels)} channels from {name}{mapped_note}")
+
 
         last_folder = load_group_config(name + ".csv")
         self.move_folder_var.set(last_folder)
@@ -520,9 +522,10 @@ class App(tk.Tk):
             messagebox.showerror("Error", str(e))
             return
 
-        group_dirs = load_group_dirs()
         key = self.group_file_var.get().strip()
-        folder_path = group_dirs.get(key) or group_dirs.get(f"{key}.csv")
+        chosen_profile = self.selected_profile_var.get().strip() if self.mode_var.get() == 'channels' else None
+        folder_path = self._get_mapped_folder(key, chosen_profile)
+
 
         used_paths = load_used_videos()
         session_used = set()
@@ -887,10 +890,32 @@ class App(tk.Tk):
         if not name:
             messagebox.showwarning("No group", "Select group first.")
             return
-        folder = filedialog.askdirectory(title=f"Select folder for group '{name}'")
+
+        folder = filedialog.askdirectory(title=f"Select folder for '{name}' (group or channel)")
         if not folder:
             return
         folder = os.path.abspath(folder)
+
+        # Quyết định key ghi vào CONFIG_PATH
+        active_profile = self.selected_profile_var.get().strip()
+        use_profile_key = (self.mode_var.get() == "channels" and bool(active_profile))
+
+        key_plain = name
+        key_csv   = f"{name}.csv"
+        if use_profile_key:
+            # Map riêng cho profile ở channel mode
+            key_to_write = f"{name}|{active_profile}"
+            key_to_write_csv = f"{name}.csv|{active_profile}"
+            keys_to_remove = {key_plain, key_csv, key_to_write, key_to_write_csv}
+            status_target = f"{name} | {active_profile}"
+        else:
+            # Map theo group cho các mode khác
+            key_to_write = key_plain
+            key_to_write_csv = key_csv
+            keys_to_remove = {key_plain, key_csv}
+            status_target = name
+
+        # Đọc & ghi lại file config, thay key tương ứng
         lines = []
         if os.path.exists(CONFIG_PATH):
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -900,18 +925,24 @@ class App(tk.Tk):
                         continue
                     k, _ = line.split(":", 1)
                     k = k.strip()
-                    if k in (name, f"{name}.csv"):
+                    if k in keys_to_remove:
                         continue
                     lines.append(line)
-        lines.append(f"{name}:{folder}")
+
+        # Ghi key mới (ưu tiên bản không .csv, vẫn tương thích bản .csv)
+        lines.append(f"{key_to_write}:{folder}")
+
         try:
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines) + ("\n" if lines else ""))
-            self._set_status(f"Mapped '{name}' → {folder}")
+            self._set_status(f"Mapped '{status_target}' → {folder}")
         except Exception as e:
             messagebox.showerror("Error", f"Error when write:\n{e}")
             return
-        self._load_channels()
+
+        # cập nhật preview/status theo map mới
+        self._schedule_preview()
+
 
     def _check_for_updates(self):
         def worker():
@@ -1052,6 +1083,38 @@ class App(tk.Tk):
             "last_profile": profile
         }
         save_group_settings(self._group_settings)
+
+        # ---- Folder mapping helpers ----
+    def _load_folder_map(self):
+        """Đọc CONFIG_PATH và trả dict {key: folder}.
+        Key có thể là:
+          - 'Group' hoặc 'Group.csv'  (map theo group)
+          - 'Group|Profile' hoặc 'Group.csv|Profile' (map theo channel/profile)
+        """
+        mapping = {}
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                for raw in f:
+                    line = raw.strip()
+                    if not line or ":" not in line:
+                        continue
+                    k, v = line.split(":", 1)
+                    mapping[k.strip()] = v.strip()
+        return mapping
+
+    def _get_mapped_folder(self, group_name: str, profile_name: str = None) -> str:
+        """Trả về thư mục đã map, ưu tiên map theo channel khi đang ở mode 'channels'."""
+        m = self._load_folder_map()
+        keys = []
+        if profile_name and self.mode_var.get() == "channels":
+            keys.extend([f"{group_name}|{profile_name}", f"{group_name}.csv|{profile_name}"])
+        keys.extend([group_name, f"{group_name}.csv"])
+        for k in keys:
+            folder = m.get(k, "")
+            if folder and os.path.isdir(folder):
+                return folder
+        return ""
+
 
 if __name__ == "__main__":
     app = App()
