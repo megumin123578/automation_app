@@ -76,12 +76,34 @@ class App(tk.Tk):
         self._bind_text_preview()
         def on_monetization_toggle(*_):
             if getattr(self, "_restoring", False):
-                return  # đừng lưu khi đang nạp cấu hình
-            profile = self.selected_profile_var.get().strip()
-            if not profile:
                 return
-            self._monetization_vars[profile] = self.monetization_var.get()
-            self._save_group_settings()
+
+            group = self.group_file_var.get().strip()
+            profile = self.selected_profile_var.get().strip()
+            if not group or not profile:
+                return
+
+            # cập nhật giá trị monetization hiện tại
+            monet_val = self.monetization_var.get()
+            self._monetization_vars[profile] = monet_val
+
+            # đảm bảo group tồn tại trong dict
+            if group not in self._group_settings:
+                self._group_settings[group] = {}
+
+            # cập nhật trực tiếp vào _group_settings[group][profile]
+            if profile not in self._group_settings[group]:
+                self._group_settings[group][profile] = {}
+            self._group_settings[group][profile]["monetization"] = monet_val
+
+            # cập nhật metadata
+            self._group_settings[group]["__meta__"] = {
+                "mode": self.mode_var.get(),
+                "last_profile": profile
+            }
+
+            # lưu ra file
+            save_group_settings(self._group_settings)
 
         self.monetization_var.trace_add('write', on_monetization_toggle)
 
@@ -213,10 +235,18 @@ class App(tk.Tk):
 
         # auto refresh preview khi chọn profile
         def _on_profile_change(*_):
+            group = self.group_file_var.get().strip()
             profile = self.selected_profile_var.get().strip()
-            # nạp giá trị theo profile (mặc định False nếu chưa có)
-            val = self._monetization_vars.get(profile, False) if profile else False
-            self.monetization_var.set(val)  # KHÔNG gọi _save_group_settings ở đây
+            if not group or not profile:
+                return
+            val = (
+                self._group_settings.get(group, {})
+                .get(profile, {})
+                .get("monetization", False)
+            )
+            self.monetization_var.set(val)
+            self._monetization_vars[profile] = val
+
             self._schedule_preview()
 
         self.selected_profile_var.trace_add('write', _on_profile_change)

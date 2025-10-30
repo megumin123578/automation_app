@@ -30,10 +30,32 @@ def load_group_settings():
     except Exception:
         return {}
 
-def save_group_settings(data):
+def save_group_settings(new_data: dict):
     os.makedirs(os.path.dirname(GROUP_SETTINGS_PATH), exist_ok=True)
+
+    # --- B1: đọc dữ liệu cũ nếu có ---
+    old_data = {}
+    if os.path.exists(GROUP_SETTINGS_PATH):
+        try:
+            with open(GROUP_SETTINGS_PATH, "r", encoding="utf-8") as f:
+                old_data = json.load(f)
+        except Exception:
+            old_data = {}
+
+    # --- B2: merge (ghi đè key trùng, giữ key cũ nếu chưa có) ---
+    merged = old_data.copy()
+    for group, group_val in new_data.items():
+        if group not in merged:
+            merged[group] = {}
+        if isinstance(group_val, dict):
+            merged[group].update(group_val)
+        else:
+            merged[group] = group_val
+
+    # --- B3: ghi ra file ---
     with open(GROUP_SETTINGS_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        json.dump(merged, f, indent=2, ensure_ascii=False)
+
 
 def list_group_csvs(groups_dir: str):
     if not os.path.isdir(groups_dir):
