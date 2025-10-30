@@ -1,4 +1,3 @@
-
 from random_vids import get_random_unused_mp4
 from ui_theme import setup_theme
 from excel_helper import save_assignments_to_excel, combine_excels
@@ -8,7 +7,6 @@ from module import *
 from hyperparameter import *
 from ghep_music.concat_page import ConcatPage
 from thong_ke.stats_page import StatisticsPage
-
 
 class App(tk.Tk):
     def __init__(self):
@@ -110,9 +108,7 @@ class App(tk.Tk):
         # Auto check update sau khi UI sẵn sàng
         self.after(1500, self._auto_check_update)
 
-    # =========================
     # Shell: Sidebar + Content
-    # =========================
     def _build_shell(self):
         # container chính
         self._root_container = ttk.Frame(self)
@@ -160,15 +156,11 @@ class App(tk.Tk):
         self.pages[key].pack(fill="both", expand=True)
         self._highlight_nav(key)
 
-    # =========================
     # PAGES
-    # =========================
     def _build_assign_page(self):
         page = ttk.Frame(self._content)
         self.pages["assign"] = page
 
-        # ---- Build giao diện cũ vào page này ----
-        # Header / Inputs / Preview / Footer sẽ build vào `page`
         self._build_header(parent=page)
         self._build_inputs(parent=page)
         self._build_preview(parent=page)
@@ -178,8 +170,8 @@ class App(tk.Tk):
         page = ttk.Frame(self._content)       # khung trang
         self.pages["concat"] = page
 
-        # Nhúng UI concat vào đây:
-        self.concat_page = ConcatPage(page)   # truyền parent là 'page'
+        # Nhúng UI concat
+        self.concat_page = ConcatPage(page) 
         self.concat_page.pack(fill="both", expand=True)
 
 
@@ -199,9 +191,7 @@ class App(tk.Tk):
         self.stats_page = StatisticsPage(page)  # nhúng trang thống kê
         self.stats_page.pack(fill="both", expand=True)
 
-    # =========================
-    #      BUILD SECTIONS     #
-    # =========================
+    # BUILD SECTIONS
     def _build_header(self, parent):
         frm = ttk.Frame(parent, padding=(10, 10, 10, 0))
         frm.pack(fill=tk.X)
@@ -239,6 +229,7 @@ class App(tk.Tk):
             profile = self.selected_profile_var.get().strip()
             if not group or not profile:
                 return
+
             val = (
                 self._group_settings.get(group, {})
                 .get(profile, {})
@@ -247,9 +238,22 @@ class App(tk.Tk):
             self.monetization_var.set(val)
             self._monetization_vars[profile] = val
 
+            # >>> NEW: set move_folder_var theo JSON, fallback legacy
+            mf = ""
+            if self.mode_var.get() == "channels":
+                mf = self._group_settings.get(group, {}).get(profile, {}).get("move_folder", "")
+            else:
+                mf = self._group_settings.get(group, {}).get("__group__", {}).get("move_folder", "")
+            if not mf:
+                # fallback key cũ: thử 'group' rồi 'group.csv'
+                mf = load_group_config(group) or load_group_config(group + ".csv") or ""
+            self.move_folder_var.set(mf)
+            # <<< NEW
+
             cur_map = self._get_mapped_folder(group, profile)
             self._set_status(f"Profile '{profile}' selected | mapped: {cur_map or '(none)'}")
             self._schedule_preview()
+
 
         self.selected_profile_var.trace_add('write', _on_profile_change)
 
@@ -318,7 +322,7 @@ class App(tk.Tk):
         btns = ttk.Frame(parent, padding=(10, 0, 10, 0))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Clear Inputs", command=self._clear_inputs).pack(side=tk.LEFT, padx=6)
-        ttk.Button(btns, text="Generate titles and des", command=self._generate_titles_descs).pack(side=tk.LEFT, padx=6)
+        ttk.Button(btns, text="Generate titles and descriptions", command=self._generate_titles_descs).pack(side=tk.LEFT, padx=6)
 
     def _build_preview(self, parent):
         frm = ttk.Frame(parent, padding=10)
@@ -369,18 +373,44 @@ class App(tk.Tk):
 
         def choose_folder():
             folder = filedialog.askdirectory(title="Chọn thư mục lưu video mới")
-            if folder:
-                self.move_folder_var.set(folder)
-                group_name = self.group_file_var.get().strip()
-                if group_name:
-                    save_group_config(group_name, folder)
+            if not folder:
+                return
+            folder = os.path.abspath(folder)
+            self.move_folder_var.set(folder)
+
+            group = self.group_file_var.get().strip()
+            profile = self.selected_profile_var.get().strip()
+            if not group:
+                return
+
+            # --- LƯU VÀO JSON: _group_settings ---
+            if group not in self._group_settings:
+                self._group_settings[group] = {}
+
+            if self.mode_var.get() == "channels" and profile:
+                self._group_settings[group].setdefault(profile, {})
+                self._group_settings[group][profile]["move_folder"] = folder
+            else:
+                self._group_settings[group].setdefault("__group__", {})
+                self._group_settings[group]["__group__"]["move_folder"] = folder
+
+            self._group_settings[group]["__meta__"] = {
+                "mode": self.mode_var.get(),
+                "last_profile": profile
+            }
+            save_group_settings(self._group_settings)
+
+            # --- LƯU LEGACY: CONFIG_PATH (để _get_mapped_folder dùng) ---
+            key = f"{group}|{profile}" if (self.mode_var.get() == "channels" and profile) else group
+            save_group_config(key, folder)
+
+            self._set_status(f"Save to → {folder}")
+
 
         ttk.Button(bar, text="Browse", command=choose_folder).pack(side=tk.LEFT, padx=(0, 8))
         ttk.Button(bar, text="Combine", command=self._combine_excels).pack(side=tk.RIGHT)
 
-    # =========================
-    # Logic gốc (không đổi)
-    # =========================
+    # Logic
     def _schedule_preview(self):
         if hasattr(self, "_preview_job"):
             self.after_cancel(self._preview_job)
@@ -457,21 +487,26 @@ class App(tk.Tk):
         # 4) Render UI theo mode/profile (không cho phép lưu trong lúc restoring)
         self._on_mode_change()
 
-        # --- phần còn lại giữ nguyên ---
         self.channel_count_lbl.config(text=f"{len(channels)} channels")
         mapped_dir = self._get_mapped_folder(name, self.selected_profile_var.get().strip())
         mapped_note = f" | mapped: {mapped_dir or '(none)'}"
         self._set_status(f"Loaded {len(channels)} channels from {name}{mapped_note}")
+        # --- Khôi phục Save to ---
+        profile = self.selected_profile_var.get().strip()
+        settings_all = self._group_settings.get(name, {})
 
+        if self.mode_var.get() == "channels" and profile:
+            last_folder = settings_all.get(profile, {}).get("move_folder", "")
+        else:
+            last_folder = settings_all.get("__group__", {}).get("move_folder", "")
 
-        last_folder = load_group_config(name + ".csv")
+        # fallback: file CONFIG_PATH cũ
+        if not last_folder:
+            last_folder = load_group_config(name) or load_group_config(name + ".csv") or ""
+
         self.move_folder_var.set(last_folder)
-
+        # --- end Save to ---
         self._restoring = False  # KẾT THÚC nạp
-
-
-
-
 
     def _clear_inputs(self):
         self.txt_titles.delete("1.0", tk.END)
@@ -564,18 +599,39 @@ class App(tk.Tk):
                 out_name = f"{base}.xlsx"
                 out_path = os.path.join(OUTPUT_DIR, out_name)
 
-                # Nếu đang ở chế độ Channel → thêm cột Monetization
                 if self.mode_var.get() == "channels":
                     group = os.path.splitext(self.group_file_var.get().strip())[0]
                     settings_all = self._group_settings.get(group, {})
 
                     def monet_for_channel(ch):
-                        return "ON" if settings_all.get(ch, {}).get("monetization", False) else "OFF"
+                        return "True" if settings_all.get(ch, {}).get("monetization", False) else "False"
 
-                    assignments = [(*row, monet_for_channel(row[0])) for row in self._last_assignments]
-                    save_assignments_to_excel(assignments, out_path, extra_col_name="monetization")
+                    group = os.path.splitext(self.group_file_var.get().strip())[0]
+                    profile = self.selected_profile_var.get().strip()
+                    settings_all = self._group_settings.get(group, {})
+
+                    # Ưu tiên move_folder lưu theo profile nếu có
+                    if self.mode_var.get() == "channels" and profile:
+                        move_folder = settings_all.get(profile, {}).get("move_folder", "")
+                    else:
+                        move_folder = settings_all.get("__group__", {}).get("move_folder", "")
+
+                    assignments = []
+                    for row in self._last_assignments:
+                        ch, directory, title, desc, date, time = row
+                        monet = monet_for_channel(ch)
+
+                        # Lấy tên file gốc (nếu có video)
+                        file_name = os.path.basename(directory) if directory else ""
+                        # Gộp thành đường dẫn đầy đủ (nếu có move_folder + file_name)
+                        full_path = os.path.join(move_folder, file_name) if move_folder and file_name else move_folder
+
+                        assignments.append((ch, directory, title, desc, date, time, full_path, monet))
+
+                    save_assignments_to_excel(assignments, out_path, extra_col_names=["move_folder", "monetization"])
                 else:
                     save_assignments_to_excel(self._last_assignments, out_path)
+
 
                 self._save_group_settings()
                 self._set_status(f"Saved Excel: {out_path}")
@@ -758,7 +814,6 @@ class App(tk.Tk):
     def _combine_excels(self):
         input_dir = OUTPUT_DIR
         move_folder = self.move_folder_var.get().strip()
-        # Repeat / No Repeat
         if self.mode_var.get() == "channels":
             output_file = EXCEL_DIR_NP
         else:
@@ -1044,11 +1099,10 @@ class App(tk.Tk):
         else:
             self.profile_slot.pack_forget()
 
-        # CHỈ save khi đã có profile
+        # chỉ save khi đã có profile
         if self.selected_profile_var.get().strip() and not getattr(self, "_restoring", False):
             self._save_group_settings()
                 
-
     def _update_profile_combo(self):
         self.profile_combo['values'] = self._channels_cache or []
         cur = self.selected_profile_var.get().strip()
@@ -1066,31 +1120,39 @@ class App(tk.Tk):
     def _save_group_settings(self):
         group = self.group_file_var.get().strip()
         profile = self.selected_profile_var.get().strip() 
-        if not group or not profile:
+        if not group:
             return
+
         if group not in self._group_settings:
             self._group_settings[group] = {}
 
         monetize = self._monetization_vars.get(profile, self.monetization_var.get())
-        self._group_settings[group][profile] = {
-            "mode": self.mode_var.get(),              
-            "monetization": monetize,
-            "move_folder": self.move_folder_var.get().strip()
-        }
-        # LƯU META CHO GROUP: chế độ hiện tại + profile cuối
+        move_folder = self.move_folder_var.get().strip()
+
+        # Nếu ở channel mode → lưu riêng từng profile
+        if self.mode_var.get() == "channels" and profile:
+            self._group_settings[group][profile] = {
+                "mode": "channels",
+                "monetization": monetize,
+                "move_folder": move_folder
+            }
+        else:
+            # Lưu chung cho group
+            self._group_settings[group]["__group__"] = {
+                "mode": "titles",
+                "move_folder": move_folder
+            }
+
+        # META: nhớ lại mode và profile cuối
         self._group_settings[group]["__meta__"] = {
             "mode": self.mode_var.get(),
             "last_profile": profile
         }
+
         save_group_settings(self._group_settings)
 
-        # ---- Folder mapping helpers ----
+    # ---- Folder mapping helpers ----
     def _load_folder_map(self):
-        """Đọc CONFIG_PATH và trả dict {key: folder}.
-        Key có thể là:
-          - 'Group' hoặc 'Group.csv'  (map theo group)
-          - 'Group|Profile' hoặc 'Group.csv|Profile' (map theo channel/profile)
-        """
         mapping = {}
         if os.path.exists(CONFIG_PATH):
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -1103,7 +1165,6 @@ class App(tk.Tk):
         return mapping
 
     def _get_mapped_folder(self, group_name: str, profile_name: str = None) -> str:
-        """Trả về thư mục đã map, ưu tiên map theo channel khi đang ở mode 'channels'."""
         m = self._load_folder_map()
         keys = []
         if profile_name and self.mode_var.get() == "channels":
@@ -1114,8 +1175,7 @@ class App(tk.Tk):
             if folder and os.path.isdir(folder):
                 return folder
         return ""
-
-
+    
 if __name__ == "__main__":
     app = App()
     app.mainloop()

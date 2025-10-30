@@ -12,26 +12,30 @@
     "skibidi": {
       "mode": "channels",
       "monetization": false,
-      "move_folder": "E:\\storage"
+      "move_folder": "C:\\Users\\Admin\\Pictures"
     },
     "yolo": {
       "mode": "channels",
       "monetization": true,
-      "move_folder": "C:\\Users\\Admin\\Music"
+      "move_folder": "C:/Users/Admin/Documents"
     },
     "dkm": {
       "mode": "channels",
       "monetization": true,
-      "move_folder": ""
+      "move_folder": "C:\\Users\\Admin\\Downloads"
     },
     "cringe": {
       "mode": "channels",
       "monetization": false,
-      "move_folder": ""
+      "move_folder": "C:\\Users\\Admin\\Downloads"
     },
     "__meta__": {
       "mode": "channels",
-      "last_profile": "yolo"
+      "last_profile": "dkm"
+    },
+    "__group__": {
+      "mode": "titles",
+      "move_folder": "C:\\Users\\Admin\\Downloads"
     }
   },
   "abc": {
@@ -45,8 +49,12 @@
       "last_profile": "1"
     },
     "1": {
-      "mode": "titles",
+      "mode": "channels",
       "monetization": false,
+      "move_folder": ""
+    },
+    "__group__": {
+      "mode": "titles",
       "move_folder": ""
     }
   }

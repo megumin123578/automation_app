@@ -1,6 +1,6 @@
 import os
 
-APP_VERSION = "1.0.36"
+APP_VERSION = "1.0.37"
 UPDATE_MANIFEST = "https://raw.githubusercontent.com/megumin123578/upload-short-with-gpm-handle-excel-file/main/manifest.json"
 APP_TITLE = "AUTO GENERATE UPLOAD SHORT YOUTUBE"
 
