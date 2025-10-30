@@ -49,7 +49,7 @@ class App(tk.Tk):
         profiles_menu.add_command(label="Manage Profiles", command=self._open_profile_manager)
         profiles_menu.add_command(label="Add Group", command=self._add_group)
         profiles_menu.add_command(label="Delete Group", command=self._delete_group)
-        profiles_menu.add_command(label="Map Group Folder...", command=self._map_group_folder)
+        profiles_menu.add_command(label="Mapping Folder...", command=self._map_group_folder)
         menubar.add_cascade(label="Profiles", menu=profiles_menu)
 
         help_menu = tk.Menu(menubar, tearoff=0)
