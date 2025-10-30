@@ -906,7 +906,7 @@ class App(tk.Tk):
             # Map riêng cho profile ở channel mode
             key_to_write = f"{name}|{active_profile}"
             key_to_write_csv = f"{name}.csv|{active_profile}"
-            keys_to_remove = {key_plain, key_csv, key_to_write, key_to_write_csv}
+            keys_to_remove = {key_to_write, key_to_write_csv}
             status_target = f"{name} | {active_profile}"
         else:
             # Map theo group cho các mode khác
