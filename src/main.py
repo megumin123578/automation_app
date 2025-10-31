@@ -54,18 +54,26 @@ class App(tk.Tk):
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label="Check for Updates (Default)...", command=self._check_for_updates)
         help_menu.add_separator()
-        help_menu.add_command(label=f"About (v{APP_VERSION})",
-                               command=lambda: messagebox.showinfo("About", "Update concat file name saved, update apply date time"))
+        def _show_about():
+            about_path = os.path.join(os.path.dirname(__file__), "update_content.txt")
+            if os.path.exists(about_path):
+                with open(about_path, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+            else:
+                content = f"App version: {APP_VERSION}\n\n(update_content.txt not found)"
+            messagebox.showinfo("About", content)
+
+        help_menu.add_command(label=f"About (v{APP_VERSION})", command=_show_about)
         menubar.add_cascade(label="Help", menu=help_menu)
 
         self._build_shell()
 
         # ====== PAGES ======
         self.pages = {}
-        self._build_assign_page()      # giao diện phân phối nhóm
-        self._build_concat_page()      # trang ghép video + nhạc
-        self._build_manage_page()      # trang quản lý kênh
-        self._build_statistics_page()  # trang thống kê
+        self._build_assign_page()     
+        self._build_concat_page()     
+        self._build_manage_page()      
+        self._build_statistics_page()
 
         # Hiển thị page mặc định
         self._show_page("assign")
@@ -418,12 +426,10 @@ class App(tk.Tk):
             }
             save_group_settings(self._group_settings)
 
-            # --- LƯU LEGACY: CONFIG_PATH (để _get_mapped_folder dùng) ---
             key = f"{group}|{profile}" if (self.mode_var.get() == "channels" and profile) else group
             save_group_config(key, folder)
 
             self._set_status(f"Save to → {folder}")
-
 
         ttk.Button(bar, text="Browse", command=choose_folder).pack(side=tk.LEFT, padx=(0, 8))
         ttk.Button(bar, text="Combine", command=self._combine_excels).pack(side=tk.RIGHT)
@@ -1004,7 +1010,6 @@ class App(tk.Tk):
                         continue
                     lines.append(line)
 
-        # Ghi key mới (ưu tiên bản không .csv, vẫn tương thích bản .csv)
         lines.append(f"{key_to_write}:{folder}")
 
         try:
@@ -1079,7 +1084,7 @@ class App(tk.Tk):
 
     def _generate_titles_descs(self):
         try:
-            # fix nhỏ: self.group_file_var.get() (không phải self.group_file_var())
+
             topic = self.group_file_var.get().strip() or "Short videos youtube"
             prompt = f"Create 10 titles mesmerizing and 10 short description for {topic}"
 
@@ -1143,7 +1148,6 @@ class App(tk.Tk):
         monetize = self._monetization_vars.get(profile, self.monetization_var.get())
         move_folder = self.move_folder_var.get().strip()
 
-        # Nếu ở channel mode → lưu riêng từng profile
         if self.mode_var.get() == "channels" and profile:
             self._group_settings[group][profile] = {
                 "mode": "channels",
@@ -1157,7 +1161,6 @@ class App(tk.Tk):
                 "move_folder": move_folder
             }
 
-        # META: nhớ lại mode và profile cuối
         self._group_settings[group]["__meta__"] = {
             "mode": self.mode_var.get(),
             "last_profile": profile
@@ -1165,7 +1168,6 @@ class App(tk.Tk):
 
         save_group_settings(self._group_settings)
 
-    # ---- Folder mapping helpers ----
     def _load_folder_map(self):
         mapping = {}
         if os.path.exists(CONFIG_PATH):
@@ -1177,6 +1179,7 @@ class App(tk.Tk):
                     k, v = line.split(":", 1)
                     mapping[k.strip()] = v.strip()
         return mapping
+    
     def _get_mapped_folder(self, group_name: str, profile_name: str = None) -> str:
         m = self._load_folder_map()
         keys = []
@@ -1188,18 +1191,14 @@ class App(tk.Tk):
             if folder and os.path.isdir(folder):
                 return folder
         return ""
+    
     def _toggle_monetization(self):
         self.monetization_var.set(not self.monetization_var.get())
         self._render_monetize_toggle() 
+        
     def _build_monetize_toggle(self, parent):
-        """Tạo label 'Monetization' (không khung) + toggle switch Canvas."""
-        # Nhãn chữ trơn, không style/relief
         self._mon_label = ttk.Label(parent, text="Monetization")
-
-        # Container giữ Canvas để dễ grid/ẩn/hiện
         self._mon_container = ttk.Frame(parent)
-
-        # Canvas switch (46x24)
         self._mon_switch = tk.Canvas(self._mon_container, width=46, height=24,
                                     highlightthickness=0, bd=0)
         self._mon_switch.pack()
@@ -1207,12 +1206,9 @@ class App(tk.Tk):
         self._mon_switch.bind("<space>", lambda e: self._toggle_monetization())
         self._mon_switch.bind("<Button-1>", lambda e: self._toggle_monetization())
 
-        # Vẽ lần đầu
         self._render_monetize_toggle()
 
-
     def _render_monetize_toggle(self):
-        """Vẽ lại toggle theo monetization_var (chỉ track + knob, không chữ)."""
         if not hasattr(self, "_mon_switch"):
             return
         cv = self._mon_switch
@@ -1229,8 +1225,6 @@ class App(tk.Tk):
 
         # Knob (trắng)
         cv.create_oval(knob_x, 3, knob_x + 18, 21, fill="#FFFFFF", outline="#DDDDDD")
-
-
     
 if __name__ == "__main__":
     app = App()

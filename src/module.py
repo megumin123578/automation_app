@@ -14,6 +14,7 @@ import sys,subprocess
 import tkinter.simpledialog as sd
 
 
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # thư mục gốc
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 USED_LOG_FILE = os.path.join(BASE_DIR, "log.txt")

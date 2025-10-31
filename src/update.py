@@ -30,6 +30,8 @@ def md5_of_file(path):
 def should_exclude(name, full_path):
     if name in EXCLUDE_FILES:
         return True
+    if name.lower() in ['update_content.txt','requirement.txt']:
+        return False
     if any(name.endswith(ext) for ext in EXCLUDE_EXTS):
         return True
     if any(x in full_path for x in EXCLUDE_DIRS):

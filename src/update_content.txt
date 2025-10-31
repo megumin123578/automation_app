@@ -1,0 +1,4 @@
+v1.0.39: - Thêm mode channel, toggle monetization
+              - Mapping và lưu đường dẫn theo thường channel
+              - Lưu và load config monetization values
+v1.0.40: - Thêm cột nhập Date entries
