@@ -321,10 +321,18 @@ class App(tk.Tk):
         self.txt_descs = tk.Text(mid, height=12, wrap=tk.WORD)
         self.txt_descs.pack(fill=tk.BOTH, expand=True)
 
+        # Date
+        date_col = ttk.Frame(frm)
+        date_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=5)
+        ttk.Label(date_col, text="Date (MM/DD/YYYY)").pack(anchor='w')
+        self.txt_dates = tk.Text(date_col, height=12, wrap=tk.WORD, width=24)
+        self.txt_dates.pack(fill=tk.BOTH, expand=True)
+
+
         # Times
         right = ttk.Frame(frm)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
-        ttk.Label(right, text="Time (HH:MM or per line)").pack(anchor="w")
+        ttk.Label(right, text="Time (HH:MM)").pack(anchor="w")
         self.txt_times = tk.Text(right, height=12, wrap=tk.WORD)
         self.txt_times.pack(fill=tk.BOTH, expand=True)
 
@@ -433,6 +441,7 @@ class App(tk.Tk):
         self.txt_titles.bind("<<Modified>>", on_change)
         self.txt_descs.bind("<<Modified>>", on_change)
         self.txt_times.bind("<<Modified>>", on_change)
+        self.txt_dates.bind("<<Modified>>", on_change)
 
     def _refresh_group_files(self):
         files = list_group_csvs(GROUPS_DIR)
@@ -534,6 +543,7 @@ class App(tk.Tk):
         titles = normalize_lines(self.txt_titles.get("1.0", tk.END))
         descs = normalize_lines(self.txt_descs.get("1.0", tk.END))
         times = normalize_lines(self.txt_times.get("1.0", tk.END))
+        dates = normalize_lines(self.txt_dates.get('1.0', tk.END))
         channels = self._channels_cache
         mode = self.mode_var.get()
 
@@ -583,7 +593,7 @@ class App(tk.Tk):
 
         for i, (ch, t, d) in enumerate(assignments):
             pt = times[i] if i < len(times) else ""
-            pd = selected_date if pt else ""
+            pd = dates[i] if i < len(dates) and dates [i] else selected_date
 
             if folder_path and os.path.isdir(folder_path):
                 directory = get_random_unused_mp4(folder_path, used_paths | session_used)
