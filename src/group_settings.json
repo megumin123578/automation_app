@@ -11,7 +11,7 @@
     },
     "skibidi": {
       "mode": "channels",
-      "monetization": false,
+      "monetization": true,
       "move_folder": "C:\\Users\\Admin\\Pictures"
     },
     "yolo": {
@@ -21,7 +21,7 @@
     },
     "dkm": {
       "mode": "channels",
-      "monetization": true,
+      "monetization": false,
       "move_folder": "C:\\Users\\Admin\\Downloads"
     },
     "cringe": {
@@ -31,7 +31,7 @@
     },
     "__meta__": {
       "mode": "channels",
-      "last_profile": "dkm"
+      "last_profile": "cringe"
     },
     "__group__": {
       "mode": "titles",

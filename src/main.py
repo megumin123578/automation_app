@@ -15,6 +15,7 @@ class App(tk.Tk):
         style.theme_use("clam")
         setup_theme(style, self)
 
+
         self.title(APP_TITLE)
         self.state("zoomed")
         self.minsize(1000, 600)
@@ -102,9 +103,11 @@ class App(tk.Tk):
 
             # lưu ra file
             save_group_settings(self._group_settings)
+            self._render_monetize_toggle()
+
 
         self.monetization_var.trace_add('write', on_monetization_toggle)
-
+        self._render_monetize_toggle()  
         # Auto check update sau khi UI sẵn sàng
         self.after(1500, self._auto_check_update)
 
@@ -223,6 +226,12 @@ class App(tk.Tk):
         self.profile_combo.grid(row=0, column=1)
         self.profile_slot.pack_forget()  # ẩn cả slot lúc đầu
 
+        self._build_monetize_toggle(self.profile_slot)  # monetization toggle
+        self._mon_label.grid(row=0, column=2, padx=(16, 6))
+        self._mon_container.grid(row=0, column=3, padx=(0, 0))
+        
+
+
         # auto refresh preview khi chọn profile
         def _on_profile_change(*_):
             group = self.group_file_var.get().strip()
@@ -253,6 +262,7 @@ class App(tk.Tk):
             cur_map = self._get_mapped_folder(group, profile)
             self._set_status(f"Profile '{profile}' selected | mapped: {cur_map or '(none)'}")
             self._schedule_preview()
+            self._render_monetize_toggle()
 
 
         self.selected_profile_var.trace_add('write', _on_profile_change)
@@ -1079,25 +1089,19 @@ class App(tk.Tk):
     def _on_mode_change(self):
         if self.mode_var.get() == 'channels':
             self.profile_slot.pack(side=tk.LEFT, padx=(8,0))
-            if not hasattr(self, "_monetization_check"):
-                self._monetization_check = ttk.Checkbutton(
-                    self.profile_slot, text="Monetization", variable=self.monetization_var
-                )
-                self._monetization_check.grid(row=0, column=2, padx=(16, 0))
-            else:
-                self._monetization_check.grid(row=0, column=2, padx=(16, 0))
-
-            # bảo đảm luôn có selection hợp lệ trước khi set/ghi
-            cur = self.selected_profile_var.get().strip()
-            if (not cur) or cur not in self._channels_cache:
-                if self._channels_cache:
-                    self.selected_profile_var.set(self._channels_cache[0])
-                    cur = self._channels_cache[0]
-
-            val = self._monetization_vars.get(cur, False)
-            self.monetization_var.set(val)
+            # bảo đảm toggle hiện
+            if hasattr(self, "_mon_label"):
+                self._mon_label.grid(row=0, column=2, padx=(16, 6))
+            if hasattr(self, "_mon_container"):
+                self._mon_container.grid(row=0, column=3, padx=(0, 0))
+            self._render_monetize_toggle()
         else:
             self.profile_slot.pack_forget()
+            # ẩn toggle khi không ở channel mode
+            if hasattr(self, "_mon_label"):
+                self._mon_label.grid_forget()
+            if hasattr(self, "_mon_container"):
+                self._mon_container.grid_forget()
 
         # chỉ save khi đã có profile
         if self.selected_profile_var.get().strip() and not getattr(self, "_restoring", False):
@@ -1163,7 +1167,6 @@ class App(tk.Tk):
                     k, v = line.split(":", 1)
                     mapping[k.strip()] = v.strip()
         return mapping
-
     def _get_mapped_folder(self, group_name: str, profile_name: str = None) -> str:
         m = self._load_folder_map()
         keys = []
@@ -1175,6 +1178,49 @@ class App(tk.Tk):
             if folder and os.path.isdir(folder):
                 return folder
         return ""
+    def _toggle_monetization(self):
+        self.monetization_var.set(not self.monetization_var.get())
+        self._render_monetize_toggle() 
+    def _build_monetize_toggle(self, parent):
+        """Tạo label 'Monetization' (không khung) + toggle switch Canvas."""
+        # Nhãn chữ trơn, không style/relief
+        self._mon_label = ttk.Label(parent, text="Monetization")
+
+        # Container giữ Canvas để dễ grid/ẩn/hiện
+        self._mon_container = ttk.Frame(parent)
+
+        # Canvas switch (46x24)
+        self._mon_switch = tk.Canvas(self._mon_container, width=46, height=24,
+                                    highlightthickness=0, bd=0)
+        self._mon_switch.pack()
+        self._mon_switch.configure(cursor="hand2")     # trỏ tay
+        self._mon_switch.bind("<space>", lambda e: self._toggle_monetization())
+        self._mon_switch.bind("<Button-1>", lambda e: self._toggle_monetization())
+
+        # Vẽ lần đầu
+        self._render_monetize_toggle()
+
+
+    def _render_monetize_toggle(self):
+        """Vẽ lại toggle theo monetization_var (chỉ track + knob, không chữ)."""
+        if not hasattr(self, "_mon_switch"):
+            return
+        cv = self._mon_switch
+        cv.delete("all")
+
+        on = bool(self.monetization_var.get())
+        track = "#4CAF50" if on else "#BDBDBD"
+        knob_x = 26 if on else 2  # knob ~18px
+
+        # Track 'pill'
+        cv.create_oval(1, 1, 23, 23, fill=track, outline=track)
+        cv.create_oval(23, 1, 45, 23, fill=track, outline=track)
+        cv.create_rectangle(12, 1, 34, 23, fill=track, outline=track)
+
+        # Knob (trắng)
+        cv.create_oval(knob_x, 3, knob_x + 18, 21, fill="#FFFFFF", outline="#DDDDDD")
+
+
     
 if __name__ == "__main__":
     app = App()
