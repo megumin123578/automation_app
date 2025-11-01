@@ -58,6 +58,7 @@ def read_cookie_from_txt(path=COOKIE_TXT):
     return cookies
 
 def crawl_data(csv_path=CSV_PATH):
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 
     #đọc cookies từ file
     try:
@@ -165,7 +166,21 @@ def pre_process_data(file):
     return filtered_df
 
 
-def clean_data(input_path = "thong_ke\data\orders_all.csv", output_path="thong_ke\data\orders_clean.csv", expected_cols = 9 ):
+def clean_data(input_path="thong_ke/data/orders_all.csv",
+               output_path="thong_ke/data/orders_clean.csv",
+               expected_cols=9):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    if not os.path.exists(input_path):
+        print(f"[CẢNH BÁO] File nguồn '{input_path}' chưa tồn tại. "
+              "Hãy đảm bảo crawl_data() chạy thành công trước.")
+        # Tạo file rỗng để tránh crash
+        with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Date", "Link", "Charge", "Start count",
+                             "Quantity", "Service", "Status", "Remains"])
+        return
+    
     with open(input_path, encoding="utf-8-sig") as infile, \
         open(output_path, "w", encoding="utf-8-sig", newline="") as outfile:
 

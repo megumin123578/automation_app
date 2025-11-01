@@ -426,6 +426,7 @@ class App(tk.Tk):
             }
             save_group_settings(self._group_settings)
 
+
             key = f"{group}|{profile}" if (self.mode_var.get() == "channels" and profile) else group
             save_group_config(key, folder)
 
