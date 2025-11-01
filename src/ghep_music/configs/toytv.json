@@ -1,13 +1,13 @@
 {
-  "input_folder": "//nasfmc/Ổ Sever Mới/Định/Satisfy ASMR/New folder/45s - MUSIC/Tuấn/Funny Crushing Experiment - HP Crunchy",
-  "save_folder": "F:/1",
+  "input_folder": "E:/storage2",
+  "save_folder": "E:/ghep xong",
   "bgm_folder": "//nasfmc/Ổ Sever Mới/Định/Satisfy ASMR/SHORT AI/render nhac",
   "group_size": 2,
   "bgm_volume": 1.0,
   "limit_videos": 0,
-  "concat_mode": "Concat with outro music",
+  "concat_mode": "Loop",
   "main_video_volume": 1.0,
-  "video_volume": 0.22272727272727272,
+  "video_volume": 0.2,
   "outro_mode": "By group count",
   "outro_duration": 30,
   "video_settings": {
@@ -18,7 +18,7 @@
     "v_bitrate": "12M",
     "a_bitrate": "160k",
     "nvenc_preset": "p4",
-    "time_limit_min": 0,
-    "time_limit_sec": 45
+    "time_limit_min": 1,
+    "time_limit_sec": 0
   }
 }

@@ -124,6 +124,7 @@ class ConcatPage(tk.Frame):
                 "Normal concat (no music)",
                 "Concat and Reverse",
                 "Concat with time limit",
+                "Loop",
             ]
         )
         self.combo_mode.grid(row=0, column=4, sticky="ew", padx=5)
@@ -429,12 +430,12 @@ class ConcatPage(tk.Frame):
         if not folder or not os.path.isdir(folder):
             self.groups = []
             self.total_mp4.set("0")
-            # NEW: hiển thị số job dự kiến nếu đang ở time limit, ngược lại 0
-            if self.concat_mode.get() == "Concat with time limit":
+            if self.concat_mode.get() in ("Concat with time limit", "Loop"):
                 planned = self.limit_videos_var.get() or 1
                 self.num_groups.set(str(planned))
             else:
                 self.num_groups.set("0")
+
             return
 
         try:
@@ -476,12 +477,20 @@ class ConcatPage(tk.Frame):
 
         self.total_mp4.set(str(len(all_videos)))
 
-        # NEW: hiển thị Remaining theo mode:
-        if self.concat_mode.get() == "Concat with time limit":
-            planned = limit_groups or 1  # All => 1 job theo logic hiện tại
+        #hiển thị Remaining theo mode:
+        mode = self.concat_mode.get()
+        if mode == "Concat with time limit":
+            planned = limit_groups or 1  # time limit chỉ tạo theo thời lượng
             self.num_groups.set(str(planned))
+        elif mode == "Loop":
+            # Mỗi video là một job, nên đếm số video chưa dùng
+            remaining = len([v for v in all_videos if os.path.abspath(v) not in used_videos])
+            if limit_groups > 0:
+                remaining = min(remaining, limit_groups)
+            self.num_groups.set(str(remaining))
         else:
             self.num_groups.set(str(len(self.groups)))
+
 
 
     def _choose_folder(self, var: tk.StringVar, reload=False, bgm=False):
@@ -501,9 +510,10 @@ class ConcatPage(tk.Frame):
     def start_concat(self):
         self.start_time = time.time()
         self.elapsed_times.clear()
+        mode = self.concat_mode.get()
         if self.worker and self.worker.is_alive():
             return messagebox.showinfo("Đang chạy", "Tiến trình đang chạy.")
-        if not self.groups:
+        if mode not in ("Loop") and not self.groups:
             return messagebox.showwarning("Đã chạy hết toàn bộ", "Hãy xóa log để gen lại.")
         out_dir = self.save_folder.get()
         if not out_dir:
@@ -511,16 +521,28 @@ class ConcatPage(tk.Frame):
         os.makedirs(out_dir, exist_ok=True)
         limit_groups = self.limit_videos_var.get()
         mode = self.concat_mode.get()
-        limit_groups = self.limit_videos_var.get()
 
-        if mode == "Concat with time limit":
-            # nếu không chọn số lượng, mặc định xuất 1 video
+        
+        if mode == "Loop":
+            folder = self.input_folder.get()
+            all_videos = list_all_mp4_files(folder) if folder and os.path.isdir(folder) else []
+            used_global = self._get_used_videos_from_log()
+            pool = [v for v in all_videos if os.path.abspath(v) not in used_global]
+
+            count = limit_groups if limit_groups > 0 else len(pool)
+            if count <= 0:
+                return messagebox.showwarning("Không còn video", "Hết clip để chạy Loop (hoặc chưa chọn nguồn).")
+            todo_groups = [[] for _ in range(count)]
+
+        elif mode == "Concat with time limit":
             count = limit_groups if limit_groups > 0 else 1
-            todo_groups = [None] * count  # placeholder
+            todo_groups = [[] for _ in range(count)]
+
         else:
             todo_groups = self.groups
             if limit_groups > 0:
                 todo_groups = self.groups[:limit_groups]
+
 
         self.stop_flag.clear()
         self.btn_concat.config(state=tk.DISABLED)
@@ -726,6 +748,46 @@ class ConcatPage(tk.Frame):
 
                         # 4) Đánh dấu đã dùng để lần xuất kế tiếp không trùng
                         used_this_run.update(os.path.abspath(p) for p in group)
+                    
+                    elif mode == "Loop":
+                        folder = self.input_folder.get()
+                        all_videos = list_all_mp4_files(folder)
+                        # chỉ lấy clip chưa dùng (log cũ + phiên hiện tại)
+                        pool = [v for v in all_videos if os.path.abspath(v) not in (used_global | used_this_run)]
+
+                        # chọn đúng 1 video
+                        if not pool:
+                            self.after(0, lambda: self._append_log("Hết clip phù hợp cho Loop mode."))
+                            break
+                        one_video = random.choice(pool)
+
+                        # thời lượng mục tiêu (nếu = 0 thì chỉ copy y như cũ)
+                        target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
+                        desired = get_first_vids_name(out_dir, one_video)
+
+                        try:
+                            if target_seconds > 0:
+                                # LẶP đúng 1 video duy nhất tới thời lượng mục tiêu
+                                self._loop_video_to_duration(
+                                    src=one_video,
+                                    dst=desired,
+                                    target_seconds=target_seconds,
+                                )
+                            else:
+                                # Không set time limit -> copy nguyên bản
+                                shutil.copy2(one_video, desired)
+
+                            output = desired
+                            used_this_run.add(os.path.abspath(one_video))
+
+                        except Exception as e:
+                            # fallback copy nếu lặp lỗi
+                            try:
+                                shutil.copy2(one_video, desired)
+                                output = desired
+                                used_this_run.add(os.path.abspath(one_video))
+                            except Exception:
+                                raise e
 
 
                     log_entry = {
@@ -733,8 +795,9 @@ class ConcatPage(tk.Frame):
                         "inputs": [os.path.abspath(p) for p in group],
                         "mode": mode
                     }
-                    if mode == "Concat with time limit":
-                        log_entry["time_limit_min"] = int(self.time_limit_min_var.get())
+                    if mode in ("Concat with time limit", "Loop"):
+                        log_entry["time_limit_min"] = int(self.time_limit_min_var.get() or 0)
+                        log_entry["time_limit_sec"] = int(self.time_limit_sec_var.get() or 0)
                     f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
                     self.after(0, lambda path=output: self.last_output_var.set(path))
                     self.after(0, lambda path=output: self._append_log(f"Đã ghép xong: {path}"))
@@ -746,8 +809,6 @@ class ConcatPage(tk.Frame):
                     time.sleep(0.5)
                     if os.path.exists(temp):
                         safe_remove(temp)
-                    if tmp_out and os.path.exists(tmp_out):
-                        safe_remove(tmp_out)
 
                 f_log.flush()
                 elapsed = time.time() - start_group_time
@@ -758,20 +819,27 @@ class ConcatPage(tk.Frame):
         self.progress['value'] += 1
         done = self.progress['value']
         total = self.progress['maximum']
+        remaining = max(total - done, 0)
+
+        # cập nhật số nhóm còn lại
+        self.num_groups.set(str(remaining))
+        self.groups_done.set(str(done))
+
         percent = (done / total) * 100
         avg_time = sum(self.elapsed_times) / len(self.elapsed_times) if self.elapsed_times else 0
-        remaining_groups = total - done
-        eta_seconds = avg_time * remaining_groups
+        eta_seconds = avg_time * remaining
         elapsed_total = time.time() - self.start_time if self.start_time else 0
+
         def fmt_time(t):
             m, s = divmod(int(t), 60)
             return f"{m}m{s}s" if m else f"{s}s"
+
         eta_str = fmt_time(eta_seconds)
         elapsed_str = fmt_time(elapsed_total)
         avg_str = f"{avg_time:.1f}s/nhóm" if avg_time else "--"
         log_text = f"[Tiến trình] {percent:.1f}% | Còn lại: {eta_str} | Đã chạy: {elapsed_str} | TB: {avg_str}"
-        self.progress_infor_var.set(log_text)   # hiện ngay dưới progressbar
-        self.groups_done.set(str(done))
+        self.progress_infor_var.set(log_text)
+
         
     def _on_done(self):
         self.btn_concat.config(state=tk.NORMAL)
@@ -1054,6 +1122,7 @@ class ConcatPage(tk.Frame):
         if (
                 mode == "Concat with time limit"
                 or (mode == "Concat with outro music" and self.outro_mode_var.get() == "By time limit")
+                or mode == "Loop"
             ):
             self._show_time_limit(True)
             self._show_group_size(False)  # không dùng group size
@@ -1087,7 +1156,7 @@ class ConcatPage(tk.Frame):
             self.cbo_outro_dur.grid_remove()
 
         # Normal concat: ẩn BGM + Music Folder, dời Main Video Volume lên hàng 0
-        if mode == "Normal concat (no music)":
+        if mode in ("Normal concat (no music)", "Loop"): 
             self.lbl_bgm_text.grid_remove()
             self.slider_volume.grid_remove()
             self.lbl_volume.grid_remove()
@@ -1231,3 +1300,17 @@ class ConcatPage(tk.Frame):
             except Exception:
                 pass
         return used_videos
+
+    def _loop_video_to_duration(self, src: str, dst: str, target_seconds: float):
+        loop_video_to_duration(
+            src=src,
+            dst=dst,
+            target_seconds=target_seconds,
+            vol=float(self.main_video_volume_var.get()),
+            use_nvenc=self.use_nvenc_var.get(),
+            nvenc_preset=self.nvenc_preset_var.get(),
+            cq=int(self.cq_var.get()),
+            v_bitrate=self.v_bitrate_var.get(),
+            fps=int(self.fps_var.get()),
+            a_bitrate=self.a_bitrate_var.get(),
+        )    

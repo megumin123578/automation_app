@@ -22,15 +22,6 @@ CONFIG_PATH = os.path.join(BASE_DIR, "config_dir")
 
 GROUP_SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "group_settings.json")
 
-def check_and_create(file_path = "update_content.txt"):
-    # Create the file if it does not exist
-    if not os.path.exists(file_path):
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write("")  # optionally write initial content
-        print(f"{file_path} created.")
-    else:
-        print(f"{file_path} already exists.")
-
 def load_group_settings():
     if not os.path.exists(GROUP_SETTINGS_PATH):
         return {}

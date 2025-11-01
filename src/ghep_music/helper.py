@@ -554,3 +554,77 @@ def concat_reverse(
     with open(log_path, "w", encoding="utf-8") as lf:
         subprocess.run(cmd, check=True, stdout=lf, stderr=lf)
     return out
+
+def _has_audio_stream(path: str) -> bool:
+    try:
+        out = subprocess.check_output(
+            [
+                "ffprobe",
+                "-v", "error",
+                "-select_streams", "a",
+                "-show_entries", "stream=index",
+                "-of", "csv=p=0",
+                path,
+            ],
+            stderr=subprocess.STDOUT,
+        )
+        return bool(out.strip())
+    except Exception:
+        return False
+
+
+def loop_video_to_duration(
+    src: str,
+    dst: str,
+    target_seconds: float,
+    *,
+    vol: float = 1.0,
+    use_nvenc: bool = True,
+    nvenc_preset: str = "p4",
+    cq: int = 23,
+    v_bitrate: str = "12M",
+    fps: int = 60,
+    a_bitrate: str = "160k",
+):
+    t = max(1, int(target_seconds))
+    has_audio = _has_audio_stream(src)
+
+    args = ["ffmpeg", "-y", "-stream_loop", "-1", "-i", src, "-t", str(t)]
+
+    # Video codec
+    if use_nvenc:
+        args += [
+            "-c:v", "h264_nvenc",
+            "-preset", nvenc_preset,
+            "-cq", str(int(cq)),
+            "-b:v", v_bitrate,
+            "-r", str(int(fps)),
+        ]
+    else:
+        args += [
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", str(int(cq)),
+            "-r", str(int(fps)),
+        ]
+
+    # Audio (chỉ khi có audio stream)
+    if has_audio:
+        # chỉ áp filter volume khi vol khác 1.0 để tránh warn không cần thiết
+        if abs(vol - 1.0) > 1e-6:
+            args += ["-filter:a", f"volume={vol}"]
+        args += ["-c:a", "aac", "-b:a", a_bitrate]
+    else:
+        # không có audio => tắt audio output
+        args += ["-an"]
+
+    # Đích
+    args += [dst]
+
+    # Chạy ffmpeg (để nguyên stdout/stderr nội bộ; nếu cần log thì gọi nơi khác)
+    completed = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if completed.returncode != 0:
+        # bắn lỗi rõ ràng hơn
+        raise RuntimeError(
+            f"ffmpeg failed ({completed.returncode}):\n{completed.stderr.decode(errors='ignore')}"
+        )
