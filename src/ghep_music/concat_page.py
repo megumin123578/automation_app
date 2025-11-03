@@ -218,6 +218,10 @@ class ConcatPage(tk.Frame):
         self.time_limit_min_var.trace_add("write", self._on_time_limit_var_changed)
         self.time_limit_sec_var.trace_add("write", self._on_time_limit_var_changed)
 
+        self._attach_select_all(self.combo_time_limit, include_click=True)
+        self._attach_select_all(self.combo_time_limit_sec, include_click=True)
+
+
         self.slider_volume = ttk.Scale(param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.bgm_volume_var, length=120)
         self.slider_volume.grid(row=0, column=5, sticky="ew", padx=5)
         self.lbl_volume = ttk.Label(param_frame, text=f"{self.bgm_volume_var.get() * 100:.0f}%", width=5)
@@ -1100,6 +1104,27 @@ class ConcatPage(tk.Frame):
                 child.bind("<Button-3>", show_menu)
         except Exception:
             pass
+    
+    def _attach_select_all(self, widget, include_click=False):
+        def _focus_in(e):
+            e.widget.after(1, lambda: _safe_select_all(e.widget))
+
+        def _click(e):
+            e.widget.after(1, lambda: _safe_select_all(e.widget))
+            return "break"
+
+        def _safe_select_all(w):
+            try:
+                w.selection_range(0, "end")
+                w.icursor("end")
+            except Exception:
+                try:
+                    w.tag_add("sel", "1.0", "end-1c")
+                except Exception:
+                    pass
+        widget.bind("<FocusIn>", _focus_in, add="+")
+        if include_click:
+            widget.bind("<Button-1>", _click, add="+")
 
     def _clear_channel_selection(self):
         ch = self.selected_channel.get().strip()
@@ -1117,15 +1142,12 @@ class ConcatPage(tk.Frame):
 
         # Lấy lại danh sách channel còn lại
         channels = self._list_channels()
-
-        # Nếu vẫn còn channel khác → tự động chọn cái tiếp theo
         if channels:
             next_ch = channels[0]
             self.selected_channel.set(next_ch)
             self.combo_channel["values"] = channels
             self.load_channel_config(next_ch)
             self.save_last_channel(next_ch)
-            messagebox.showinfo("Đã xoá", f"Đã xoá '{ch}', tự động chuyển sang '{next_ch}'.")
         else:
             # Không còn channel nào
             self.selected_channel.set("")
