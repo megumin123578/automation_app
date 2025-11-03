@@ -312,43 +312,43 @@ class App(tk.Tk):
         ttk.Button(frm3, text="Apply", command=self._apply_date_time_all).pack(side=tk.LEFT, padx=(12, 0))
 
     def _build_inputs(self, parent):
-        frm = ttk.Frame(parent, padding=10)
-        frm.pack(fill=tk.BOTH, expand=True)
+        container = ttk.Frame(parent, padding=10)
+        container.pack(fill=tk.BOTH, expand=True)
+        paned = tk.PanedWindow(container, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=6) #Paned cho phép kéo dãn cột
+        paned.pack(fill=tk.BOTH, expand=True)
 
-        # Titles
-        left = ttk.Frame(frm)
-        left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
-        ttk.Label(left, text="Titles (one per line)").pack(anchor="w")
-        self.txt_titles = tk.Text(left, height=12, wrap=tk.WORD)
-        self.txt_titles.pack(fill=tk.BOTH, expand=True)
+        def make_section(label_text):
+            frame = ttk.Frame(paned)
+            ttk.Label(frame, text=label_text).pack(anchor="w")
+            txt = tk.Text(frame, height=12, wrap=tk.WORD)
+            txt.pack(fill=tk.BOTH, expand=True)
+            return frame, txt
 
-        # Descriptions
-        mid = ttk.Frame(frm)
-        mid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
-        ttk.Label(mid, text="Descriptions (1 line for all, or multiple lines)").pack(anchor="w")
-        self.txt_descs = tk.Text(mid, height=12, wrap=tk.WORD)
-        self.txt_descs.pack(fill=tk.BOTH, expand=True)
+        f1, self.txt_titles = make_section("Titles (one per line)")
+        f2, self.txt_descs = make_section("Descriptions (1 line for all, or multiple lines)")
+        f3, self.txt_dates = make_section("Date (MM/DD/YYYY)")
+        f4, self.txt_times = make_section("Time (HH:MM)")
 
-        # Date
-        date_col = ttk.Frame(frm)
-        date_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=5)
-        ttk.Label(date_col, text="Date (MM/DD/YYYY)").pack(anchor='w')
-        self.txt_dates = tk.Text(date_col, height=12, wrap=tk.WORD, width=24)
-        self.txt_dates.pack(fill=tk.BOTH, expand=True)
+        # thêm vào Paned
+        paned.add(f1)
+        paned.add(f2)
+        paned.add(f3)
+        paned.add(f4)
 
-
-        # Times
-        right = ttk.Frame(frm)
-        right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
-        ttk.Label(right, text="Time (HH:MM)").pack(anchor="w")
-        self.txt_times = tk.Text(right, height=12, wrap=tk.WORD)
-        self.txt_times.pack(fill=tk.BOTH, expand=True)
-
-        # Buttons
+        def equalize_panes():
+            container.update_idletasks()
+            total_width = paned.winfo_width() or container.winfo_width() or 800
+            equal_width = total_width // 4
+            for pane in (f1, f2, f3, f4):
+                paned.paneconfig(pane, width=equal_width, minsize=100)
+        container.after(100, equalize_panes)
+        
+        #clear input
         btns = ttk.Frame(parent, padding=(10, 0, 10, 0))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Clear Inputs", command=self._clear_inputs).pack(side=tk.LEFT, padx=6)
         ttk.Button(btns, text="Generate titles and descriptions", command=self._generate_titles_descs).pack(side=tk.LEFT, padx=6)
+
 
     def _build_preview(self, parent):
         frm = ttk.Frame(parent, padding=10)
