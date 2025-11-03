@@ -34,12 +34,13 @@ def extract_zip(zip_path: str, dest_dir: str):
         z.extractall(dest_dir)
 
 def copy_py_tree(src_dir: str, dst_dir: str):
+    ignore_exts = (".pyc", ".pyo")
     for root, dirs, files in os.walk(src_dir):
         rel = os.path.relpath(root, src_dir)
         target_root = os.path.join(dst_dir, rel) if rel != "." else dst_dir
         os.makedirs(target_root, exist_ok=True)
         for fn in files:
-            if fn.lower().endswith(".py"):
+            if not fn.lower().endswith(ignore_exts):
                 shutil.copy2(os.path.join(root, fn), os.path.join(target_root, fn))
 
 def install_from_zip(zip_path: str) -> str:
