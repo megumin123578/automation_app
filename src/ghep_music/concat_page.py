@@ -195,6 +195,29 @@ class ConcatPage(tk.Frame):
         self.combo_time_limit.bind("<<ComboboxSelected>>", lambda e: self.save_channel_config())
         self.combo_time_limit_sec.bind("<<ComboboxSelected>>", lambda e: self.save_channel_config())
 
+        def _commit_time_limit(event=None):
+            if getattr(self, "_loading", False):
+                return
+            m = (self.time_limit_min_var.get() or "").strip()
+            s = (self.time_limit_sec_var.get() or "").strip()
+
+            m = "0" if not m.isdigit() else m
+            s = "0" if not s.isdigit() else s
+
+            m_i = min(int(m), 999)
+            s_i = min(int(s), 59)
+
+            self.time_limit_min_var.set(str(m_i))
+            self.time_limit_sec_var.set(str(s_i))
+            self.save_channel_config()
+        
+        self.combo_time_limit.bind("<FocusOut>", _commit_time_limit)
+        self.combo_time_limit_sec.bind("<FocusOut>", _commit_time_limit)
+        self.combo_time_limit.bind("<Return>", _commit_time_limit)
+        self.combo_time_limit_sec.bind("<Return>", _commit_time_limit)
+        self.time_limit_min_var.trace_add("write", self._on_time_limit_var_changed)
+        self.time_limit_sec_var.trace_add("write", self._on_time_limit_var_changed)
+
         self.slider_volume = ttk.Scale(param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.bgm_volume_var, length=120)
         self.slider_volume.grid(row=0, column=5, sticky="ew", padx=5)
         self.lbl_volume = ttk.Label(param_frame, text=f"{self.bgm_volume_var.get() * 100:.0f}%", width=5)
@@ -266,17 +289,23 @@ class ConcatPage(tk.Frame):
 
         # Preset lists
         cq_values = [10, 12, 15, 17, 18, 20, 21, 22, 23, 24, 25, 28, 30, 32, 35, 40]
-        v_bitrate_values = ["4M", "6M", "8M", "10M", "12M", "15M", "20M", "25M", "30M"]
+        v_bitrate_values = ["4M", "6M", "8M", "10M", "12M", "15M", "20M", "25M", "30M","35M","45M","55M","68M","85M","100M","120M"]
         a_bitrate_values = ["96k", "128k", "160k", "192k", "256k", "320k"]
 
         # Hàng 1
         ttk.Label(self.video_frame, text="Resolution:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
-        ttk.Combobox(self.video_frame, textvariable=self.resolution_var, width=10, state="readonly",
-                    values=["1080x1920", "1920x1080", "720x1280", "1280x720"]).grid(row=0, column=1, sticky="w")
+        ttk.Combobox(
+            self.video_frame, textvariable=self.resolution_var, width=10, state="readonly",
+            values=[
+                "1080x1920","1920x1080","720x1280","1280x720",
+                "1440x2560","2560x1440",     # 2K
+                "2160x3840","3840x2160"      # 4K
+            ]
+        ).grid(row=0, column=1, sticky="w")
 
         ttk.Label(self.video_frame, text="FPS:", font=("Segoe UI", 10, "bold")).grid(row=0, column=2, sticky="e", padx=5)
         ttk.Combobox(self.video_frame, textvariable=self.fps_var, width=5, state="readonly",
-                    values=[24, 30, 60]).grid(row=0, column=3, sticky="w")
+                    values=[24, 30, 60, 120]).grid(row=0, column=3, sticky="w")
 
         ttk.Label(self.video_frame, text="CQ / CRF:", font=("Segoe UI", 10, "bold")).grid(row=0, column=4, sticky="e", padx=5)
         self.cbo_cq = ttk.Combobox(self.video_frame, textvariable=self.cq_var, width=5, state="readonly", values=cq_values)
@@ -1314,3 +1343,9 @@ class ConcatPage(tk.Frame):
             fps=int(self.fps_var.get()),
             a_bitrate=self.a_bitrate_var.get(),
         )    
+    
+    def _on_time_limit_var_changed(self, *_):
+        # tránh save khi đang nạp cấu hình
+        if getattr(self, "_loading", False):
+            return
+        self.save_channel_config()
