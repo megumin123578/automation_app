@@ -109,10 +109,6 @@ def crawl_data(csv_path=CSV_PATH):
             cols = [td.get_text(strip=True) for td in tds[:9]]  # chỉ lấy 9 ô đầu
             text_row = " ".join(cols)
 
-            # Bỏ qua nếu dòng chứa thông tin thừa
-            if "Additional data" in text_row or "Comments" in text_row:
-                continue
-
             # Đảm bảo đúng 9 cột
             if len(cols) < 9:
                 print(f"Bỏ qua dòng thiếu cột ({len(cols)} cột): {cols}")
@@ -121,9 +117,7 @@ def crawl_data(csv_path=CSV_PATH):
 
             order_id = cols[0]
             if order_id in existing_ids:
-                print(f"Phát hiện ID {order_id} đã tồn tại trong CSV — dừng crawler.")
-                stop_flag = True
-                break
+                continue  # bỏ qua, không break
 
             existing_ids.add(order_id)
             all_rows.append(cols)
