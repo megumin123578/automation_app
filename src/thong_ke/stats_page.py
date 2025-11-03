@@ -103,6 +103,7 @@ class StatisticsPage(ttk.Frame):
         year_cb.grid(row=0, column=3, padx=5)
 
         ttk.Button(top_frame, text="Update data", command=self._run_process).grid(row=0, column=4, padx=15)
+        ttk.Button(top_frame, text="Clear CSV Data", command=self._clear_csv_data).grid(row=0, column=5, padx=5)
 
         month_cb.bind("<<ComboboxSelected>>", self._on_month_year_change)
         year_cb.bind("<<ComboboxSelected>>", self._on_month_year_change)
@@ -307,3 +308,41 @@ class StatisticsPage(ttk.Frame):
     # ---------- Events ----------
     def _on_month_year_change(self, event=None):
         self._load_data(self._month_str())
+
+    def _clear_csv_data(self):
+        """Xóa toàn bộ nội dung các file CSV thống kê."""
+        month_str = self._month_str()
+        files_to_clear = [
+            f"thong_ke/data/orders_with_channels_{month_str}.csv",
+            "thong_ke/data/orders_clean.csv",
+            "thong_ket/data/orders_all.csv"
+        ]
+
+        confirm = messagebox.askyesno(
+            "Confirm",
+            f"Do you really want to clear data ?",
+            parent=self
+        )
+        if not confirm:
+            return
+
+        cleared_files = []
+        for path in files_to_clear:
+            if os.path.exists(path):
+                try:
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write("")  # clear all content
+                    cleared_files.append(path)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Cannot clear file {path}:\n{e}")
+                    return
+
+        # Xóa dữ liệu khỏi bảng UI luôn
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+        self.count_label.config(text="0 lines (cleared)")
+        self.process_text.delete("1.0", "end")
+        self.stat_text.delete("1.0", "end")
+
+        msg = "Cleared:\n" + "\n".join(cleared_files) if cleared_files else "No CSV files found to clear."
+        messagebox.showinfo("Done", msg, parent=self)

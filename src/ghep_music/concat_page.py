@@ -178,7 +178,7 @@ class ConcatPage(tk.Frame):
         self.lbl_time_limit.grid(row=0, column=4, sticky="e", padx=(15,5))
 
         self.combo_time_limit = ttk.Combobox(
-            param_frame, textvariable=self.time_limit_min_var, state="readonly",
+            param_frame, textvariable=self.time_limit_min_var, state="normal",
             width=6, values=list(range(0, 1000))
         )
         self.combo_time_limit.grid(row=0, column=5, sticky="w", padx=5)
@@ -187,7 +187,7 @@ class ConcatPage(tk.Frame):
 
         #---- Second selection ------
         self.combo_time_limit_sec = ttk.Combobox(
-            param_frame, textvariable=self.time_limit_sec_var, state='readonly',
+            param_frame, textvariable=self.time_limit_sec_var, state='normal',
             width=6, values=list(range(0,60))
         )
         self.combo_time_limit_sec.grid(row=0, column=10, sticky='w', padx=5)
