@@ -192,6 +192,12 @@ class ConcatPage(tk.Frame):
         )
         self.combo_time_limit_sec.grid(row=0, column=10, sticky='w', padx=5)
 
+        def select_all_text(event):
+            event.widget.selection_range(0, 'end')
+            return 'break'  # tránh behavior mặc định
+
+        self.combo_time_limit.bind("<FocusIn>", select_all_text)
+        self.combo_time_limit_sec.bind("<FocusIn>", select_all_text)
         self.combo_time_limit.bind("<<ComboboxSelected>>", lambda e: self.save_channel_config())
         self.combo_time_limit_sec.bind("<<ComboboxSelected>>", lambda e: self.save_channel_config())
 
@@ -217,10 +223,6 @@ class ConcatPage(tk.Frame):
         self.combo_time_limit_sec.bind("<Return>", _commit_time_limit)
         self.time_limit_min_var.trace_add("write", self._on_time_limit_var_changed)
         self.time_limit_sec_var.trace_add("write", self._on_time_limit_var_changed)
-
-        self._attach_select_all(self.combo_time_limit, include_click=True)
-        self._attach_select_all(self.combo_time_limit_sec, include_click=True)
-
 
         self.slider_volume = ttk.Scale(param_frame, from_=0.0, to=1.0, orient="horizontal", variable=self.bgm_volume_var, length=120)
         self.slider_volume.grid(row=0, column=5, sticky="ew", padx=5)
@@ -379,9 +381,19 @@ class ConcatPage(tk.Frame):
             action_frame, textvariable=self.progress_infor_var, font=("Segoe UI",9, "italic")
         )
         self.lbl_progress_info.grid(row=1, column=4, columnspan=2, padx=5, pady=(3,0), sticky='w')
-
         self.lbl_status = ttk.Label(action_frame, textvariable=self.status_var, font=("Segoe UI", 10, "italic"))
         self.lbl_status.grid(row=0, column=5, padx=5, sticky="ew")
+
+        #Job progress
+        self.job_info_var = tk.StringVar(value='')
+        self.progress_job = ttk.Progressbar(action_frame, orient="horizontal", mode='determinate', length=300, maximum=100, value=0)
+        self.progress_job.grid(row=2, column=4, padx=5, sticky='ew')
+
+        self.lbl_job_info = ttk.Label(action_frame, textvariable=self.job_info_var, font=("Segoe UI",9, "italic"))
+        self.lbl_job_info.grid(row=3, column=4, columnspan=2, padx=5, pady=(3,0), sticky='w')
+
+        self.progress_job.grid_remove()
+        self.lbl_job_info.grid_remove()
 
         # Log and stats frame
         self.frm_logstats = ttk.LabelFrame(self, text="📜 Log & Statistics", padding=(10, 10))
@@ -602,7 +614,7 @@ class ConcatPage(tk.Frame):
         with open(log_path, "a", encoding="utf-8") as f_log:
             used_global = self._get_used_videos_from_log()  # đã dùng từ trước
             used_this_run = set()                            # dùng trong phiên chạy hiện tại
-            for group in todo:
+            for idx, group in enumerate(todo, 1):
                 if self.stop_flag.is_set():
                     break
                 start_group_time = time.time()
@@ -612,6 +624,9 @@ class ConcatPage(tk.Frame):
 
                 try:
                     mode = self.concat_mode.get()
+                    total_jobs = len(todo)
+                    if mode == "Loop":
+                        self._enqueue(lambda i=idx, t=total_jobs: self._job_progress_start(i, t))
                     output = None
 
                     #++++++++++++++++LOGIC+++++++++++++++++++++
@@ -791,13 +806,18 @@ class ConcatPage(tk.Frame):
                         # chọn đúng 1 video
                         if not pool:
                             self.after(0, lambda: self._append_log("Hết clip phù hợp cho Loop mode."))
+                            self._enqueue(self._job_progress_stop)
                             break
+    
+
                         one_video = random.choice(pool)
 
                         # thời lượng mục tiêu (nếu = 0 thì chỉ copy y như cũ)
                         target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
                         desired = get_first_vids_name(out_dir, one_video)
 
+                        def _cb(p):
+                            self._enqueue(lambda: self._job_progress_update(p))
                         try:
                             if target_seconds > 0:
                                 # LẶP đúng 1 video duy nhất tới thời lượng mục tiêu
@@ -805,6 +825,7 @@ class ConcatPage(tk.Frame):
                                     src=one_video,
                                     dst=desired,
                                     target_seconds=target_seconds,
+                                    progress_cb = _cb
                                 )
                             else:
                                 # Không set time limit -> copy nguyên bản
@@ -834,6 +855,8 @@ class ConcatPage(tk.Frame):
                     f_log.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
                     self.after(0, lambda path=output: self.last_output_var.set(path))
                     self.after(0, lambda path=output: self._append_log(f"Đã ghép xong: {path}"))
+                    if mode == "Loop":
+                        self._enqueue(self._job_progress_done)
 
                 except Exception as e:
                     log_entry = {"error": str(e), "inputs": [os.path.abspath(p) for p in group]}
@@ -873,12 +896,38 @@ class ConcatPage(tk.Frame):
         log_text = f"[Tiến trình] {percent:.1f}% | Còn lại: {eta_str} | Đã chạy: {elapsed_str} | TB: {avg_str}"
         self.progress_infor_var.set(log_text)
 
-        
+    ####second progress bar for job####
+    def _job_progress_start(self, i=None, total=None):
+        self.progress_job.configure(mode="determinate", maximum=100, value=0)
+        self.job_info_var.set(f"Đang xử lý job {i}/{total}…" if (i and total) else "Đang xử lý job…")
+        self.progress_job.grid()
+        self.lbl_job_info.grid()
+
+    def _job_progress_update(self, percent: float):
+        # clamp và cập nhật label
+        p = 0.0 if percent is None else max(0.0, min(100.0, float(percent)))
+        self.progress_job.configure(value=p)
+        self.job_info_var.set(f"Đang xử lý: {p:.0f}%")
+
+    def _job_progress_done(self, text="Xong 1 job ✓"):
+        self.progress_job.configure(value=100)
+        self.job_info_var.set(text)
+        # reset nhẹ về 0 sau 0.3s để sẵn sàng job tiếp theo
+        self.after(300, lambda: self.progress_job.configure(value=0))
+
+    def _job_progress_stop(self):
+        self.progress_job.configure(value=0)
+        self.job_info_var.set("")
+    ###################################
+            
     def _on_done(self):
         self.btn_concat.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.DISABLED)
         self.status_var.set("Hoàn thành" if not self.stop_flag.is_set() else "Đã dừng")
         self.progress_infor_var.set("" if not self.stop_flag.is_set() else "Đã dừng")
+
+        self.progress_job.configure(value=0)
+        self.job_info_var.set("")
         self.reload_groups()
 
     def _poll_worker(self):
@@ -1222,6 +1271,13 @@ class ConcatPage(tk.Frame):
             self.lbl_main_video_vol.grid_configure(row=2, column=4, sticky="e", padx=5)
             self.slider_main_video_vol.grid_configure(row=2, column=5, sticky="ew", padx=5)
             self.lbl_main_video_vol_value.grid_configure(row=2, column=6, sticky="w", padx=5)
+
+        if mode == "Loop":
+            self.progress_job.grid()
+            self.lbl_job_info.grid()
+        else:
+            self.progress_job.grid_remove()
+            self.lbl_job_info.grid_remove()
     
     def _show_time_limit(self, visible=True):
         widgets = [self.lbl_time_limit, self.combo_time_limit,
@@ -1352,7 +1408,7 @@ class ConcatPage(tk.Frame):
                 pass
         return used_videos
 
-    def _loop_video_to_duration(self, src: str, dst: str, target_seconds: float):
+    def _loop_video_to_duration(self, src: str, dst: str, target_seconds: float, progress_cb=None):
         loop_video_to_duration(
             src=src,
             dst=dst,
@@ -1364,6 +1420,7 @@ class ConcatPage(tk.Frame):
             v_bitrate=self.v_bitrate_var.get(),
             fps=int(self.fps_var.get()),
             a_bitrate=self.a_bitrate_var.get(),
+            on_progress=progress_cb
         )    
     
     def _on_time_limit_var_changed(self, *_):

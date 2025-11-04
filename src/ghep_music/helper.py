@@ -13,6 +13,7 @@ from tkinter import ttk, filedialog, messagebox
 import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from moviepy import VideoClip, concatenate_videoclips, VideoFileClip, vfx
+import shlex
 CONFIG_FILE = "ghep_music/config.json"
 CONFIG_DIR = "ghep_music/configs"
 LAST_CHANNEL_FILE = "ghep_music/last_channel.json"
@@ -585,11 +586,23 @@ def loop_video_to_duration(
     v_bitrate: str = "12M",
     fps: int = 60,
     a_bitrate: str = "160k",
+    on_progress=None,
 ):
+    # tổng thời lượng cần lặp
     t = max(1, int(target_seconds))
+    t_float = max(0.001, float(target_seconds))
+
     has_audio = _has_audio_stream(src)
 
-    args = ["ffmpeg", "-y", "-stream_loop", "-1", "-i", src, "-t", str(t)]
+    # Base args + bật kênh progress
+    args = [
+        "ffmpeg", "-hide_banner", "-y",
+        "-progress", "pipe:1",    # xuất tiến trình ra stdout
+        "-nostats",               # tránh spam
+        "-loglevel", "error",     # chỉ log lỗi
+        "-stream_loop", "-1", "-i", src,
+        "-t", str(t),
+    ]
 
     # Video codec
     if use_nvenc:
@@ -608,23 +621,96 @@ def loop_video_to_duration(
             "-r", str(int(fps)),
         ]
 
-    # Audio (chỉ khi có audio stream)
+    # Audio
     if has_audio:
-        # chỉ áp filter volume khi vol khác 1.0 để tránh warn không cần thiết
         if abs(vol - 1.0) > 1e-6:
             args += ["-filter:a", f"volume={vol}"]
         args += ["-c:a", "aac", "-b:a", a_bitrate]
     else:
-        # không có audio => tắt audio output
         args += ["-an"]
 
-    # Đích
+    # Output cuối cùng
     args += [dst]
 
-    # Chạy ffmpeg (để nguyên stdout/stderr nội bộ; nếu cần log thì gọi nơi khác)
-    completed = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if completed.returncode != 0:
-        # bắn lỗi rõ ràng hơn
+    # Bắn 0% ngay khi bắt đầu
+    if on_progress:
+        try:
+            on_progress(0.0)
+        except Exception:
+            pass
+
+    # Chạy ffmpeg và parse tiến trình
+    proc = subprocess.Popen(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,  # gộp để dễ debug nếu lỗi
+        text=True,
+        bufsize=1,
+        encoding="utf-8",
+        errors="ignore",
+    )
+
+    last_pct = -1.0
+    tail = []  # giữ vài dòng cuối để hiển thị khi lỗi
+    try:
+        for line in proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+
+            # giữ tail để report khi ffmpeg fail
+            tail.append(line)
+            if len(tail) > 50:
+                tail.pop(0)
+
+            # Dạng 1: out_time_ms=123456789
+            if line.startswith("out_time_ms="):
+                try:
+                    out_ms = int(line.split("=", 1)[1])
+                    sec = out_ms / 1_000_000.0
+                    pct = max(0.0, min(100.0, (sec / t_float) * 100.0))
+                except Exception:
+                    continue
+
+            # Dạng 2 (fallback): out_time=HH:MM:SS.micro
+            elif line.startswith("out_time="):
+                try:
+                    ts = line.split("=", 1)[1]
+                    # HH:MM:SS[.micro]
+                    hms, dot, micro = ts.partition(".")
+                    h, m, s = hms.split(":")
+                    sec = int(h) * 3600 + int(m) * 60 + float(s + (("." + micro) if dot else ""))
+                    pct = max(0.0, min(100.0, (sec / t_float) * 100.0))
+                except Exception:
+                    continue
+            else:
+                continue
+
+            # Giảm tần suất cập nhật để UI mượt
+            if on_progress and (pct - last_pct >= 0.5 or pct in (0.0, 100.0)):
+                try:
+                    on_progress(pct)
+                except Exception:
+                    pass
+                last_pct = pct
+
+        ret = proc.wait()
+    finally:
+        # đảm bảo đóng stdout
+        try:
+            if proc.stdout:
+                proc.stdout.close()
+        except Exception:
+            pass
+
+    if ret != 0:
         raise RuntimeError(
-            f"ffmpeg failed ({completed.returncode}):\n{completed.stderr.decode(errors='ignore')}"
+            "ffmpeg failed (returncode={}):\n{}".format(ret, "\n".join(tail))
         )
+
+    # đảm bảo gọi 100%
+    if on_progress:
+        try:
+            on_progress(100.0)
+        except Exception:
+            pass
