@@ -6,3 +6,6 @@ pip freeze > requirements.txt
 
 #install all requirements
 pip install -r requirements.txt
+
+#obfuscation file
+pyarmor gen -r .   

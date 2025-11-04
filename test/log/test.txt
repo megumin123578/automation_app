@@ -1,0 +1,3 @@
+{"output": "E:\\ghep xong\\51.mp4", "inputs": ["E:\\storage\\909.mp4", "E:\\storage\\905.mp4"], "mode": "Concat with outro music"}
+{"output": "E:\\ghep xong\\52.mp4", "inputs": ["E:\\storage\\910.mp4", "E:\\storage\\906.mp4"], "mode": "Concat with outro music"}
+{"output": "E:\\ghep xong\\53.mp4", "inputs": ["E:\\storage\\902.mp4", "E:\\storage\\904.mp4", "E:\\storage\\908.mp4", "E:\\storage\\901.mp4", "E:\\storage\\903.mp4", "E:\\storage\\907.mp4"], "mode": "Concat with outro music"}

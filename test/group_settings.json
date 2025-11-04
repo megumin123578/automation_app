@@ -1,0 +1,30 @@
+{
+  "cringe": {
+    "__group__": {
+      "move_folder": "E:\\ghep xong"
+    },
+    "__meta__": {
+      "mode": "channels",
+      "last_profile": "a"
+    },
+    "a": {
+      "monetization": true
+    },
+    "b": {
+      "monetization": true
+    },
+    "c": {
+      "monetization": false
+    }
+  },
+  "abc": {
+    "__group__": {
+      "mode": "titles",
+      "move_folder": ""
+    },
+    "__meta__": {
+      "mode": "titles",
+      "last_profile": ""
+    }
+  }
+}

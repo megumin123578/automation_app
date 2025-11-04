@@ -8,13 +8,13 @@ from hyperparameter import *
 from ghep_music.concat_page import ConcatPage
 from thong_ke.stats_page import StatisticsPage
 
-
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         style = ttk.Style()
         style.theme_use("clam")
         setup_theme(style, self)
+
 
         self.title(APP_TITLE)
         self.state("zoomed")
