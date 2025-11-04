@@ -811,6 +811,7 @@ class ConcatPage(tk.Frame):
     
 
                         one_video = random.choice(pool)
+                        group = [one_video]
 
                         # thời lượng mục tiêu (nếu = 0 thì chỉ copy y như cũ)
                         target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
@@ -832,14 +833,14 @@ class ConcatPage(tk.Frame):
                                 shutil.copy2(one_video, desired)
 
                             output = desired
-                            used_this_run.add(os.path.abspath(one_video))
+                            used_this_run.update(os.path.abspath(p) for p in group)
 
                         except Exception as e:
                             # fallback copy nếu lặp lỗi
                             try:
                                 shutil.copy2(one_video, desired)
                                 output = desired
-                                used_this_run.add(os.path.abspath(one_video))
+                                used_this_run.update(os.path.abspath(p) for p in group)
                             except Exception:
                                 raise e
 

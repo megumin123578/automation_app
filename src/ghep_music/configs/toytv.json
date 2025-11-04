@@ -18,7 +18,7 @@
     "v_bitrate": "12M",
     "a_bitrate": "160k",
     "nvenc_preset": "p4",
-    "time_limit_min": 600,
-    "time_limit_sec": 0
+    "time_limit_min": 0,
+    "time_limit_sec": 30
   }
 }
