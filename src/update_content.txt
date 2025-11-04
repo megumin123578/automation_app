@@ -1,3 +1,5 @@
+v1.0.46: - Thêm progress bar thứ 2 cho mode loop
+              - Sửa lỗi không lưu lại log
 v1.0.45: - Sửa lỗi không update mô tả bản cập nhật
 v1.0.44: - Thêm các giá trị ghép 2k, 4k
               - Sửa lỗi giá trị nhập vào không được lưu lại
