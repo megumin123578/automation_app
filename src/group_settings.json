@@ -1,61 +1,30 @@
 {
-  "Siuuu": {
-    "mode": "channels",
-    "selected_profile": "dkm",
-    "monetization": false,
-    "move_folder": "",
-    "_default": {
-      "mode": "channels",
-      "monetization": false,
-      "move_folder": ""
-    },
-    "skibidi": {
-      "mode": "channels",
-      "monetization": true,
-      "move_folder": "C:\\Users\\Admin\\Pictures"
-    },
-    "yolo": {
-      "mode": "channels",
-      "monetization": true,
-      "move_folder": "C:/Users/Admin/Documents"
-    },
-    "dkm": {
-      "mode": "channels",
-      "monetization": false,
-      "move_folder": "C:\\Users\\Admin\\Downloads"
-    },
-    "cringe": {
-      "mode": "channels",
-      "monetization": false,
-      "move_folder": "C:\\Users\\Admin\\Downloads"
+  "cringe": {
+    "__group__": {
+      "move_folder": "E:\\ghep xong"
     },
     "__meta__": {
       "mode": "channels",
-      "last_profile": "cringe"
+      "last_profile": "a"
     },
-    "__group__": {
-      "mode": "titles",
-      "move_folder": "C:\\Users\\Admin\\Downloads"
+    "a": {
+      "monetization": true
+    },
+    "b": {
+      "monetization": true
+    },
+    "c": {
+      "monetization": false
     }
   },
   "abc": {
-    "skibidi": {
+    "__group__": {
       "mode": "titles",
-      "monetization": false,
       "move_folder": ""
     },
     "__meta__": {
       "mode": "titles",
-      "last_profile": "1"
-    },
-    "1": {
-      "mode": "channels",
-      "monetization": false,
-      "move_folder": ""
-    },
-    "__group__": {
-      "mode": "titles",
-      "move_folder": ""
+      "last_profile": ""
     }
   }
 }

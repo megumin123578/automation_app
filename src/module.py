@@ -1,4 +1,3 @@
-
 import itertools
 from hyperparameter import CHANNEL_HEADER_HINTS
 import os
@@ -13,13 +12,10 @@ from tkcalendar  import DateEntry
 import sys,subprocess
 import tkinter.simpledialog as sd
 
-
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # thư mục gốc
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 USED_LOG_FILE = os.path.join(BASE_DIR, "log.txt")
 CONFIG_PATH = os.path.join(BASE_DIR, "config_dir")
-
 GROUP_SETTINGS_PATH = os.path.join(os.path.dirname(__file__), "group_settings.json")
 
 def load_group_settings():
