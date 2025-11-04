@@ -1,3 +1,0 @@
-{"error": "[Errno 13] Permission denied: 'temp.mp4'", "inputs": ["E:\\storage\\901.mp4", "E:\\storage\\907.mp4"]}
-{"error": "[Errno 13] Permission denied: 'temp.mp4'", "inputs": ["E:\\storage\\909.mp4", "E:\\storage\\904.mp4"]}
-{"error": "Command '['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', 'temp.txt', '-c', 'copy', 'temp.mp4']' returned non-zero exit status 4294967283.", "inputs": ["E:\\storage\\902.mp4", "E:\\storage\\906.mp4"]}
