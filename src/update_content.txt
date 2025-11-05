@@ -1,3 +1,5 @@
+v1.0.48: - Tự động update chỉ cập nhật khi người dùng chọn yes
+v1.0.47: - Mã hóa code
 v1.0.46: - Thêm progress bar thứ 2 cho mode loop
               - Sửa lỗi không lưu lại log
 v1.0.45: - Sửa lỗi không update mô tả bản cập nhật
