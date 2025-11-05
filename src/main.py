@@ -2,7 +2,7 @@ from random_vids import get_random_unused_mp4
 from ui_theme import setup_theme
 from excel_helper import save_assignments_to_excel, combine_excels
 
-from update_manager import check_and_update, install_from_zip
+from update_manager import check_and_update, install_from_zip, check_update_only
 from module import *
 from hyperparameter import *
 from ghep_music.concat_page import ConcatPage
@@ -1060,28 +1060,28 @@ class App(tk.Tk):
     def _auto_check_update(self):
         def worker():
             try:
-                self._set_status("Checking for new version...")
-                msg = check_and_update(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
-                if msg.startswith("Installed update"):
-                    self._set_status("Update successfully.")
-                    if messagebox.askyesno("Notice", "Have new version to update, do you want to update ?"):
-                        self._restart_app()
-                elif "New version" in msg or "update available" in msg.lower():
-                    self._set_status("Have new version")
-                    if messagebox.askyesno("Have new version", f"{msg}\n\nDo you want to update?"):
-                        try:
-                            install_from_zip("update.zip")
-                            self._set_status("Installed new version.")
-                            if messagebox.askyesno("Done", "Updated restart app to apply ?"):
+                info = check_update_only(UPDATE_MANIFEST, APP_VERSION)
+                if info.get("has_update"):
+                    new_ver = info["latest_version"]
+                    if messagebox.askyesno(
+                        "Has new update!!!",
+                        f"Version {new_ver} is released.  Do you want to update now?"
+                    ):
+                        self._set_status("Downloading and installing update...")
+                        msg = check_and_update(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
+                        self._set_status(msg)
+
+                        if msg.startswith("Installed update") or "Cập nhật lên" in msg:
+                            if messagebox.askyesno("Update installed", "Restart to apply?"):
                                 self._restart_app()
-                        except Exception as e:
-                            messagebox.showerror("Error", f"Can't update this version:\n{e}")
                 else:
-                    self._set_status("You are up to date")
+                    # Không cần popup nếu đang mới nhất — chỉ in log nhẹ
+                    print(info.get("message", "Already the lastes version"))
             except Exception as e:
-                self._set_status(f"Inspect the Eror: {e}")
-                print("Update error:", e)
+                print(f"Error when updating: {e}")
+
         threading.Thread(target=worker, daemon=True).start()
+
 
     def _generate_titles_descs(self):
         try:

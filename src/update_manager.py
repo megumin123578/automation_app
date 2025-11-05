@@ -96,3 +96,24 @@ def check_and_update(manifest_src: str, current_version: str, verify_hash: bool 
     msg = install_from_zip(tmp_zip)
     os.remove(tmp_zip)
     return f"{msg} Cập nhật lên {remote_ver} thành công."
+
+
+def check_update_only(manifest_src: str, current_version: str) -> dict:
+    info = _read_json_any(manifest_src)
+    remote_ver = info.get("version") or info.get("latest") or ""
+    zip_src = info.get("zip_url") or info.get("zip_path")
+    sha = info.get("sha256")
+    print(f"Đang tải manifest từ: {manifest_src}")
+
+    if not remote_ver or not zip_src:
+        return {"has_update": False, "error": "Manifest không hợp lệ."}
+
+    if not is_newer(remote_ver, current_version):
+        return {"has_update": False, "message": f"Đang ở bản mới nhất ({current_version})."}
+
+    return {
+        "has_update": True,
+        "latest_version": remote_ver,
+        "zip_url": zip_src,
+        "sha256": sha,
+    }
