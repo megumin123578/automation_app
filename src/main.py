@@ -82,6 +82,8 @@ class App(tk.Tk):
         self._build_manage_page()      
         self._build_statistics_page()
 
+        self.bind_all("<Control-b>", lambda e: self._paste_from_clipboard())
+
         # Hiển thị page mặc định
         self._show_page("assign")
 
@@ -302,21 +304,11 @@ class App(tk.Tk):
         paned.add(f2)
         paned.add(f3)
         paned.add(f4)
-
-        def equalize_panes():
-            container.update_idletasks()
-            total_width = paned.winfo_width() or container.winfo_width() or 800
-            equal_width = total_width // 4
-            for pane in (f1, f2, f3, f4):
-                paned.paneconfig(pane, width=equal_width, minsize=100)
-        container.after(100, equalize_panes)
-        
-        #clear input
         btns = ttk.Frame(parent, padding=(10, 0, 10, 0))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Clear Inputs", command=self._clear_inputs).pack(side=tk.LEFT, padx=6)
         ttk.Button(btns, text="Generate titles and descriptions", command=self._generate_titles_descs).pack(side=tk.LEFT, padx=6)
-        self.after(0, self._equalize_inputs) 
+
     def _build_preview(self, parent):
         frm = ttk.Frame(parent, padding=10)
         frm.pack(fill=tk.BOTH, expand=True)
@@ -594,8 +586,6 @@ class App(tk.Tk):
                 out_path = os.path.join(OUTPUT_DIR, out_name)
 
                 if self.mode_var.get() == "channels":
-                    group = os.path.splitext(self.group_file_var.get().strip())[0]
-                    settings_all = self._group_settings.get(group, {})
 
                     def monet_for_channel(ch):
                         return "True" if settings_all.get(ch, {}).get("monetization", False) else "False"
@@ -1170,7 +1160,6 @@ class App(tk.Tk):
                                     highlightthickness=0, bd=0)
         self._mon_switch.pack()
         self._mon_switch.configure(cursor="hand2")     # trỏ tay
-        self._mon_switch.bind("<space>", lambda e: self._toggle_monetization())
         self._mon_switch.bind("<Button-1>", lambda e: self._toggle_monetization())
 
         self._render_monetize_toggle()
@@ -1194,15 +1183,10 @@ class App(tk.Tk):
         cv.create_oval(knob_x, 3, knob_x + 18, 21, fill="#FFFFFF", outline="#DDDDDD")
 
     def _show_splash(self):
-        self._init_done = False
-        self._splash_min_ms = 1200
-        self._splash_started = time.perf_counter()
-        self._splash_prog = 0
-
+        self._splash_min_ms, self._splash_started, self._splash_prog, self._init_done = 1200, time.perf_counter(), 0, False
         self._splash = tk.Toplevel(self)
         self._splash.overrideredirect(True)
         try:
-            self._splash.wm_attributes("-toolwindow", True)
             self._splash.wm_attributes("-topmost", True)
             self._splash.config(bg="#111111")
             self._splash.wm_attributes("-transparentcolor", "#111111")
@@ -1229,7 +1213,7 @@ class App(tk.Tk):
         style.configure(
             "Transparent.Horizontal.TProgressbar",
             troughcolor="#111111",   # cùng màu nền gần đen
-            background="#00E5FF"     # xanh neon sáng nổi bật
+            background="#00E5FF"
         )
         self._splash_pb.configure(style="Transparent.Horizontal.TProgressbar")
 
@@ -1278,10 +1262,6 @@ class App(tk.Tk):
             self._init_done = True
 
     def _close_splash(self):
-        try:
-            self._splash_pb.stop()
-        except Exception:
-            pass
         if hasattr(self, "_splash") and self._splash and self._splash.winfo_exists():
             self._splash.destroy()
         self._splash = None
@@ -1313,7 +1293,6 @@ class App(tk.Tk):
             each = max(100, total // 4)
             for fr in self._inputs_panes:
                 p.paneconfig(fr, width=each, minsize=100)
-            # đặt lại vị trí 3 sash cho đều 1/4, 2/4, 3/4
             try:
                 p.sash_place(0, each, 0)
                 p.sash_place(1, each*2, 0)
@@ -1322,6 +1301,188 @@ class App(tk.Tk):
                 pass
         except Exception:
             pass
+    
+    def _paste_from_clipboard(self):
+        # Đọc clipboard (Excel -> TSV)
+        try:
+            raw = self.clipboard_get()
+        except Exception:
+            messagebox.showwarning("Clipboard", "Không đọc được clipboard (hãy copy từ Excel trước).")
+            return
+
+        text = raw.strip().replace("\r\n", "\n").replace("\r", "\n")
+        rows = [r for r in text.split("\n") if r.strip()]
+        if not rows:
+            messagebox.showwarning("Clipboard", "Dữ liệu rỗng.")
+            return
+
+        # Tách tab -> cột
+        grid = [r.split("\t") for r in rows]
+
+        # Nhận diện header (nếu có)
+        first = [c.strip().lower() for c in grid[0]]
+        known = {
+            "title": "titles",
+            "name": "titles",
+            "tiêu đề": "titles",
+            "description": "descs",
+            "desc": "descs",
+            "mô tả": "descs",
+            "date": "dates",
+            "publish date": "dates",
+            "ngày": "dates",
+            "time": "times",
+            "publish time": "times",
+            "giờ": "times",
+        }
+        has_header = any(x in known for x in first)
+        if has_header:
+            header_map = [known.get(x, None) for x in first]
+            data_rows = grid[1:]
+        else:
+            # Không header -> map mặc định theo thứ tự
+            # 1: title, 2: desc, 3: date, 4: time
+            header_map = ["titles", "descs", "dates", "times"][:len(grid[0])]
+            data_rows = grid
+
+        titles, descs, dates, times = [], [], [], []
+
+        for row in data_rows:
+            # pad để tránh IndexError
+            row = row + [""] * 4
+            cur_title = cur_desc = cur_date = cur_time = None
+
+            for idx, val in enumerate(row):
+                dest = header_map[idx] if idx < len(header_map) else None
+                if not dest:
+                    continue
+                s = val.strip()
+                if dest == "titles":
+                    cur_title = s
+                elif dest == "descs":
+                    cur_desc = s
+                elif dest == "dates":
+                    cur_date = self._normalize_date_cell(s)
+                elif dest == "times":
+                    cur_time = self._normalize_time_cell(s)
+
+            if cur_title is not None:
+                titles.append(cur_title)
+            if cur_desc is not None:
+                descs.append(cur_desc)
+            if cur_date is not None:
+                dates.append(cur_date)
+            if cur_time is not None:
+                times.append(cur_time)
+
+        # Ghi ra 4 ô Text
+        def _write(txt_widget, lines):
+            if not hasattr(self, txt_widget):
+                return
+            w = getattr(self, txt_widget)
+            w.delete("1.0", tk.END)
+            if lines:
+                w.insert(tk.END, "\n".join(lines))
+
+        _write("txt_titles", titles)
+        _write("txt_descs", descs)
+        _write("txt_dates", dates)
+        _write("txt_times", times)
+
+        self._set_status(f"Pasted {max(len(titles), len(descs), len(dates), len(times))} dòng từ Excel.")
+        self._schedule_preview()  # cập nhật preview ngay
+
+    def _normalize_date_cell(self, s: str) -> str:
+        """Chuẩn hoá date về MM/DD/YYYY. Hỗ trợ cả Excel serial (44900), ISO, dd/mm/yyyy, etc."""
+        s = s.strip()
+        if not s:
+            return ""
+        # Excel serial (ngày): số nguyên/lẻ lớn hơn 31 thường là serial
+        if re.fullmatch(r"\d+(\.\d+)?", s):
+            try:
+                serial = float(s)
+                # Excel base: 1899-12-30
+                base = datetime.datetime(1899, 12, 30)
+                dt = base + datetime.timedelta(days=serial)
+                return dt.strftime("%m/%d/%Y")
+            except Exception:
+                pass
+
+        # Thử nhiều format phổ biến
+        fmts = [
+            "%m/%d/%Y", "%m/%d/%y",
+            "%d/%m/%Y", "%d/%m/%y",
+            "%Y-%m-%d",
+            "%Y/%m/%d",
+            "%Y-%m-%d %H:%M:%S",
+            "%m/%d/%Y %H:%M", "%d/%m/%Y %H:%M",
+        ]
+        for fmt in fmts:
+            try:
+                dt = datetime.datetime.strptime(s, fmt)
+                return dt.strftime("%m/%d/%Y")
+            except Exception:
+                pass
+
+        # Fallback: nếu là ISO có 'T'
+        if "T" in s:
+            try:
+                # dạng 2025-11-05T08:20:00
+                date_part = s.split("T", 1)[0]
+                dt = datetime.datetime.strptime(date_part, "%Y-%m-%d")
+                return dt.strftime("%m/%d/%Y")
+            except Exception:
+                pass
+
+        # Không parse được -> trả nguyên (để bạn tự sửa)
+        return s
+
+    def _normalize_time_cell(self, s: str) -> str:
+        """Chuẩn hoá time về HH:MM. Hỗ trợ Excel time fraction (0.5 -> 12:00), 12h/24h, có/không giây."""
+        s = s.strip()
+        if not s:
+            return ""
+
+        # Excel time fraction (0.5 = 12:00, 0.25 = 06:00, ...)
+        if re.fullmatch(r"\d+(\.\d+)?", s):
+            try:
+                f = float(s)
+                if 0.0 <= f < 1.0:
+                    seconds = int(round(f * 24 * 3600))
+                    h = seconds // 3600
+                    m = (seconds % 3600) // 60
+                    return f"{h:02d}:{m:02d}"
+            except Exception:
+                pass
+
+        # Các format phổ biến
+        fmts = [
+            "%H:%M", "%H:%M:%S",
+            "%I:%M %p", "%I:%M:%S %p",  # 12h AM/PM
+        ]
+        for fmt in fmts:
+            try:
+                t = datetime.datetime.strptime(s, fmt).time()
+                return f"{t.hour:02d}:{t.minute:02d}"
+            except Exception:
+                pass
+
+        # Dạng có cả ngày giờ, lấy phần giờ
+        fmts_dt = [
+            "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
+            "%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M",
+            "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
+        ]
+        for fmt in fmts_dt:
+            try:
+                dt = datetime.datetime.strptime(s, fmt)
+                return f"{dt.hour:02d}:{dt.minute:02d}"
+            except Exception:
+                pass
+
+        # Không parse được -> trả nguyên
+        # Tree/preview vẫn hiển thị, bạn có thể chỉnh tay
+        return s
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ import openai
 from tkcalendar  import DateEntry
 import sys,subprocess
 import tkinter.simpledialog as sd
+import re
 
 
 
