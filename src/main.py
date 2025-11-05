@@ -178,7 +178,16 @@ class App(tk.Tk):
         ttk.Label(frm, text="Group:").grid(row=0, column=0, sticky="w")
         self.group_combo = ttk.Combobox(frm, textvariable=self.group_file_var, state="readonly", width=48)
         self.group_combo.grid(row=0, column=1, sticky="w", padx=6)
-        self.group_combo.bind("<<ComboboxSelected>>", lambda e: self._load_channels())
+        def _on_group_change(event=None):
+            group = self.group_file_var.get().strip()
+            if group:
+                last_group_path = os.path.join(os.path.dirname(__file__), "last_group.txt")
+                with open(last_group_path, "w", encoding="utf-8") as f:
+                    f.write(group)
+            self._load_channels()
+
+        self.group_combo.bind("<<ComboboxSelected>>", _on_group_change)
+
 
         self.channel_count_lbl = ttk.Label(frm, text="0 channels")
         self.channel_count_lbl.grid(row=0, column=4, sticky="w", padx=(12, 0))
@@ -278,6 +287,42 @@ class App(tk.Tk):
         sp_step.pack(side=tk.LEFT, padx=(6, 12))
 
         ttk.Button(frm3, text="Apply", command=self._apply_date_time_all).pack(side=tk.LEFT, padx=(12, 0))
+        # --- Nút Refresh random video (góc phải) ---
+        def _refresh_random_paths():
+            group = self.group_file_var.get().strip()
+            if not group:
+                messagebox.showwarning("Missing group", "Vui lòng chọn group trước.")
+                return
+
+            profile = self.selected_profile_var.get().strip() if self.mode_var.get() == "channels" else None
+            folder = self._get_mapped_folder(group, profile)
+            if not folder or not os.path.isdir(folder):
+                messagebox.showwarning("No folder", f"Thư mục map cho group/profile chưa hợp lệ: {folder or '(none)'}")
+                return
+
+            used_paths = load_used_videos()
+            session_used = set()
+            items = self.tree.selection() or self.tree.get_children()
+
+            for iid in items:
+                vals = list(self.tree.item(iid, "values"))
+                vals += [""] * max(0, 6 - len(vals))
+                ch, _, title, desc, pd, pt = vals
+                new_dir = get_random_unused_mp4(folder, used_paths | session_used)
+                if new_dir:
+                    session_used.add(new_dir)
+                    self.tree.item(iid, values=(ch, new_dir, title, desc, pd, pt))
+
+            # Cập nhật self._last_assignments
+            if self._last_assignments:
+                rows = []
+                for iid in self.tree.get_children():
+                    rows.append(self.tree.item(iid, "values"))
+                self._last_assignments = rows
+
+            self._set_status(f"Refreshed random videos for {len(items)} row(s).")
+
+        ttk.Button(frm3, text="🔄 Refresh Random Videos", command=_refresh_random_paths).pack(side=tk.RIGHT, padx=(0, 10))
 
     def _build_inputs(self, parent):
         container = ttk.Frame(parent, padding=10)
@@ -345,6 +390,7 @@ class App(tk.Tk):
         btns = ttk.Frame(parent, padding=(10, 0, 10, 10))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Save Excel", command=self._save_excel).pack(side=tk.LEFT)
+        
 
     def _build_footer(self, parent):
         bar = ttk.Frame(parent, relief=tk.SUNKEN, padding=6)
@@ -1125,6 +1171,7 @@ class App(tk.Tk):
 
         save_group_settings(self._group_settings)
 
+
     def _load_folder_map(self):
         mapping = {}
         if os.path.exists(CONFIG_PATH):
@@ -1251,7 +1298,19 @@ class App(tk.Tk):
 
     def _finish_startup_safe(self):
         try:
+            # B1: nạp danh sách group trước
             self._refresh_group_files()
+
+            # B2: nếu có last_group.txt → tự động chọn lại và load
+            last_group_path = os.path.join(os.path.dirname(__file__), "last_group.txt")
+            if os.path.exists(last_group_path):
+                with open(last_group_path, "r", encoding="utf-8") as f:
+                    last_group = f.read().strip()
+                if last_group:
+                    self.after(0, lambda: self.group_file_var.set(last_group))
+                    self.after(100, lambda: self._load_channels())
+
+            # B3: khởi tạo preview binding và auto update
             self.after(0, self._bind_text_preview)
             self.after(1500, self._auto_check_update)
         except Exception as e:
@@ -1302,9 +1361,8 @@ class App(tk.Tk):
         except Exception:
             pass
     
-    def _paste_from_clipboard(self):
-        # Đọc clipboard (Excel -> TSV)
-        try:
+    def _paste_from_clipboard(self, append=True):
+        try: #read clipboard
             raw = self.clipboard_get()
         except Exception:
             messagebox.showwarning("Clipboard", "Không đọc được clipboard (hãy copy từ Excel trước).")
@@ -1318,16 +1376,16 @@ class App(tk.Tk):
 
         # Tách tab -> cột
         grid = [r.split("\t") for r in rows]
+
+        # Map mặc định: Title | Description | Date | Time
         header_map = ["titles", "descs", "dates", "times"][:len(grid[0])]
         data_rows = grid
 
         titles, descs, dates, times = [], [], [], []
 
         for row in data_rows:
-            # pad để tránh IndexError
-            row = row + [""] * 4
+            row = row + [""] * 4  # pad tránh IndexError
             cur_title = cur_desc = cur_date = cur_time = None
-
             for idx, val in enumerate(row):
                 dest = header_map[idx] if idx < len(header_map) else None
                 if not dest:
@@ -1338,9 +1396,9 @@ class App(tk.Tk):
                 elif dest == "descs":
                     cur_desc = s
                 elif dest == "dates":
-                    cur_date = self._normalize_date_cell(s)
+                    cur_date = s
                 elif dest == "times":
-                    cur_time = self._normalize_time_cell(s)
+                    cur_time = s
 
             if cur_title is not None:
                 titles.append(cur_title)
@@ -1351,111 +1409,30 @@ class App(tk.Tk):
             if cur_time is not None:
                 times.append(cur_time)
 
-        # Ghi ra 4 ô Text
-        def _write(txt_widget, lines):
-            if not hasattr(self, txt_widget):
+        # helper: ghi theo chế độ append/replace
+        def _write(txt_widget_name, lines, *, append):
+            if not hasattr(self, txt_widget_name):
                 return
-            w = getattr(self, txt_widget)
-            w.delete("1.0", tk.END)
-            if lines:
-                w.insert(tk.END, "\n".join(lines))
+            w = getattr(self, txt_widget_name)
+            existing = w.get("1.0", "end-1c")
+            piece = "\n".join(lines) if lines else ""
+            if not piece:
+                return
+            if existing.strip():
+                # đảm bảo đúng 1 newline ngăn cách
+                if not existing.endswith("\n"):
+                    w.insert("end", "\n")
+            w.insert("end", piece)
 
-        _write("txt_titles", titles)
-        _write("txt_descs", descs)
-        _write("txt_dates", dates)
-        _write("txt_times", times)
+        _write("txt_titles", titles, append=append)
+        _write("txt_descs",  descs,  append=append)
+        _write("txt_dates",  dates,  append=append)
+        _write("txt_times",  times,  append=append)
 
-        self._set_status(f"Pasted {max(len(titles), len(descs), len(dates), len(times))} dòng từ Excel.")
-        self._schedule_preview()  # cập nhật preview ngay
-
-    def _normalize_date_cell(self, s: str) -> str:
-        """Chuẩn hoá date về MM/DD/YYYY. Hỗ trợ cả Excel serial (44900), ISO, dd/mm/yyyy, etc."""
-        s = s.strip()
-        if not s:
-            return ""
-        # Excel serial (ngày): số nguyên/lẻ lớn hơn 31 thường là serial
-        if re.fullmatch(r"\d+(\.\d+)?", s):
-            try:
-                serial = float(s)
-                # Excel base: 1899-12-30
-                base = datetime.datetime(1899, 12, 30)
-                dt = base + datetime.timedelta(days=serial)
-                return dt.strftime("%m/%d/%Y")
-            except Exception:
-                pass
-
-        # Thử nhiều format phổ biến
-        fmts = [
-            "%m/%d/%Y", "%m/%d/%y",
-            "%d/%m/%Y", "%d/%m/%y",
-            "%Y-%m-%d",
-            "%Y/%m/%d",
-            "%Y-%m-%d %H:%M:%S",
-            "%m/%d/%Y %H:%M", "%d/%m/%Y %H:%M",
-        ]
-        for fmt in fmts:
-            try:
-                dt = datetime.datetime.strptime(s, fmt)
-                return dt.strftime("%m/%d/%Y")
-            except Exception:
-                pass
-
-        if "T" in s:
-            try:
-                # dạng 2025-11-05T08:20:00
-                date_part = s.split("T", 1)[0]
-                dt = datetime.datetime.strptime(date_part, "%Y-%m-%d")
-                return dt.strftime("%m/%d/%Y")
-            except Exception:
-                pass
-
-        # Không parse được -> trả nguyên (để bạn tự sửa)
-        return s
-
-    def _normalize_time_cell(self, s: str) -> str:
-        s = s.strip()
-        if not s:
-            return ""
-
-        # Excel time fraction (0.5 = 12:00, 0.25 = 06:00, ...)
-        if re.fullmatch(r"\d+(\.\d+)?", s):
-            try:
-                f = float(s)
-                if 0.0 <= f < 1.0:
-                    seconds = int(round(f * 24 * 3600))
-                    h = seconds // 3600
-                    m = (seconds % 3600) // 60
-                    return f"{h:02d}:{m:02d}"
-            except Exception:
-                pass
-
-        # Các format phổ biến
-        fmts = [
-            "%H:%M", "%H:%M:%S",
-            "%I:%M %p", "%I:%M:%S %p",  # 12h AM/PM
-        ]
-        for fmt in fmts:
-            try:
-                t = datetime.datetime.strptime(s, fmt).time()
-                return f"{t.hour:02d}:{t.minute:02d}"
-            except Exception:
-                pass
-
-        # Dạng có cả ngày giờ, lấy phần giờ
-        fmts_dt = [
-            "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M",
-            "%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M",
-            "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M",
-        ]
-        for fmt in fmts_dt:
-            try:
-                dt = datetime.datetime.strptime(s, fmt)
-                return f"{dt.hour:02d}:{dt.minute:02d}"
-            except Exception:
-                pass
-
-        return s
-
+        self._set_status(
+            f"{'Appended' if append else 'Replaced'} {max(len(titles), len(descs), len(dates), len(times))} dòng từ Excel."
+        )
+        self._schedule_preview()
 
 if __name__ == "__main__":
     app = App()
