@@ -3,11 +3,13 @@ import hashlib
 import zipfile
 import shutil
 import re
+import subprocess
 from datetime import datetime
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.path.join(ROOT_DIR, "temp_build")
-TARGET_FILE = os.path.join(ROOT_DIR, "hyperparameter.py")  # file chứa APP_VERSION
+TARGET_FILE = os.path.join(ROOT_DIR, "hyperparameter.py")
+OUT_DIR = os.path.abspath(os.path.join(ROOT_DIR, "../out"))
 VERSION = datetime.now().strftime("%Y.%m.%d.%H%M")
 OUTPUT_ZIP = os.path.join(ROOT_DIR, f"update_package_{VERSION}.zip")
 
@@ -15,7 +17,7 @@ EXCLUDE_DIRS = {
     ".git", "__pycache__", "venv", ".venv", "node_modules",
     "dist", "build", ".idea", ".vscode", "temp_build"
 }
-EXCLUDE_EXTS = {".log", ".tmp", ".bak", ".zip", ".txt", ".html", ".json"}
+EXCLUDE_EXTS = {".log", ".tmp", ".bak", ".zip"}
 EXCLUDE_FILES = {"Thumbs.db", ".DS_Store", "update_manifest.json"}
 
 
@@ -30,13 +32,14 @@ def md5_of_file(path):
 def should_exclude(name, full_path):
     if name in EXCLUDE_FILES:
         return True
-    if name.lower() in ['update_content.txt','requirement.txt']:
+    if name.lower() in ['update_content.txt', 'requirement.txt']:
         return False
     if any(name.endswith(ext) for ext in EXCLUDE_EXTS):
         return True
     if any(x in full_path for x in EXCLUDE_DIRS):
         return True
     return False
+
 
 def copy_and_bump_version(src_path=TARGET_FILE, dest_dir=TEMP_DIR):
     if not os.path.exists(src_path):
@@ -68,39 +71,62 @@ def copy_and_bump_version(src_path=TARGET_FILE, dest_dir=TEMP_DIR):
     with open(dest_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-    print(f"Bản tạm hyperparameter.py: {old_version} → {new_version}")
+    print(f"🆙 hyperparameter.py: {old_version} → {new_version}")
     return new_version, dest_path
 
-def create_zip_only():
+
+def run_pyarmor():
+    print("🔒 Đang chạy PyArmor để mã hóa source...")
+    cmd = [
+        "pyarmor", "gen", "-r",
+        "--exclude", "./hyperparameter.py",
+        "-O", OUT_DIR, "."
+    ]
+    result = subprocess.run(cmd, shell=True)
+    if result.returncode != 0:
+        raise RuntimeError("❌ PyArmor thất bại!")
+
+
+def create_zip_from_out():
+    files_count = 0
+    with zipfile.ZipFile(OUTPUT_ZIP, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for dirpath, dirnames, filenames in os.walk(OUT_DIR):
+            for file in filenames:
+                full_path = os.path.join(dirpath, file)
+                rel_path = os.path.relpath(full_path, OUT_DIR).replace("\\", "/")
+                zipf.write(full_path, arcname=rel_path)
+                files_count += 1
+
+    print(f"✅ Đã tạo file ZIP: {OUTPUT_ZIP}")
+    print(f"📦 Tổng số file nén: {files_count}")
+
+
+def build_package():
     app_version, temp_file = copy_and_bump_version()
     if not app_version:
         print("Không tạo được version, dừng lại.")
         return
 
-    files_count = 0
-    with zipfile.ZipFile(OUTPUT_ZIP, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for dirpath, dirnames, filenames in os.walk(ROOT_DIR):
-            dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIRS]
-            for file in filenames:
-                full_path = os.path.join(dirpath, file)
-                rel_path = os.path.relpath(full_path, ROOT_DIR).replace("\\", "/")
-                if should_exclude(file, full_path):
-                    continue
-                zipf.write(full_path, arcname=rel_path)
-                files_count += 1
+    # 1️⃣ Xóa thư mục out cũ nếu có
+    if os.path.exists(OUT_DIR):
+        shutil.rmtree(OUT_DIR, ignore_errors=True)
 
-        # thêm bản hyperparameter.py tạm vào zip
-        if temp_file:
-            rel_path = os.path.basename(temp_file)
-            zipf.write(temp_file, arcname=rel_path)
-            files_count += 1
+    # 2️⃣ Obfuscate code
+    run_pyarmor()
 
+    # 3️⃣ Thêm hyperparameter.py (đã bump version)
+    if temp_file:
+        shutil.copy2(temp_file, os.path.join(OUT_DIR, "hyperparameter.py"))
+        print("📄 Đã chèn hyperparameter.py vào thư mục out")
+
+    # 4️⃣ Nén zip
+    create_zip_from_out()
+
+    # 5️⃣ Dọn temp
     shutil.rmtree(TEMP_DIR, ignore_errors=True)
 
-    print(f"✅ Đã tạo file ZIP: {OUTPUT_ZIP}")
-    print(f"📦 Tổng số file nén: {files_count}")
-    print(f"🆙 APP_VERSION mới: {app_version}")
+    print(f"🎯 Hoàn tất build cho phiên bản: {app_version}")
 
 
 if __name__ == "__main__":
-    create_zip_only()
+    build_package()
