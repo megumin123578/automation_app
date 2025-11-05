@@ -289,11 +289,7 @@ class App(tk.Tk):
         ttk.Button(frm3, text="Apply", command=self._apply_date_time_all).pack(side=tk.LEFT, padx=(12, 0))
         # --- Nút Refresh random video (góc phải) ---
         def _refresh_random_paths():
-            group = self.group_file_var.get().strip()
-            if not group:
-                messagebox.showwarning("Missing group", "Vui lòng chọn group trước.")
-                return
-
+            group = self.group_file_var.get().strip() #load group
             profile = self.selected_profile_var.get().strip() if self.mode_var.get() == "channels" else None
             folder = self._get_mapped_folder(group, profile)
             if not folder or not os.path.isdir(folder):
@@ -322,7 +318,7 @@ class App(tk.Tk):
 
             self._set_status(f"Refreshed random videos for {len(items)} row(s).")
 
-        ttk.Button(frm3, text="🔄 Refresh Random Videos", command=_refresh_random_paths).pack(side=tk.RIGHT, padx=(0, 10))
+        ttk.Button(frm3, text="Refresh", command=_refresh_random_paths).pack(side=tk.RIGHT, padx=(0, 10))
 
     def _build_inputs(self, parent):
         container = ttk.Frame(parent, padding=10)
