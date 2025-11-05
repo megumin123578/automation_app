@@ -1318,32 +1318,8 @@ class App(tk.Tk):
 
         # Tách tab -> cột
         grid = [r.split("\t") for r in rows]
-
-        # Nhận diện header (nếu có)
-        first = [c.strip().lower() for c in grid[0]]
-        known = {
-            "title": "titles",
-            "name": "titles",
-            "tiêu đề": "titles",
-            "description": "descs",
-            "desc": "descs",
-            "mô tả": "descs",
-            "date": "dates",
-            "publish date": "dates",
-            "ngày": "dates",
-            "time": "times",
-            "publish time": "times",
-            "giờ": "times",
-        }
-        has_header = any(x in known for x in first)
-        if has_header:
-            header_map = [known.get(x, None) for x in first]
-            data_rows = grid[1:]
-        else:
-            # Không header -> map mặc định theo thứ tự
-            # 1: title, 2: desc, 3: date, 4: time
-            header_map = ["titles", "descs", "dates", "times"][:len(grid[0])]
-            data_rows = grid
+        header_map = ["titles", "descs", "dates", "times"][:len(grid[0])]
+        data_rows = grid
 
         titles, descs, dates, times = [], [], [], []
 
@@ -1424,7 +1400,6 @@ class App(tk.Tk):
             except Exception:
                 pass
 
-        # Fallback: nếu là ISO có 'T'
         if "T" in s:
             try:
                 # dạng 2025-11-05T08:20:00
@@ -1438,7 +1413,6 @@ class App(tk.Tk):
         return s
 
     def _normalize_time_cell(self, s: str) -> str:
-        """Chuẩn hoá time về HH:MM. Hỗ trợ Excel time fraction (0.5 -> 12:00), 12h/24h, có/không giây."""
         s = s.strip()
         if not s:
             return ""
@@ -1480,8 +1454,6 @@ class App(tk.Tk):
             except Exception:
                 pass
 
-        # Không parse được -> trả nguyên
-        # Tree/preview vẫn hiển thị, bạn có thể chỉnh tay
         return s
 
 
