@@ -71,12 +71,12 @@ def copy_and_bump_version(src_path=TARGET_FILE, dest_dir=TEMP_DIR):
     with open(dest_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-    print(f"🆙 hyperparameter.py: {old_version} → {new_version}")
+    print(f"hyperparameter.py: {old_version} → {new_version}")
     return new_version, dest_path
 
 
 def run_pyarmor():
-    print("🔒 Đang chạy PyArmor để mã hóa source...")
+    print("Đang chạy PyArmor để mã hóa source...")
     cmd = [
         "pyarmor", "gen", "-r",
         "--exclude", "./hyperparameter.py",
@@ -84,7 +84,7 @@ def run_pyarmor():
     ]
     result = subprocess.run(cmd, shell=True)
     if result.returncode != 0:
-        raise RuntimeError("❌ PyArmor thất bại!")
+        raise RuntimeError("PyArmor thất bại!")
 
 
 def create_zip_from_out():
@@ -107,22 +107,22 @@ def build_package():
         print("Không tạo được version, dừng lại.")
         return
 
-    # 1️⃣ Xóa thư mục out cũ nếu có
+    # 1️ Xóa thư mục out cũ nếu có
     if os.path.exists(OUT_DIR):
         shutil.rmtree(OUT_DIR, ignore_errors=True)
 
-    # 2️⃣ Obfuscate code
+    # 2️ Obfuscate code
     run_pyarmor()
 
-    # 3️⃣ Thêm hyperparameter.py (đã bump version)
+    # 3️ Thêm hyperparameter.py (đã bump version)
     if temp_file:
         shutil.copy2(temp_file, os.path.join(OUT_DIR, "hyperparameter.py"))
         print("📄 Đã chèn hyperparameter.py vào thư mục out")
 
-    # 4️⃣ Nén zip
+    # 4️ Nén zip
     create_zip_from_out()
 
-    # 5️⃣ Dọn temp
+    # 5 Dọn temp
     shutil.rmtree(TEMP_DIR, ignore_errors=True)
 
     print(f"🎯 Hoàn tất build cho phiên bản: {app_version}")

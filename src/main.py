@@ -2,7 +2,7 @@ from random_vids import get_random_unused_mp4
 from ui_theme import setup_theme
 from excel_helper import save_assignments_to_excel, combine_excels
 
-from update_manager import check_and_update, install_from_zip, check_update_only
+from update_manager import check_update_only, check_and_update_safe
 from module import *
 from hyperparameter import *
 from ghep_music.concat_page import ConcatPage
@@ -1029,7 +1029,7 @@ class App(tk.Tk):
         def worker():
             try:
                 self._set_status("Checking for updates...")
-                msg = check_and_update(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
+                msg = check_and_update_safe(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
                 print(f"Update from {UPDATE_MANIFEST}")
                 self._set_status(msg)
                 if msg.startswith("Installed update"):
@@ -1068,12 +1068,11 @@ class App(tk.Tk):
                         f"Version {new_ver} is released.  Do you want to update now?"
                     ):
                         self._set_status("Downloading and installing update...")
-                        msg = check_and_update(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
+                        msg = check_and_update_safe(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
                         self._set_status(msg)
 
                         if msg.startswith("Installed update") or "Cập nhật lên" in msg:
-                            if messagebox.askyesno("Update installed", "Restart to apply?"):
-                                self._restart_app()
+                            self._restart_app()
                 else:
                     # Không cần popup nếu đang mới nhất — chỉ in log nhẹ
                     print(info.get("message", "Already the lastes version"))
