@@ -1,3 +1,4 @@
+v1.0.50: - Thêm loading screen
 v1.0.49: - Sửa lỗi không update được với file mã hóa pyd
 v1.0.48: - Tự động update chỉ cập nhật khi người dùng chọn yes
 v1.0.47: - Mã hóa code

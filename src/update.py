@@ -14,7 +14,7 @@ VERSION = datetime.now().strftime("%Y.%m.%d.%H%M")
 OUTPUT_ZIP = os.path.join(ROOT_DIR, f"update_package_{VERSION}.zip")
 
 # Nếu muốn copy kèm một vài file txt vào gói update, liệt kê ở đây:
-EXTRA_FILES = ["update_content.txt", "requirement.txt"]  # tồn tại thì sẽ được copy vào gói
+EXTRA_FILES = ["update_content.txt", "requirement.txt", "assets"]  # tồn tại thì sẽ được copy vào gói
 
 def md5_of_file(path):
     hash_md5 = hashlib.md5()
@@ -77,8 +77,8 @@ def zip_dir(src_dir: str, zip_path: str):
                 rel_path = os.path.relpath(full_path, src_dir).replace("\\", "/")
                 zipf.write(full_path, arcname=rel_path)
                 files_count += 1
-    print(f"✅ Đã tạo file ZIP: {zip_path}")
-    print(f"📦 Tổng số file nén: {files_count}")
+    print(f"Đã tạo file ZIP: {zip_path}")
+    print(f"Tổng số file nén: {files_count}")
 
 def build_package():
     app_version, bumped_file = copy_and_bump_version()
@@ -96,14 +96,26 @@ def build_package():
         # 2) Thêm hyperparameter.py (đã bump version) vào thư mục tạm
         if bumped_file:
             shutil.copy2(bumped_file, os.path.join(temp_out_dir, "hyperparameter.py"))
-            print("📄 Đã chèn hyperparameter.py vào gói tạm")
+            print("Đã chèn hyperparameter.py vào gói tạm")
 
         # 3) (Tuỳ chọn) Copy thêm các file rời nếu tồn tại
         for fname in EXTRA_FILES:
             src = os.path.join(ROOT_DIR, fname)
+            dest = os.path.join(temp_out_dir, fname)
+
+            if not os.path.exists(src):
+                print(f"Bỏ qua vì không tìm thấy: {src}")
+                continue
+
             if os.path.isfile(src):
-                shutil.copy2(src, os.path.join(temp_out_dir, fname))
-                print(f"➕ Đã thêm {fname}")
+                # Copy file đơn lẻ
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                shutil.copy2(src, dest)
+                print(f"Đã thêm file: {fname}")
+            elif os.path.isdir(src):
+                # Copy cả thư mục (vd: src/assets)
+                shutil.copytree(src, dest, dirs_exist_ok=True)
+                print(f"Đã thêm thư mục: {fname}")
 
         # 4) Nén trực tiếp từ thư mục tạm
         zip_dir(temp_out_dir, OUTPUT_ZIP)
@@ -111,7 +123,7 @@ def build_package():
         # 5) Dọn temp bump
         shutil.rmtree(TEMP_DIR, ignore_errors=True)
 
-        print(f"🎯 Hoàn tất build cho phiên bản: {app_version}")
+        print(f"Hoàn tất build cho phiên bản: {app_version}")
     finally:
         # Dọn staging của PyArmor
         shutil.rmtree(temp_out_dir, ignore_errors=True)
