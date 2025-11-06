@@ -1,3 +1,7 @@
+v1.0.53: - Sửa lỗi Ctrl không ghi đè giá trị cũ đối với copy paste từ sheet
+              - Thêm phím tắt Ctrl S để lưu file excel 
+              -  Đưa vị trí nút save excel về cùng hàng nút clear
+              - 
 v1.0.52: - Sửa lỗi giá trị monetization không được update khi người dùng chọn
 v1.0.51: - Ctrl + B để paste giá trị copy từ sheet, excel
               - Load group gần nhất khi khởi động app
