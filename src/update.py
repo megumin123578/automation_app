@@ -5,23 +5,31 @@ import shutil
 import re
 import subprocess
 import tempfile
+import json
 from datetime import datetime
 
+# ===== CONFIG =====
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.path.join(ROOT_DIR, "temp_build")
 TARGET_FILE = os.path.join(ROOT_DIR, "hyperparameter.py")
 VERSION = datetime.now().strftime("%Y.%m.%d.%H%M")
 OUTPUT_ZIP = os.path.join(ROOT_DIR, f"update_package_{VERSION}.zip")
+MANIFEST_PATH = os.path.join(ROOT_DIR, "manifest.json")
 
-# Nếu muốn copy kèm một vài file txt vào gói update, liệt kê ở đây:
-EXTRA_FILES = ["update_content.txt", "assets"]  # tồn tại thì sẽ được copy vào gói
+# Thông tin GitHub (để tạo link zip_url)
+GITHUB_REPO = "megumin123578/upload-short-with-gpm-handle-excel-file"
 
-def md5_of_file(path):
-    hash_md5 = hashlib.md5()
+EXTRA_FILES = ["update_content.txt", "assets"]  # tồn tại thì copy vào gói
+
+
+# ===== UTILS =====
+def sha256_of_file(path):
+    h = hashlib.sha256()
     with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
 
 def copy_and_bump_version(src_path=TARGET_FILE, dest_dir=TEMP_DIR):
     if not os.path.exists(src_path):
@@ -56,6 +64,7 @@ def copy_and_bump_version(src_path=TARGET_FILE, dest_dir=TEMP_DIR):
     print(f"hyperparameter.py: {old_version} → {new_version}")
     return new_version, dest_path
 
+
 def run_pyarmor(out_dir: str):
     print("Đang chạy PyArmor để mã hóa source...")
     cmd = [
@@ -63,10 +72,10 @@ def run_pyarmor(out_dir: str):
         "--exclude", "./hyperparameter.py",
         "-O", out_dir, "."
     ]
-    # shell=False để truyền tham số an toàn; check=True để raise nếu lỗi
     result = subprocess.run(cmd, check=False)
     if result.returncode != 0:
         raise RuntimeError("PyArmor thất bại!")
+
 
 def zip_dir(src_dir: str, zip_path: str):
     files_count = 0
@@ -80,53 +89,69 @@ def zip_dir(src_dir: str, zip_path: str):
     print(f"Đã tạo file ZIP: {zip_path}")
     print(f"Tổng số file nén: {files_count}")
 
+
+def update_manifest(version, zip_path):
+    """Tự động cập nhật manifest.json với version, zip_url, sha256"""
+    sha256 = sha256_of_file(zip_path)
+    zip_name = os.path.basename(zip_path)
+
+    zip_url = (
+        f"https://github.com/{GITHUB_REPO}/releases/download/"
+        f"v{version}/{zip_name}"
+    )
+
+    data = {
+        "version": version,
+        "zip_url": zip_url,
+        "sha256": sha256
+    }
+
+    with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    print("\nĐã cập nhật manifest.json:")
+    print(json.dumps(data, indent=2, ensure_ascii=False))
+
+
 def build_package():
     app_version, bumped_file = copy_and_bump_version()
     if not app_version:
         print("Không tạo được version, dừng lại.")
         return
 
-    # Thư mục output tạm cho PyArmor
     temp_out_dir = tempfile.mkdtemp(prefix="obf_out_")
 
     try:
-        # 1) Obfuscate code vào thư mục tạm
         run_pyarmor(temp_out_dir)
 
-        # 2) Thêm hyperparameter.py (đã bump version) vào thư mục tạm
         if bumped_file:
             shutil.copy2(bumped_file, os.path.join(temp_out_dir, "hyperparameter.py"))
             print("Đã chèn hyperparameter.py vào gói tạm")
 
-        # 3) (Tuỳ chọn) Copy thêm các file rời nếu tồn tại
         for fname in EXTRA_FILES:
             src = os.path.join(ROOT_DIR, fname)
             dest = os.path.join(temp_out_dir, fname)
-
             if not os.path.exists(src):
                 print(f"Bỏ qua vì không tìm thấy: {src}")
                 continue
-
             if os.path.isfile(src):
-                # Copy file đơn lẻ
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 shutil.copy2(src, dest)
                 print(f"Đã thêm file: {fname}")
             elif os.path.isdir(src):
-                # Copy cả thư mục (vd: src/assets)
                 shutil.copytree(src, dest, dirs_exist_ok=True)
                 print(f"Đã thêm thư mục: {fname}")
 
-        # 4) Nén trực tiếp từ thư mục tạm
         zip_dir(temp_out_dir, OUTPUT_ZIP)
-
-        # 5) Dọn temp bump
         shutil.rmtree(TEMP_DIR, ignore_errors=True)
 
-        print(f"Hoàn tất build cho phiên bản: {app_version}")
+        # Cập nhật manifest.json sau khi build
+        update_manifest(app_version, OUTPUT_ZIP)
+
+        print(f"\nHoàn tất build cho phiên bản: {app_version}")
     finally:
-        # Dọn staging của PyArmor
         shutil.rmtree(temp_out_dir, ignore_errors=True)
+
 
 if __name__ == "__main__":
     build_package()
