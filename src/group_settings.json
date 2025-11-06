@@ -8,7 +8,9 @@
       "last_profile": "a"
     },
     "a": {
-      "monetization": true
+      "mode": "channels",
+      "monetization": false,
+      "move_folder": "E:\\ghep xong"
     },
     "b": {
       "monetization": true

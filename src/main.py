@@ -1195,6 +1195,11 @@ class App(tk.Tk):
     def _toggle_monetization(self):
         self.monetization_var.set(not self.monetization_var.get())
         self._render_monetize_toggle() 
+        profile = self.selected_profile_var.get().strip()
+        if profile:
+            self._monetization_vars[profile] = self.monetization_var.get()
+        self._save_group_settings()
+        self._set_status(f"Monetization {'ON' if self.monetization_var.get() else 'OFF'} for {profile or 'group'}.")
         
     def _build_monetize_toggle(self, parent):
         self._mon_label = ttk.Label(parent, text="Monetization")
@@ -1275,7 +1280,7 @@ class App(tk.Tk):
     def _tick_splash(self):
         target = 95 if not self._init_done else 100
         if self._splash_prog < target:
-            self._splash_prog = min(target, self._splash_prog + 3)  # tốc độ progress
+            self._splash_prog = min(target, self._splash_prog + 6)  # tốc độ progress
             try:
                 self._splash_pb["value"] = self._splash_prog
             except Exception:
