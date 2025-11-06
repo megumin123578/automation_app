@@ -14,7 +14,7 @@ VERSION = datetime.now().strftime("%Y.%m.%d.%H%M")
 OUTPUT_ZIP = os.path.join(ROOT_DIR, f"update_package_{VERSION}.zip")
 
 # Nếu muốn copy kèm một vài file txt vào gói update, liệt kê ở đây:
-EXTRA_FILES = ["update_content.txt", "requirement.txt", "assets"]  # tồn tại thì sẽ được copy vào gói
+EXTRA_FILES = ["update_content.txt", "assets"]  # tồn tại thì sẽ được copy vào gói
 
 def md5_of_file(path):
     hash_md5 = hashlib.md5()
