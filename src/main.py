@@ -342,6 +342,13 @@ class App(tk.Tk):
         self._inputs_paned = paned
         self._inputs_panes = (f1, f2, f3, f4)
 
+        def _bind_ctrl_a(widget):
+            widget.bind("<Control-a>", lambda e: (widget.tag_add("sel", "1.0", "end-1c"), "break"))
+
+        for w in (self.txt_titles, self.txt_descs, self.txt_dates, self.txt_times):
+            _bind_ctrl_a(w)
+
+
         # thêm vào Paned
         paned.add(f1)
         paned.add(f2)
@@ -537,7 +544,7 @@ class App(tk.Tk):
         self.txt_titles.delete("1.0", tk.END)
         self.txt_descs.delete("1.0", tk.END)
         self.txt_dates.delete('1.0', tk.END)
-        self.txt_times.delete("1.0", tk.End)
+        self.txt_times.delete("1.0", tk.END)
         self.tree.delete(*self.tree.get_children())
         self._last_assignments = None
         self._set_status("Cleared inputs & preview.")
