@@ -14,7 +14,8 @@ TEMP_DIR = os.path.join(ROOT_DIR, "temp_build")
 TARGET_FILE = os.path.join(ROOT_DIR, "hyperparameter.py")
 VERSION = datetime.now().strftime("%Y.%m.%d.%H%M")
 OUTPUT_ZIP = os.path.join(ROOT_DIR, f"update_package_{VERSION}.zip")
-MANIFEST_PATH = os.path.join(ROOT_DIR, "manifest.json")
+MANIFEST_PATH = os.path.join(os.path.dirname(ROOT_DIR), "manifest.json")
+
 
 # Thông tin GitHub (để tạo link zip_url)
 GITHUB_REPO = "megumin123578/upload-short-with-gpm-handle-excel-file"
