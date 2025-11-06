@@ -10,3 +10,7 @@ pip install -r requirements.txt
 #obfuscation file
 pyarmor gen -r .   
 pyarmor gen -r --exclude "./hyperparameter.py" -O ../out .
+
+#update code accourding to github
+git fetch origin #Lấy dữ liệu mới nhất từ GitHub
+git reset --hard origin/main #Cập nhật mã nguồn cục bộ theo github

@@ -81,15 +81,21 @@ class App(tk.Tk):
         self._build_concat_page()     
         self._build_manage_page()      
         self._build_statistics_page()
-
-        self.bind_all("<Control-b>", lambda e: self._paste_from_clipboard()) #ctrl +b to paste values from clipboard
-
+        
+        self.bind_all("<Control-b>", self._on_hotkey_paste) #ctrl +b to paste values from clipboard
+        self.bind_all("<Control-s>", self._on_hotkey_save) #ctrl +s save to save excel
         # Hiển thị page mặc định
         self._show_page("assign")
 
         self.after(1, self._start_init_in_bg)
 
     # Shell: Sidebar + Content
+    def _on_hotkey_save(self, event= None):
+        self._save_excel()
+        return "break" #tránh hành vi mặc định
+    def _on_hotkey_paste(self, event=None):
+        self._paste_from_clipboard()
+        return "break"  
     def _build_shell(self):
         # container chính
         self._root_container = ttk.Frame(self)
@@ -215,7 +221,6 @@ class App(tk.Tk):
         self._mon_label.grid(row=0, column=2, padx=(16, 6))
         self._mon_container.grid(row=0, column=3, padx=(0, 0))
         
-
         # auto refresh preview khi chọn profile
         def _on_profile_change(*_):
             group = self.group_file_var.get().strip()
@@ -283,13 +288,14 @@ class App(tk.Tk):
         sp_step.pack(side=tk.LEFT, padx=(6, 12))
 
         ttk.Button(frm3, text="Apply", command=self._apply_date_time_all).pack(side=tk.LEFT, padx=(12, 0))
-        # --- Nút Refresh random video (góc phải) ---
+
+        #refresh button
         def _refresh_random_paths():
             group = self.group_file_var.get().strip() #load group
             profile = self.selected_profile_var.get().strip() if self.mode_var.get() == "channels" else None
             folder = self._get_mapped_folder(group, profile)
             if not folder or not os.path.isdir(folder):
-                messagebox.showwarning("No folder", f"Thư mục map cho group/profile chưa hợp lệ: {folder or '(none)'}")
+                messagebox.showwarning("No folder", f"Map folder isn't working: {folder or '(none)'}")
                 return
 
             used_paths = load_used_videos()
@@ -344,7 +350,7 @@ class App(tk.Tk):
         btns = ttk.Frame(parent, padding=(10, 0, 10, 0))
         btns.pack(fill=tk.X)
         ttk.Button(btns, text="Clear Inputs", command=self._clear_inputs).pack(side=tk.LEFT, padx=6)
-        ttk.Button(btns, text="Generate titles and descriptions", command=self._generate_titles_descs).pack(side=tk.LEFT, padx=6)
+        ttk.Button(btns, text="Save Excel", command=self._save_excel).pack(side=tk.RIGHT, padx=6)
 
     def _build_preview(self, parent):
         frm = ttk.Frame(parent, padding=10)
@@ -378,10 +384,6 @@ class App(tk.Tk):
         self.tree.bind("<Double-1>", self._on_tree_double_click)
         self.tree.bind("<Delete>", self._delete_selected_rows)
         self.tree.bind("<Button-3>", self._show_tree_menu)
-
-        btns = ttk.Frame(parent, padding=(10, 0, 10, 10))
-        btns.pack(fill=tk.X)
-        ttk.Button(btns, text="Save Excel", command=self._save_excel).pack(side=tk.LEFT)
         
 
     def _build_footer(self, parent):
@@ -534,6 +536,8 @@ class App(tk.Tk):
     def _clear_inputs(self):
         self.txt_titles.delete("1.0", tk.END)
         self.txt_descs.delete("1.0", tk.END)
+        self.txt_dates.delete('1.0', tk.END)
+        self.txt_times.delete("1.0", tk.End)
         self.tree.delete(*self.tree.get_children())
         self._last_assignments = None
         self._set_status("Cleared inputs & preview.")
@@ -614,7 +618,7 @@ class App(tk.Tk):
 
     def _save_excel(self):
         if not self._last_assignments:
-            messagebox.showwarning("Nothing to save", "Click Preview first.")
+            self._set_status(f"Nothing to save!!!")
             return
 
         def worker():
@@ -1075,26 +1079,6 @@ class App(tk.Tk):
                 print(f"Error when updating: {e}")
 
         threading.Thread(target=worker, daemon=True).start()
-
-
-    def _generate_titles_descs(self):
-        try:
-
-            topic = self.group_file_var.get().strip() or "Short videos youtube"
-            prompt = f"Create 10 titles mesmerizing and 10 short description for {topic}"
-
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.8,
-            )
-            text = response["choices"][0]["message"]["content"]
-            self.txt_titles.delete("1.0", tk.END)
-            self.txt_descs.delete("1.0", tk.END)
-            self.txt_titles.insert(tk.END, text)
-            self._set_status("Generated tiles and description.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error when generate content: {e}")
     
     def _on_mode_change(self):
         if self.mode_var.get() == 'channels':
@@ -1359,75 +1343,89 @@ class App(tk.Tk):
             pass
     
     def _paste_from_clipboard(self, append=True):
-        try: #read clipboard
+        # === 1) đọc clipboard như cũ ===
+        try:
             raw = self.clipboard_get()
         except Exception:
             messagebox.showwarning("Clipboard", "Không đọc được clipboard (hãy copy từ Excel trước).")
             return
-
         text = raw.strip().replace("\r\n", "\n").replace("\r", "\n")
         rows = [r for r in text.split("\n") if r.strip()]
         if not rows:
             messagebox.showwarning("Clipboard", "Dữ liệu rỗng.")
             return
-
-        # Tách tab -> cột
         grid = [r.split("\t") for r in rows]
-
-        # Map mặc định: Title | Description | Date | Time
         header_map = ["titles", "descs", "dates", "times"][:len(grid[0])]
         data_rows = grid
-
         titles, descs, dates, times = [], [], [], []
-
         for row in data_rows:
-            row = row + [""] * 4  # pad tránh IndexError
+            row = row + [""] * 4
             cur_title = cur_desc = cur_date = cur_time = None
             for idx, val in enumerate(row):
                 dest = header_map[idx] if idx < len(header_map) else None
                 if not dest:
                     continue
                 s = val.strip()
-                if dest == "titles":
-                    cur_title = s
-                elif dest == "descs":
-                    cur_desc = s
-                elif dest == "dates":
-                    cur_date = s
-                elif dest == "times":
-                    cur_time = s
+                if dest == "titles": cur_title = s
+                elif dest == "descs": cur_desc = s
+                elif dest == "dates": cur_date = s
+                elif dest == "times": cur_time = s
+            if cur_title is not None: titles.append(cur_title)
+            if cur_desc  is not None: descs.append(cur_desc)
+            if cur_date  is not None: dates.append(cur_date)
+            if cur_time  is not None: times.append(cur_time)
 
-            if cur_title is not None:
-                titles.append(cur_title)
-            if cur_desc is not None:
-                descs.append(cur_desc)
-            if cur_date is not None:
-                dates.append(cur_date)
-            if cur_time is not None:
-                times.append(cur_time)
+        # === 2) lấy anchor của vùng bôi đen (nếu có) và xóa selection ===
+        def _sel_anchor(w):
+            try:
+                return w.index("sel.first") if w and w.tag_ranges("sel") else None
+            except Exception:
+                return None
 
-        # helper: ghi theo chế độ append/replace
-        def _write(txt_widget_name, lines, *, append):
-            if not hasattr(self, txt_widget_name):
+        widgets = {
+            "txt_titles": getattr(self, "txt_titles", None),
+            "txt_descs":  getattr(self, "txt_descs",  None),
+            "txt_dates":  getattr(self, "txt_dates",  None),
+            "txt_times":  getattr(self, "txt_times",  None),
+        }
+        anchors = {name: _sel_anchor(w) for name, w in widgets.items()}
+
+        # XÓA phần đang bôi đen (nếu có)
+        for name, w in widgets.items():
+            try:
+                if w and w.tag_ranges("sel"):
+                    w.delete("sel.first", "sel.last")
+            except Exception:
+                pass
+
+        # === 3) helper: ghi theo anchor nếu có, không thì append như cũ ===
+        def _write(txt_widget_name, lines, *, insert_at=None):
+            w = widgets.get(txt_widget_name)
+            if not w:
                 return
-            w = getattr(self, txt_widget_name)
-            existing = w.get("1.0", "end-1c")
             piece = "\n".join(lines) if lines else ""
             if not piece:
                 return
-            if existing.strip():
-                # đảm bảo đúng 1 newline ngăn cách
-                if not existing.endswith("\n"):
+            if insert_at is not None:
+                # chèn ngay vị trí bôi đen trước đó
+                w.insert(insert_at, piece)
+            else:
+                existing = w.get("1.0", "end-1c")
+                if existing.strip() and not existing.endswith("\n"):
                     w.insert("end", "\n")
-            w.insert("end", piece)
+                w.insert("end", piece)
 
-        _write("txt_titles", titles, append=append)
-        _write("txt_descs",  descs,  append=append)
-        _write("txt_dates",  dates,  append=append)
-        _write("txt_times",  times,  append=append)
+        # Nếu widget có selection thì dán vào anchor của CHÍNH widget đó,
+        # widget không có selection vẫn append bình thường.
+        _write("txt_titles", titles, insert_at=anchors.get("txt_titles"))
+        _write("txt_descs",  descs,  insert_at=anchors.get("txt_descs"))
+        _write("txt_dates",  dates,  insert_at=anchors.get("txt_dates"))
+        _write("txt_times",  times,  insert_at=anchors.get("txt_times"))
 
+        replaced = any(anchors.values())
         self._set_status(
-            f"{'Appended' if append else 'Replaced'} {max(len(titles), len(descs), len(dates), len(times))} dòng từ Excel."
+            f"{'Replaced' if replaced else 'Appended'} "
+            f"{max(len(titles), len(descs), len(dates), len(times))} dòng từ Excel."
         )
         self._schedule_preview()
 
