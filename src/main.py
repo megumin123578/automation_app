@@ -29,7 +29,7 @@ class App(tk.Tk):
 
         # ====== STATE ======
         self.group_file_var = tk.StringVar(value="")
-        self.mode_var = tk.StringVar(value="titles")  # titles (Repeat) | channels (No Repeat)
+        self.mode_var = tk.StringVar(value="titles") 
         self.status_var = tk.StringVar(value="Ready.")
         self._channels_cache = []
         self._last_assignments = None
@@ -59,9 +59,9 @@ class App(tk.Tk):
         menubar.add_cascade(label="Profiles", menu=profiles_menu)
 
         help_menu = tk.Menu(menubar, tearoff=0)
-        help_menu.add_command(label="Check for Updates (Default)...", command=self._check_for_updates)
+        help_menu.add_command(label="Check for Updates...", command=self._check_for_updates)
         help_menu.add_separator()
-        def _show_about():
+        def _show_about(): #show update info
             about_path = os.path.join(os.path.dirname(__file__), "update_content.txt")
             if os.path.exists(about_path):
                 with open(about_path, "r", encoding="utf-8") as f:
@@ -82,7 +82,7 @@ class App(tk.Tk):
         self._build_manage_page()      
         self._build_statistics_page()
 
-        self.bind_all("<Control-b>", lambda e: self._paste_from_clipboard())
+        self.bind_all("<Control-b>", lambda e: self._paste_from_clipboard()) #ctrl +b to paste values from clipboard
 
         # Hiển thị page mặc định
         self._show_page("assign")
@@ -216,7 +216,6 @@ class App(tk.Tk):
         self._mon_container.grid(row=0, column=3, padx=(0, 0))
         
 
-
         # auto refresh preview khi chọn profile
         def _on_profile_change(*_):
             group = self.group_file_var.get().strip()
@@ -232,23 +231,20 @@ class App(tk.Tk):
             self.monetization_var.set(val)
             self._monetization_vars[profile] = val
 
-            # >>> NEW: set move_folder_var theo JSON, fallback legacy
+            # set move_folder_var theo JSON, fallback legacy
             mf = ""
             if self.mode_var.get() == "channels":
                 mf = self._group_settings.get(group, {}).get(profile, {}).get("move_folder", "")
             else:
                 mf = self._group_settings.get(group, {}).get("__group__", {}).get("move_folder", "")
             if not mf:
-                # fallback key cũ: thử 'group' rồi 'group.csv'
                 mf = load_group_config(group) or load_group_config(group + ".csv") or ""
             self.move_folder_var.set(mf)
-            # <<< NEW
 
             cur_map = self._get_mapped_folder(group, profile)
             self._set_status(f"Profile '{profile}' selected | mapped: {cur_map or '(none)'}")
             self._schedule_preview()
             self._render_monetize_toggle()
-
 
         self.selected_profile_var.trace_add('write', _on_profile_change)
 
@@ -279,7 +275,7 @@ class App(tk.Tk):
         cb_h = ttk.Combobox(frm3, values=hours, width=3, textvariable=self.time_h_var, state="readonly")
         cb_h.pack(side=tk.LEFT, padx=(6, 2))
         ttk.Label(frm3, text=":").pack(side=tk.LEFT)
-        cb_m = ttk.Combobox(frm3, values=minutes, width=3, textvariable=self.time_m_var, state="normal")
+        cb_m = ttk.Combobox(frm3, values=minutes, width=3, textvariable=self.time_m_var, state="readonly")
         cb_m.pack(side=tk.LEFT, padx=(2, 12))
 
         ttk.Label(frm3, text="Step (min):").pack(side=tk.LEFT)
