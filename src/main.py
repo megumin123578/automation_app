@@ -6,6 +6,7 @@ from module import *
 from hyperparameter import *
 from ghep_music.concat_page import ConcatPage
 from thong_ke.stats_page import StatisticsPage
+from rearange_files import rearrange_files 
 import time
 class App(tk.Tk):
     def __init__(self):
@@ -1426,5 +1427,6 @@ class App(tk.Tk):
         self._schedule_preview()
 
 if __name__ == "__main__":
+    rearrange_files() # rearrange files first
     app = App()
     app.mainloop()

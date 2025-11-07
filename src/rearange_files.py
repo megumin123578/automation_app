@@ -2,7 +2,7 @@ import os
 import shutil
 
 cur = str(os.getcwd())
-parent_folder = cur[:-4]
+parent_folder = os.path.dirname(cur)
 src_folder = os.path.join(parent_folder, 'src')
 
 def check_current_folder():
@@ -17,7 +17,7 @@ def move_out_and_delete_src():
             print(f'Deleted existing tree.py in parent folder')
         except Exception as e:
             print(f'Error when deleting tree.py: {e}')
-            
+
     if not check_current_folder():
         print(f'not in src folder, run main program')
         return  
@@ -34,12 +34,18 @@ def move_out_and_delete_src():
         except Exception as e:
             print(f'Error moving {item}: {e}')
 
-    
-    try:
-        os.rmdir(cur)
-        print(f'Deleted src folder')
-    except Exception as e:
-        print(f'Error deleting src folder: {e}')
-
-if __name__ == "__main__":
+def rearrange_files(): #main function to be called
     move_out_and_delete_src()
+    if not check_current_folder(): #if not in src folder
+        print('Attempting to delete src folder...')
+        try:
+            shutil.rmtree((src_folder))
+            print(f'Deleted src folder')
+        except Exception as e:
+            print(f'Error deleting src folder: {e}')
+        
+        try:
+            shutil.rmtree((os.path.join(cur, 'src')))
+            print(f'Deleted src folder')
+        except Exception as e:
+            print(f'Error deleting src folder: {e}')
