@@ -1,5 +1,5 @@
 {
-  "input_folder": "E:/storage2",
+  "input_folder": "E:/4k",
   "save_folder": "E:/ghep xong",
   "bgm_folder": "//nasfmc/Ổ Sever Mới/Định/Satisfy ASMR/SHORT AI/render nhac",
   "group_size": 2,
@@ -18,7 +18,7 @@
     "v_bitrate": "12M",
     "a_bitrate": "160k",
     "nvenc_preset": "p4",
-    "time_limit_min": 0,
+    "time_limit_min": 5,
     "time_limit_sec": 30
   }
 }

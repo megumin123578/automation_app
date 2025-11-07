@@ -1,7 +1,6 @@
 from random_vids import get_random_unused_mp4
 from ui_theme import setup_theme
 from excel_helper import save_assignments_to_excel, combine_excels
-
 from update_manager import check_update_only, check_and_update_safe
 from module import *
 from hyperparameter import *
@@ -1413,7 +1412,6 @@ class App(tk.Tk):
                     w.insert("end", "\n")
                 w.insert("end", piece)
 
-        # Nếu widget có selection thì dán vào anchor của CHÍNH widget đó,
         # widget không có selection vẫn append bình thường.
         _write("txt_titles", titles, insert_at=anchors.get("txt_titles"))
         _write("txt_descs",  descs,  insert_at=anchors.get("txt_descs"))

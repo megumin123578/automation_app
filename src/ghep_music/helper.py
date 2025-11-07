@@ -607,12 +607,16 @@ def loop_video_to_duration(
     # Video codec
     if use_nvenc:
         args += [
-            "-c:v", "h264_nvenc",
-            "-preset", nvenc_preset,
-            "-cq", str(int(cq)),
-            "-b:v", v_bitrate,
-            "-r", str(int(fps)),
-        ]
+        "-c:v","h264_nvenc",
+        "-preset", nvenc_preset,
+        "-rc","cbr_hq",
+        "-b:v", v_bitrate,
+        "-maxrate", v_bitrate,
+        "-minrate", v_bitrate,   
+        "-bufsize", _double_bitrate(v_bitrate),
+        "-r", str(int(fps)),
+        "-pix_fmt", "yuv420p",
+    ]
     else:
         args += [
             "-c:v", "libx264",
@@ -630,7 +634,7 @@ def loop_video_to_duration(
         args += ["-an"]
 
     # Output cuối cùng
-    args += [dst]
+    args += ["-movflags", "+faststart", dst]
 
     # Bắn 0% ngay khi bắt đầu
     if on_progress:
@@ -714,3 +718,10 @@ def loop_video_to_duration(
             on_progress(100.0)
         except Exception:
             pass
+
+def _double_bitrate(s: str) -> str:
+    # "12M" -> "24M", "8000k" -> "16000k"
+    m = re.match(r"^(\d+)([kKmM])$", s)
+    if not m: return s
+    n, suf = int(m.group(1)), m.group(2)
+    return f"{n*2}{suf}"

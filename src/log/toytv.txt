@@ -1,1 +1,2 @@
 {"output": "E:\\ghep xong\\908_9.mp4", "inputs": ["E:\\storage2\\908.mp4"], "mode": "Loop", "time_limit_min": 0, "time_limit_sec": 30}
+{"output": "E:\\ghep xong\\output.mp4", "inputs": ["E:\\4k\\output.mp4"], "mode": "Loop", "time_limit_min": 5, "time_limit_sec": 30}
