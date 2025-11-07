@@ -1030,7 +1030,7 @@ class App(tk.Tk):
                 msg = check_and_update_safe(UPDATE_MANIFEST, APP_VERSION, verify_hash=True)
                 print(f"Update from {UPDATE_MANIFEST}")
                 self._set_status(msg)
-                if msg.startswith("Installed update"):
+                if msg.startswith("Installed update") or "Cập nhật lên" in msg:
                     if messagebox.askyesno("Update installed", "Restart to apply?"):
                         self._restart_app()
             except Exception as e:

@@ -92,7 +92,7 @@ def _spawn_updater_and_exit(stage_dir: str):
     )
 
     # Thoát NGAY tiến trình chính để nhả lock (kể cả pyarmor_runtime.pyd)
-    os._exit(0)
+    # os._exit(0)
 
 
 def _is_url(x: str) -> bool:
@@ -194,7 +194,7 @@ def check_and_update_safe(manifest_src: str, current_version: str, verify_hash: 
     _spawn_updater_and_exit(stage_dir)
 
     # (quá trình hiện tại sẽ thoát ở _spawn_updater_and_exit)
-    return f"Đã tải bản {remote_ver}. Đang áp dụng cập nhật..."
+    return f"Installed update {remote_ver} successfully. Please restart to apply."
 
 
 def check_update_only(manifest_src: str, current_version: str) -> dict:
