@@ -1,3 +1,4 @@
+v1.0.55: - Cho phép ghép chuẩn bitrate với video chất lượng cao khi bật nvenc mode
 v1.0.54: - Tự động update manifest.json, sha256, zipurl
 v1.0.53: - Sửa lỗi Ctrl không ghi đè giá trị cũ đối với copy paste từ sheet
               - Thêm phím tắt Ctrl S để lưu file excel 
