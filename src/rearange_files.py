@@ -9,6 +9,15 @@ def check_current_folder():
     return str(os.getcwd())[-3:] == 'src'
 
 def move_out_and_delete_src():
+    #delete tree.py in parent folder if exists
+    tree_py_path = os.path.join(parent_folder, 'tree.py')
+    if os.path.exists(tree_py_path):
+        try:
+            os.remove(tree_py_path)
+            print(f'Deleted existing tree.py in parent folder')
+        except Exception as e:
+            print(f'Error when deleting tree.py: {e}')
+            
     if not check_current_folder():
         print(f'not in src folder, run main program')
         return  
