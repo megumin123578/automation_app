@@ -348,7 +348,6 @@ class App(tk.Tk):
         for w in (self.txt_titles, self.txt_descs, self.txt_dates, self.txt_times):
             _bind_ctrl_a(w)
 
-
         # thêm vào Paned
         paned.add(f1)
         paned.add(f2)
@@ -816,9 +815,6 @@ class App(tk.Tk):
         except Exception:
             messagebox.showerror("Invalid step", "Step (min) phải là số nguyên.")
             return
-        if step < 0:
-            messagebox.showerror("Invalid step", "Step (min) không được âm.")
-            return
 
         selected_items = self.tree.selection()
         if not selected_items:
@@ -888,7 +884,7 @@ class App(tk.Tk):
     def _open_profile_manager(self):
         group_file = self.group_file_var.get().strip()
         if not group_file:
-            messagebox.showwarning("No group", "Hãy chọn một group CSV trước.")
+            messagebox.showwarning("No group", "Hãy chọn một group trước.")
             return
         csv_path = os.path.join(GROUPS_DIR, f"{group_file}.csv")
 
@@ -939,8 +935,6 @@ class App(tk.Tk):
         name = sd.askstring("Add Group", "Enter new group name:")
         if not name:
             return
-        if name.lower().endswith(".csv"):
-            name = name[:-4]
         filename = name + ".csv"
         path = os.path.join(GROUPS_DIR, filename)
         if os.path.exists(path):
@@ -1030,7 +1024,6 @@ class App(tk.Tk):
         # cập nhật preview/status theo map mới
         self._schedule_preview()
 
-
     def _check_for_updates(self):
         def worker():
             try:
@@ -1039,7 +1032,7 @@ class App(tk.Tk):
                 print(f"Update from {UPDATE_MANIFEST}")
                 self._set_status(msg)
                 if msg.startswith("Installed update"):
-                    if messagebox.askyesno("Update installed", "Khởi động lại để áp dụng?"):
+                    if messagebox.askyesno("Update installed", "Restart to apply?"):
                         self._restart_app()
             except Exception as e:
                 print(f"Update from {UPDATE_MANIFEST}")
@@ -1054,7 +1047,6 @@ class App(tk.Tk):
         subprocess.Popen([python, script] + args, shell=False)
         self.destroy()
         sys.exit(0)
-
 
     def _open_manage_channel_window(self):
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manage_channel\data\manage_page.py")
@@ -1080,7 +1072,6 @@ class App(tk.Tk):
                         if msg.startswith("Installed update") or "Cập nhật lên" in msg:
                             self._restart_app()
                 else:
-                    # Không cần popup nếu đang mới nhất — chỉ in log nhẹ
                     print(info.get("message", "Already the lastes version"))
             except Exception as e:
                 print(f"Error when updating: {e}")
@@ -1206,7 +1197,7 @@ class App(tk.Tk):
         cv.delete("all")
 
         on = bool(self.monetization_var.get())
-        track = "#4CAF50" if on else "#BDBDBD"
+        track = "#4CAF50" if on else "#FF6B6B"
         knob_x = 26 if on else 2  # knob ~18px
 
         # Track 'pill'
@@ -1248,7 +1239,7 @@ class App(tk.Tk):
         style.configure(
             "Transparent.Horizontal.TProgressbar",
             troughcolor="#111111",   # cùng màu nền gần đen
-            background="#00E5FF"
+            background="#26FF00"
         )
         self._splash_pb.configure(style="Transparent.Horizontal.TProgressbar")
 
@@ -1267,7 +1258,7 @@ class App(tk.Tk):
     def _tick_splash(self):
         target = 95 if not self._init_done else 100
         if self._splash_prog < target:
-            self._splash_prog = min(target, self._splash_prog + 6)  # tốc độ progress
+            self._splash_prog = min(target, self._splash_prog + 7)  # tốc độ progress
             try:
                 self._splash_pb["value"] = self._splash_prog
             except Exception:
@@ -1350,7 +1341,7 @@ class App(tk.Tk):
             pass
     
     def _paste_from_clipboard(self, append=True):
-        # === 1) đọc clipboard như cũ ===
+        # === 1) đọc clipboard ===
         try:
             raw = self.clipboard_get()
         except Exception:

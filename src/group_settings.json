@@ -9,7 +9,7 @@
     },
     "a": {
       "mode": "channels",
-      "monetization": false,
+      "monetization": true,
       "move_folder": "E:\\ghep xong"
     },
     "b": {
