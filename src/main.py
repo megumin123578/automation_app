@@ -1219,7 +1219,7 @@ class App(tk.Tk):
         except Exception as e:
             print(f"[Splash transparency not supported] {e}")
 
-        img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "splash.png")
+        img_path = r'assets\splash.png'
         self._splash_img = None
         if os.path.exists(img_path):
             try:
