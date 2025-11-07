@@ -34,7 +34,7 @@ def move_out_and_delete_src():
         except Exception as e:
             print(f'Error moving {item}: {e}')
 
-def rearrange_files(): #main function to be called
+def rearrange_and_delete_junk_files(): #main function to be called
     move_out_and_delete_src()
     if not check_current_folder(): #if not in src folder
         print('Attempting to delete src folder...')
