@@ -1,3 +1,5 @@
+v1.0.57: - Sửa lỗi không cấu trúc được toàn bộ đối với thư mục con
+v1.0.56: - Cấu trúc lại các thư mục, files
 v1.0.55: - Cho phép ghép chuẩn bitrate với video chất lượng cao khi bật nvenc mode
 v1.0.54: - Tự động update manifest.json, sha256, zipurl
 v1.0.53: - Sửa lỗi Ctrl không ghi đè giá trị cũ đối với copy paste từ sheet
