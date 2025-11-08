@@ -17,3 +17,7 @@ git fetch origin #Lấy dữ liệu mới nhất từ GitHub
 git reset --hard origin/main #Cập nhật mã nguồn cục bộ theo github
 git clean -fdx #clean file not in git
 
+#convert to exe
+pyinstaller --noconfirm --onefile --windowed --icon "C:\Users\Seo no luc\Documents\dev\upload-short-with-gpm-handle-excel-file\spider.ico" --distpath . "C:\Users\Seo no luc\Documents\dev\upload-short-with-gpm-handle-excel-file\main.py"
+
+
