@@ -2,7 +2,7 @@
   "input_folder": "",
   "save_folder": "",
   "bgm_folder": "",
-  "group_size": 1,
+  "group_size": 2,
   "bgm_volume": 1.0,
   "limit_videos": 0,
   "concat_mode": "Loop",
