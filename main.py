@@ -6,8 +6,10 @@ from module import *
 from hyperparameter import *
 from ghep_music.concat_page import ConcatPage
 from thong_ke.stats_page import StatisticsPage
-from rearange_files import rearrange_and_delete_junk_files 
+from orders.ssm_page import OrdersPage
 import time
+from rearange_files import rearrange_and_delete_junk_files 
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -81,6 +83,7 @@ class App(tk.Tk):
         self._build_concat_page()     
         self._build_manage_page()      
         self._build_statistics_page()
+        self._build_orders_page()
         
         self.bind_all("<Control-b>", self._on_hotkey_paste) #ctrl +b to paste values from clipboard
         self.bind_all("<Control-s>", self._on_hotkey_save) #ctrl +s save to save excel
@@ -123,6 +126,7 @@ class App(tk.Tk):
         add_btn("Concatenation", "concat", lambda: self._show_page("concat"))
         add_btn("Manage Channels", "manage", lambda: self._show_page("manage"))
         add_btn("Statistics", "stats", lambda: self._show_page("stats"))
+        add_btn("SMM Orders", 'orders', lambda: self._show_page('orders'))
 
         # Status bar
         bar = ttk.Frame(self, relief=tk.SUNKEN, padding=6)
@@ -158,6 +162,13 @@ class App(tk.Tk):
         # Nhúng UI concat
         self.concat_page = ConcatPage(page) 
         self.concat_page.pack(fill="both", expand=True)
+
+    def _build_orders_page(self):
+        page = ttk.Frame(self._content)
+        self.pages["orders"] = page
+
+        self.orders_page = OrdersPage(page)
+        self.orders_page.pack(fill = 'both', expand=True)
 
 
     def _build_manage_page(self):
