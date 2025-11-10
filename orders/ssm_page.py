@@ -5,7 +5,7 @@ import datetime, threading, time, requests, csv, os
 
 API_URL = "https://smmstore.pro/api/v2"
 API_KEY = "0f06dab474e72deb25b69026871433af"
-CSV_PATH = "orders.csv"
+CSV_PATH = "orders/orders.csv"
 
 
 def api_request(params: dict):
@@ -33,49 +33,50 @@ class OrdersPage(tk.Frame):
         form = ttk.LabelFrame(self, text="Order Information", padding=12)
         form.pack(fill="x", padx=10)
 
-        # Category + Service
+        # --- Category + Date + Time ---
         ttk.Label(form, text="Category:").grid(row=0, column=0, sticky="w", pady=3)
         self.category_var = tk.StringVar()
-        self.cb_category = ttk.Combobox(form, textvariable=self.category_var, width=50, state="readonly")
-        self.cb_category.grid(row=0, column=1, sticky="w", columnspan=3)
+        self.cb_category = ttk.Combobox(form, textvariable=self.category_var, width=120, state="readonly")
+        self.cb_category.grid(row=0, column=1, sticky="w")
         self.cb_category.bind("<<ComboboxSelected>>", self._on_category_selected)
 
+        ttk.Label(form, text="Run Date:").grid(row=0, column=2, sticky="e", padx=5)
+        self.date_entry = DateEntry(form, width=12, date_pattern="mm/dd/yyyy", state="readonly")
+        self.date_entry.set_date(datetime.date.today())
+        self.date_entry.grid(row=0, column=3, sticky="w")
+
+        ttk.Label(form, text="Time:").grid(row=0, column=4, sticky="e", padx=5)
+        self.hour_var = tk.StringVar(value=f"{datetime.datetime.now().hour:02d}")
+        self.min_var = tk.StringVar(value=f"{datetime.datetime.now().minute:02d}")
+        ttk.Combobox(form, values=[f"{i:02d}" for i in range(24)], width=3, textvariable=self.hour_var,
+                    state="readonly").grid(row=0, column=5, sticky="w")
+        ttk.Label(form, text=":").grid(row=0, column=6)
+        ttk.Combobox(form, values=[f"{i:02d}" for i in range(0, 60, 5)], width=3, textvariable=self.min_var,
+                    state="readonly").grid(row=0, column=7, sticky="w")
+
+        # --- Service ---
         ttk.Label(form, text="Service:").grid(row=1, column=0, sticky="w", pady=3)
         self.service_var = tk.StringVar()
-        self.cb_service = ttk.Combobox(form, textvariable=self.service_var, width=60, state="readonly")
-        self.cb_service.grid(row=1, column=1, sticky="w", columnspan=3)
+        self.cb_service = ttk.Combobox(form, textvariable=self.service_var, width=120, state="readonly")
+        self.cb_service.grid(row=1, column=1, sticky="w", columnspan=6)
 
-        # Link
+        # --- Link ---
         ttk.Label(form, text="Link:").grid(row=2, column=0, sticky="w", pady=3)
         self.link_var = tk.StringVar()
-        ttk.Entry(form, textvariable=self.link_var, width=70).grid(row=2, column=1, columnspan=3, pady=3, sticky="w")
+        ttk.Entry(form, textvariable=self.link_var, width=120).grid(row=2, column=1, columnspan=6, pady=3, sticky="w")
 
-        # Quantity
+        # --- Quantity ---
         ttk.Label(form, text="Quantity:").grid(row=3, column=0, sticky="w", pady=3)
         self.quantity_var = tk.StringVar(value="1000")
         ttk.Entry(form, textvariable=self.quantity_var, width=15).grid(row=3, column=1, sticky="w")
 
-        # Date/time
-        ttk.Label(form, text="Run Date:").grid(row=3, column=2, sticky="e", padx=5)
-        self.date_entry = DateEntry(form, width=12, date_pattern="mm/dd/yyyy", state="readonly")
-        self.date_entry.set_date(datetime.date.today())
-        self.date_entry.grid(row=3, column=3, sticky="w")
 
-        ttk.Label(form, text="Time:").grid(row=3, column=4, sticky="e", padx=5)
-        self.hour_var = tk.StringVar(value=f"{datetime.datetime.now().hour:02d}")
-        self.min_var = tk.StringVar(value=f"{datetime.datetime.now().minute:02d}")
-        ttk.Combobox(form, values=[f"{i:02d}" for i in range(24)], width=3, textvariable=self.hour_var,
-                     state="readonly").grid(row=3, column=5, sticky="w")
-        ttk.Label(form, text=":").grid(row=3, column=6)
-        ttk.Combobox(form, values=[f"{i:02d}" for i in range(0, 60, 5)], width=3, textvariable=self.min_var,
-                     state="readonly").grid(row=3, column=7, sticky="w")
 
         # Buttons
         btn_frame = ttk.Frame(self)
         btn_frame.pack(pady=10)
         ttk.Button(btn_frame, text="➕ Add Schedule", command=self.add_schedule).grid(row=0, column=0, padx=8)
         ttk.Button(btn_frame, text="🚀 Send Now", command=self.send_now).grid(row=0, column=1, padx=8)
-        ttk.Button(btn_frame, text="🔄 Refresh Balance", command=self.auto_get_balance).grid(row=0, column=2, padx=8)
 
         # ========== TABLE ==========
         ttk.Label(self, text="🧾 Request Queue", font=("Segoe UI", 12, "bold")).pack(pady=(5, 0))
