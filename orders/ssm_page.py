@@ -158,7 +158,6 @@ class OrdersPage(tk.Frame):
 
         # Lọc danh sách gợi ý
         filtered = []
-        self.service_id_map.clear()
         for cat, services in self.services_by_category.items():
             for s in services:
                 name = f"{s['service']} - {s['name']}"
@@ -263,11 +262,24 @@ class OrdersPage(tk.Frame):
         self.suggest_listbox.place_forget()
 
     def _apply_selection(self, selection):
-        """Cập nhật khi chọn gợi ý"""
         if not selection:
             return
+        # Cập nhật hiển thị
         self.cb_service.set(selection)
         self.search_var.set(selection)
+        self.service_var.set(selection)  
+
+        # Nếu selection nằm trong map, giữ id lại để submit
+        if selection in self.service_id_map:
+            service_id = self.service_id_map[selection]
+        else:
+            try:
+                service_id = selection.split(" - ")[0].strip()
+                self.service_id_map[selection] = service_id
+            except Exception:
+                service_id = None
+        print(f"[DEBUG] Selected service: {selection} -> ID: {service_id}")
+
 
 
 

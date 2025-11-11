@@ -1,4 +1,10 @@
 run_time,service,link,quantity,status
 2025-11-11 16:27,15048,abc,10,Done
 2025-11-11 16:27,,abc,10,Done
-2025-11-11 16:28,,abc,10,In Queue
+2025-11-11 16:28,,abc,10,Failed
+2025-11-11 16:33,,abc,1000,Failed
+2025-11-11 16:33,,abc,1000,Failed
+2025-11-11 16:34,,A,1000,Failed
+2025-11-11 16:35,,A,100,Failed
+2025-11-11 16:35,,A,100,Failed
+2025-11-11 16:55,11678,adas,10,In Queue
