@@ -7,9 +7,7 @@ API_URL = "https://smmstore.pro/api/v2"
 API_KEY = "0f06dab474e72deb25b69026871433af"
 CSV_PATH = "orders/orders.csv"
 
-
 def api_request(params: dict):
-    """Gửi request POST đến SMMStore API."""
     params["key"] = API_KEY
     try:
         r = requests.post(API_URL, data=params, timeout=30)
@@ -18,76 +16,90 @@ def api_request(params: dict):
     except Exception as e:
         return {"error": str(e)}
 
-
 class OrdersPage(tk.Frame):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        ttk.Label(self, text="📦 SMMStore Auto Scheduler", font=("Segoe UI", 16, "bold")).pack(pady=8)
+        # ===== TITLE (gọn) =====
+        ttk.Label(self, text="📦 SMMStore Auto Scheduler",
+                  font=("Segoe UI", 16, "bold")).pack(pady=(2, 0))
 
-        # ========== BALANCE ==========
-        self.balance_var = tk.StringVar(value="Fetching balance...")
-        ttk.Label(self, textvariable=self.balance_var, font=("Segoe UI", 12, "bold"), foreground="#0078D4").pack(pady=(0, 10))
+        # ===== BALANCE (gọn) =====
+        self.balance_var = tk.StringVar(value="Loading balance...")
+        ttk.Label(self, textvariable=self.balance_var,
+                  font=("Segoe UI", 12, "bold"),
+                  foreground="#0078D4").pack(pady=(0, 2))
 
-        # ========== INPUT AREA ==========
-        form = ttk.LabelFrame(self, text="Order Information", padding=12)
-        form.pack(fill="x", padx=10)
+        # ===== FORM (rất gọn, không giãn dọc) =====
+        form = ttk.LabelFrame(self, text="Order Information", padding=2)
+        form.pack(fill="x", expand=False, padx=10, pady=(0, 2))
 
-        # --- Category + Date + Time ---
-        ttk.Label(form, text="Category:").grid(row=0, column=0, sticky="w", pady=3)
+        # Cấu hình cột
+        for c in range(8):
+            form.grid_columnconfigure(c, weight=0)
+        form.grid_columnconfigure(1, weight=1, minsize=520)  # Category giãn ngang
+
+        # --- Hàng 0: Category + Date + Time ---
+        ttk.Label(form, text="Category:").grid(row=0, column=0, sticky="w")
         self.category_var = tk.StringVar()
-        self.cb_category = ttk.Combobox(form, textvariable=self.category_var, width=120, state="readonly")
-        self.cb_category.grid(row=0, column=1, sticky="w")
+        self.cb_category = ttk.Combobox(form, textvariable=self.category_var, state="readonly")
+        self.cb_category.grid(row=0, column=1, columnspan=2, sticky="we", padx=(0, 12))
+        self.cb_category.grid_configure(pady=(0, 2))  # chỉ 1 nơi đặt pady cho cả hàng
         self.cb_category.bind("<<ComboboxSelected>>", self._on_category_selected)
 
-        ttk.Label(form, text="Run Date:").grid(row=0, column=2, sticky="e", padx=5)
+        ttk.Label(form, text="Run Date:").grid(row=0, column=3, sticky="e", padx=(5, 2))
         self.date_entry = DateEntry(form, width=12, date_pattern="mm/dd/yyyy", state="readonly")
         self.date_entry.set_date(datetime.date.today())
-        self.date_entry.grid(row=0, column=3, sticky="w")
+        self.date_entry.grid(row=0, column=4, sticky="w")
 
-        ttk.Label(form, text="Time:").grid(row=0, column=4, sticky="e", padx=5)
+        ttk.Label(form, text="Time:").grid(row=0, column=5, sticky="e", padx=(5, 2))
         self.hour_var = tk.StringVar(value=f"{datetime.datetime.now().hour:02d}")
         self.min_var = tk.StringVar(value=f"{datetime.datetime.now().minute:02d}")
-        ttk.Combobox(form, values=[f"{i:02d}" for i in range(24)], width=3, textvariable=self.hour_var,
-                    state="readonly").grid(row=0, column=5, sticky="w")
-        ttk.Label(form, text=":").grid(row=0, column=6)
-        ttk.Combobox(form, values=[f"{i:02d}" for i in range(0, 60, 5)], width=3, textvariable=self.min_var,
-                    state="readonly").grid(row=0, column=7, sticky="w")
+        time_frame = ttk.Frame(form)
+        time_frame.grid(row=0, column=6, sticky="w")
+        ttk.Combobox(time_frame, values=[f"{i:02d}" for i in range(24)], width=3,
+                     textvariable=self.hour_var, state="readonly").pack(side="left")
+        ttk.Label(time_frame, text=":").pack(side="left")
+        ttk.Combobox(time_frame, values=[f"{i:02d}" for i in range(0, 60, 5)], width=3,
+                     textvariable=self.min_var, state="readonly").pack(side="left")
 
-        # --- Service ---
-        ttk.Label(form, text="Service:").grid(row=1, column=0, sticky="w", pady=3)
+        # --- Hàng 1: Service ---
+        ttk.Label(form, text="Service:").grid(row=1, column=0, sticky="w")
         self.service_var = tk.StringVar()
-        self.cb_service = ttk.Combobox(form, textvariable=self.service_var, width=120, state="readonly")
-        self.cb_service.grid(row=1, column=1, sticky="w", columnspan=6)
+        self.cb_service = ttk.Combobox(form, textvariable=self.service_var, state="readonly")
+        self.cb_service.grid(row=1, column=1, columnspan=7, sticky="we")
+        self.cb_service.grid_configure(pady=(0, 2))
 
-        # --- Link ---
-        ttk.Label(form, text="Link:").grid(row=2, column=0, sticky="w", pady=3)
+        # --- Hàng 2: Link ---
+        ttk.Label(form, text="Link:").grid(row=2, column=0, sticky="w")
         self.link_var = tk.StringVar()
-        ttk.Entry(form, textvariable=self.link_var, width=120).grid(row=2, column=1, columnspan=6, pady=3, sticky="w")
+        self.link_entry = ttk.Entry(form, textvariable=self.link_var)
+        self.link_entry.grid(row=2, column=1, columnspan=7, sticky="we")
+        self.link_entry.grid_configure(pady=(0, 2))
 
-        # --- Quantity ---
-        ttk.Label(form, text="Quantity:").grid(row=3, column=0, sticky="w", pady=3)
+        # --- Hàng 3: Quantity + Buttons ---
+        ttk.Label(form, text="Quantity:").grid(row=3, column=0, sticky="w")
         self.quantity_var = tk.StringVar(value="1000")
-        ttk.Entry(form, textvariable=self.quantity_var, width=15).grid(row=3, column=1, sticky="w")
+        q_entry = ttk.Entry(form, textvariable=self.quantity_var, width=15)
+        q_entry.grid(row=3, column=1, sticky="w", padx=(0, 8))
+        # không đặt pady ở label / nút để tránh cộng dồn
+        btn_frame = ttk.Frame(form)
+        btn_frame.grid(row=3, column=5, columnspan=2, sticky="e")
+        ttk.Button(btn_frame, text="Submit", command=self.add_schedule).pack(side="left", padx=(0, 4))
+        ttk.Button(btn_frame, text="Send Now", command=self.send_now).pack(side="left")
 
+        # ===== REQUEST QUEUE (gọn) =====
+        ttk.Label(self, text="🧾 Request Queue",
+                  font=("Segoe UI", 12, "bold")).pack(pady=(0, 2))
 
-
-        # Buttons
-        btn_frame = ttk.Frame(self)
-        btn_frame.pack(pady=10)
-        ttk.Button(btn_frame, text="➕ Add Schedule", command=self.add_schedule).grid(row=0, column=0, padx=8)
-        ttk.Button(btn_frame, text="🚀 Send Now", command=self.send_now).grid(row=0, column=1, padx=8)
-
-        # ========== TABLE ==========
-        ttk.Label(self, text="🧾 Request Queue", font=("Segoe UI", 12, "bold")).pack(pady=(5, 0))
         columns = ("run_time", "service", "link", "quantity", "status")
         self.tree = ttk.Treeview(self, columns=columns, show="headings", height=10)
         for col in columns:
             self.tree.heading(col, text=col.capitalize())
             self.tree.column(col, width=180 if col == "link" else 100, anchor="w")
-        self.tree.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.tree.pack(fill="both", expand=True, padx=10, pady=(0, 2))
 
-        # ========== DATA ==========
+        # ===== DATA =====
         self.services_by_category = {}
         self.service_id_map = {}
 
@@ -96,7 +108,7 @@ class OrdersPage(tk.Frame):
         self._load_csv()
         self._start_realtime_update()
 
-    # ========== API BALANCE ==========
+    # ===== BALANCE =====
     def auto_get_balance(self):
         threading.Thread(target=self._balance_thread, daemon=True).start()
 
@@ -109,7 +121,7 @@ class OrdersPage(tk.Frame):
             cur = resp.get("currency", "")
             self.balance_var.set(f"💰 Balance: {bal} {cur}")
 
-    # ========== LOAD SERVICES ==========
+    # ===== SERVICES =====
     def _load_services(self):
         resp = api_request({"action": "services"})
         if isinstance(resp, dict) and "error" in resp:
@@ -139,19 +151,17 @@ class OrdersPage(tk.Frame):
         if names:
             self.cb_service.set(names[0])
 
-    # ========== SCHEDULES ==========
+    # ===== SCHEDULE =====
     def add_schedule(self):
         if not self.cb_service.get():
             messagebox.showwarning("Missing", "Please select a service.")
             return
-
         d = self.date_entry.get_date()
         h, m = int(self.hour_var.get()), int(self.min_var.get())
         run_time = datetime.datetime(d.year, d.month, d.day, h, m)
         if run_time <= datetime.datetime.now():
             messagebox.showwarning("Invalid Time", "Run time must be in the future.")
             return
-
         service_id = self.service_id_map.get(self.cb_service.get())
         data = {
             "run_time": run_time.strftime("%Y-%m-%d %H:%M"),
@@ -197,7 +207,7 @@ class OrdersPage(tk.Frame):
         status = "Done" if isinstance(resp, dict) and "error" not in resp else "Failed"
         self._update_status(data["run_time"], status)
 
-    # ========== CSV HANDLERS ==========
+    # ===== CSV =====
     def _append_to_csv(self, data):
         exists = os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
@@ -217,7 +227,6 @@ class OrdersPage(tk.Frame):
                     threading.Thread(target=self._wait_and_send, args=(row,), daemon=True).start()
 
     def _update_status(self, run_time, new_status):
-        # Update CSV
         rows = []
         if os.path.exists(CSV_PATH):
             with open(CSV_PATH, newline="", encoding="utf-8") as f:
@@ -242,5 +251,4 @@ class OrdersPage(tk.Frame):
                                             data["quantity"], data["status"]))
 
     def _start_realtime_update(self):
-        """Tự động cập nhật trạng thái Done/Failed trong bảng mỗi 3 giây."""
         self.after(3000, self._start_realtime_update)
