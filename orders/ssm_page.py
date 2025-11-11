@@ -20,31 +20,31 @@ class OrdersPage(tk.Frame):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # ===== TITLE (gọn) =====
+        # ===== TITLE =====
         ttk.Label(self, text="📦 SMMStore Auto Scheduler",
                   font=("Segoe UI", 16, "bold")).pack(pady=(2, 0))
 
-        # ===== BALANCE (gọn) =====
+        # ===== BALANCE =====
         self.balance_var = tk.StringVar(value="Loading balance...")
         ttk.Label(self, textvariable=self.balance_var,
                   font=("Segoe UI", 12, "bold"),
                   foreground="#0078D4").pack(pady=(0, 2))
 
-        # ===== FORM (rất gọn, không giãn dọc) =====
+        # ===== FORM =====
         form = ttk.LabelFrame(self, text="Order Information", padding=2)
         form.pack(fill="x", expand=False, padx=10, pady=(0, 2))
 
-        # Cấu hình cột
+        # cấu hình cột
         for c in range(8):
             form.grid_columnconfigure(c, weight=0)
-        form.grid_columnconfigure(1, weight=1, minsize=520)  # Category giãn ngang
+        form.grid_columnconfigure(1, weight=1, minsize=520)
 
-        # --- Hàng 0: Category + Date + Time ---
+        # --- Category + Date + Time ---
         ttk.Label(form, text="Category:").grid(row=0, column=0, sticky="w")
         self.category_var = tk.StringVar()
         self.cb_category = ttk.Combobox(form, textvariable=self.category_var, state="readonly")
         self.cb_category.grid(row=0, column=1, columnspan=2, sticky="we", padx=(0, 12))
-        self.cb_category.grid_configure(pady=(0, 2))  # chỉ 1 nơi đặt pady cho cả hàng
+        self.cb_category.grid_configure(pady=(0, 2))
         self.cb_category.bind("<<ComboboxSelected>>", self._on_category_selected)
 
         ttk.Label(form, text="Run Date:").grid(row=0, column=3, sticky="e", padx=(5, 2))
@@ -63,32 +63,47 @@ class OrdersPage(tk.Frame):
         ttk.Combobox(time_frame, values=[f"{i:02d}" for i in range(0, 60, 5)], width=3,
                      textvariable=self.min_var, state="readonly").pack(side="left")
 
-        # --- Hàng 1: Service ---
+        # --- Service + Search Bar ---
         ttk.Label(form, text="Service:").grid(row=1, column=0, sticky="w")
         self.service_var = tk.StringVar()
         self.cb_service = ttk.Combobox(form, textvariable=self.service_var, state="readonly")
         self.cb_service.grid(row=1, column=1, columnspan=7, sticky="we")
         self.cb_service.grid_configure(pady=(0, 2))
 
-        # --- Hàng 2: Link ---
-        ttk.Label(form, text="Link:").grid(row=2, column=0, sticky="w")
+        # Search service ID
+        search_frame = ttk.Frame(form)
+        search_frame.grid(row=2, column=1, columnspan=7, sticky="we", pady=(0, 2))
+        ttk.Label(search_frame, text="🔍").pack(side="left", padx=(0, 5))
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=100)
+        search_entry.pack(side="left", fill="x", expand=True)
+
+        self.search_var.trace_add('write', lambda *_: self._live_search_service())
+
+        # Nhấn Enter để gọi hàm tìm kiếm
+        search_entry.bind("<Return>", lambda event: self._search_service())
+        ttk.Button(search_frame, text="Search", command=self._search_service).pack(side="left")
+        ttk.Button(search_frame, text="Clear", command=self._clear_search).pack(side="left")
+
+
+        # --- Link ---
+        ttk.Label(form, text="Link:").grid(row=3, column=0, sticky="w")
         self.link_var = tk.StringVar()
         self.link_entry = ttk.Entry(form, textvariable=self.link_var)
-        self.link_entry.grid(row=2, column=1, columnspan=7, sticky="we")
+        self.link_entry.grid(row=3, column=1, columnspan=7, sticky="we")
         self.link_entry.grid_configure(pady=(0, 2))
 
-        # --- Hàng 3: Quantity + Buttons ---
-        ttk.Label(form, text="Quantity:").grid(row=3, column=0, sticky="w")
+        # --- Quantity + Buttons ---
+        ttk.Label(form, text="Quantity:").grid(row=4, column=0, sticky="w")
         self.quantity_var = tk.StringVar(value="1000")
-        q_entry = ttk.Entry(form, textvariable=self.quantity_var, width=15)
-        q_entry.grid(row=3, column=1, sticky="w", padx=(0, 8))
-        # không đặt pady ở label / nút để tránh cộng dồn
+        ttk.Entry(form, textvariable=self.quantity_var, width=15).grid(row=4, column=1, sticky="w", padx=(0, 8))
+
         btn_frame = ttk.Frame(form)
-        btn_frame.grid(row=3, column=5, columnspan=2, sticky="e")
+        btn_frame.grid(row=4, column=5, columnspan=2, sticky="e")
         ttk.Button(btn_frame, text="Submit", command=self.add_schedule).pack(side="left", padx=(0, 4))
         ttk.Button(btn_frame, text="Send Now", command=self.send_now).pack(side="left")
 
-        # ===== REQUEST QUEUE (gọn) =====
+        # ===== QUEUE =====
         ttk.Label(self, text="🧾 Request Queue",
                   font=("Segoe UI", 12, "bold")).pack(pady=(0, 2))
 
@@ -102,11 +117,69 @@ class OrdersPage(tk.Frame):
         # ===== DATA =====
         self.services_by_category = {}
         self.service_id_map = {}
+        self.filtered_services = []  # lưu danh sách sau khi search
 
         self.after(200, self.auto_get_balance)
         threading.Thread(target=self._load_services, daemon=True).start()
         self._load_csv()
         self._start_realtime_update()
+
+    # ===== SEARCH SERVICE (TÌM TRÊN TOÀN BỘ DANH SÁCH) =====
+    def _search_service(self):
+        """Tìm service theo ID hoặc tên, không phụ thuộc category."""
+        keyword = self.search_var.get().strip().lower()
+        if not keyword:
+            return
+
+        filtered = []
+        self.service_id_map.clear()
+
+        # duyệt toàn bộ service trong tất cả category
+        for cat, services in self.services_by_category.items():
+            for s in services:
+                name = f"{s['service']} - {s['name']}"
+                if keyword in str(s['service']).lower() or keyword in s['name'].lower():
+                    filtered.append(name)
+                    self.service_id_map[name] = s["service"]
+
+        if filtered:
+            self.cb_service["values"] = filtered
+            self.cb_service.set(filtered[0])
+        else:
+            messagebox.showinfo("No match", f"No service found for '{keyword}'")
+    
+    def _live_search_service(self):
+        keyword = self.search_var.get().strip().lower()
+        self.service_id_map.clear()
+
+        if not keyword:
+            self._on_category_selected()
+            return
+        
+        filtered = []
+        for cat, services in self.services_by_category.items():
+            for s in services:
+                name = f"{s['service']} - {s['name']}"
+                if keyword in str(s['service']).lower() or keyword in s['name'].lower():
+                    filtered.append(name)
+                    self.service_id_map[name] = s['service']
+
+        if filtered:
+            self.cb_service['values'] = filtered
+            self.cb_service.set(filtered[0])
+        else:
+            self.cb_service['values'] = []
+            self.cb_service.set('')
+
+    def _clear_search(self):
+        self.search_var.set("")
+        self._on_category_selected()
+
+    def _clear_search(self):
+        """Hiển thị lại toàn bộ service theo category hiện tại."""
+        self.search_var.set("")
+        self._on_category_selected()
+
 
     # ===== BALANCE =====
     def auto_get_balance(self):
