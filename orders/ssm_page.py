@@ -7,6 +7,7 @@ API_URL = "https://smmstore.pro/api/v2"
 API_KEY = "0f06dab474e72deb25b69026871433af"
 CSV_PATH = "orders/orders.csv"
 
+
 def api_request(params: dict):
     params["key"] = API_KEY
     try:
@@ -15,6 +16,7 @@ def api_request(params: dict):
         return r.json()
     except Exception as e:
         return {"error": str(e)}
+
 
 class OrdersPage(tk.Frame):
     def __init__(self, parent=None):
@@ -34,66 +36,85 @@ class OrdersPage(tk.Frame):
         form = ttk.LabelFrame(self, text="Order Information", padding=2)
         form.pack(fill="x", expand=False, padx=10, pady=(0, 2))
 
-        # cấu hình cột
+        # Cấu hình cột lưới
         for c in range(8):
             form.grid_columnconfigure(c, weight=0)
         form.grid_columnconfigure(1, weight=1, minsize=520)
 
-        # --- Category + Date + Time ---
-        ttk.Label(form, text="Category:").grid(row=0, column=0, sticky="w")
+        # ===== SEARCH BAR (HÀNG 0) =====
+        ttk.Label(form, text="Search Bar:").grid(row=0, column=0, sticky="w", padx=(0, 4))
+        self.search_var = tk.StringVar()
+        search_entry = ttk.Entry(form, textvariable=self.search_var)
+        search_entry.grid(row=0, column=1, columnspan=6, sticky="we", pady=(0, 3))
+
+        self.search_entry = search_entry
+
+        # realtime + Enter
+        self.search_var.trace_add('write', lambda *_: self._live_search_service())
+        search_entry.bind("<Return>", lambda event: self._search_service())
+        ttk.Button(form, text="Clear", command=self._clear_search).grid(row=0, column=7, sticky="e", padx=(5, 0))
+
+        # ===== CATEGORY + DATE + TIME (HÀNG 1) =====
+        ttk.Label(form, text="Category:").grid(row=1, column=0, sticky="w")
         self.category_var = tk.StringVar()
         self.cb_category = ttk.Combobox(form, textvariable=self.category_var, state="readonly")
-        self.cb_category.grid(row=0, column=1, columnspan=2, sticky="we", padx=(0, 12))
-        self.cb_category.grid_configure(pady=(0, 2))
+        self.cb_category.grid(row=1, column=1, columnspan=2, sticky="we", padx=(0, 12))
         self.cb_category.bind("<<ComboboxSelected>>", self._on_category_selected)
 
-        ttk.Label(form, text="Run Date:").grid(row=0, column=3, sticky="e", padx=(5, 2))
+        ttk.Label(form, text="Run Date:").grid(row=1, column=3, sticky="e", padx=(5, 2))
         self.date_entry = DateEntry(form, width=12, date_pattern="mm/dd/yyyy", state="readonly")
         self.date_entry.set_date(datetime.date.today())
-        self.date_entry.grid(row=0, column=4, sticky="w")
+        self.date_entry.grid(row=1, column=4, sticky="w")
 
-        ttk.Label(form, text="Time:").grid(row=0, column=5, sticky="e", padx=(5, 2))
+        ttk.Label(form, text="Time:").grid(row=1, column=5, sticky="e", padx=(5, 2))
         self.hour_var = tk.StringVar(value=f"{datetime.datetime.now().hour:02d}")
         self.min_var = tk.StringVar(value=f"{datetime.datetime.now().minute:02d}")
         time_frame = ttk.Frame(form)
-        time_frame.grid(row=0, column=6, sticky="w")
-        ttk.Combobox(time_frame, values=[f"{i:02d}" for i in range(24)], width=3,
-                     textvariable=self.hour_var, state="readonly").pack(side="left")
-        ttk.Label(time_frame, text=":").pack(side="left")
-        ttk.Combobox(time_frame, values=[f"{i:02d}" for i in range(0, 60, 5)], width=3,
-                     textvariable=self.min_var, state="readonly").pack(side="left")
+        time_frame.grid(row=1, column=6, sticky="w")
+        
+        # ====== TIME SELECT ======
+        def select_all(event):
+            widget = event.widget
+            widget.after(1, lambda: widget.selection_range(0, tk.END))
 
-        # --- Service + Search Bar ---
-        ttk.Label(form, text="Service:").grid(row=1, column=0, sticky="w")
+        hour_box = ttk.Combobox(
+            time_frame,
+            values=[f"{i:02d}" for i in range(24)],
+            width=3,
+            textvariable=self.hour_var,
+            state="normal"
+        )
+        hour_box.pack(side="left")
+        hour_box.bind("<FocusIn>", select_all)
+        hour_box.bind("<Button-1>", select_all)
+
+        ttk.Label(time_frame, text=":").pack(side="left")
+
+        min_box = ttk.Combobox(
+            time_frame,
+            values=[f"{i:02d}" for i in range(0, 60, 5)],
+            width=3,
+            textvariable=self.min_var,
+            state="normal"
+        )
+        min_box.pack(side="left")
+        min_box.bind("<FocusIn>", select_all)
+        min_box.bind("<Button-1>", select_all)
+
+
+        # ===== SERVICE =====
+        ttk.Label(form, text="Service:").grid(row=2, column=0, sticky="w")
         self.service_var = tk.StringVar()
         self.cb_service = ttk.Combobox(form, textvariable=self.service_var, state="readonly")
-        self.cb_service.grid(row=1, column=1, columnspan=7, sticky="we")
-        self.cb_service.grid_configure(pady=(0, 2))
+        self.cb_service.grid(row=2, column=1, columnspan=7, sticky="we", pady=(0, 2))
 
-        # Search service ID
-        search_frame = ttk.Frame(form)
-        search_frame.grid(row=2, column=1, columnspan=7, sticky="we", pady=(0, 2))
-        ttk.Label(search_frame, text="🔍").pack(side="left", padx=(0, 5))
-        self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var, width=100)
-        search_entry.pack(side="left", fill="x", expand=True)
-
-        self.search_var.trace_add('write', lambda *_: self._live_search_service())
-
-        # Nhấn Enter để gọi hàm tìm kiếm
-        search_entry.bind("<Return>", lambda event: self._search_service())
-        ttk.Button(search_frame, text="Search", command=self._search_service).pack(side="left")
-        ttk.Button(search_frame, text="Clear", command=self._clear_search).pack(side="left")
-
-
-        # --- Link ---
+        # ===== LINK =====
         ttk.Label(form, text="Link:").grid(row=3, column=0, sticky="w")
         self.link_var = tk.StringVar()
         self.link_entry = ttk.Entry(form, textvariable=self.link_var)
-        self.link_entry.grid(row=3, column=1, columnspan=7, sticky="we")
-        self.link_entry.grid_configure(pady=(0, 2))
+        self.link_entry.grid(row=3, column=1, columnspan=7, sticky="we", pady=(0, 2))
 
-        # --- Quantity + Buttons ---
+        # ===== QUANTITY + BUTTONS =====
         ttk.Label(form, text="Quantity:").grid(row=4, column=0, sticky="w")
         self.quantity_var = tk.StringVar(value="1000")
         ttk.Entry(form, textvariable=self.quantity_var, width=15).grid(row=4, column=1, sticky="w", padx=(0, 8))
@@ -104,9 +125,7 @@ class OrdersPage(tk.Frame):
         ttk.Button(btn_frame, text="Send Now", command=self.send_now).pack(side="left")
 
         # ===== QUEUE =====
-        ttk.Label(self, text="🧾 Request Queue",
-                  font=("Segoe UI", 12, "bold")).pack(pady=(0, 2))
-
+        ttk.Label(self, text="🧾 Request Queue", font=("Segoe UI", 12, "bold")).pack(pady=(0, 2))
         columns = ("run_time", "service", "link", "quantity", "status")
         self.tree = ttk.Treeview(self, columns=columns, show="headings", height=10)
         for col in columns:
@@ -117,24 +136,29 @@ class OrdersPage(tk.Frame):
         # ===== DATA =====
         self.services_by_category = {}
         self.service_id_map = {}
-        self.filtered_services = []  # lưu danh sách sau khi search
 
         self.after(200, self.auto_get_balance)
         threading.Thread(target=self._load_services, daemon=True).start()
         self._load_csv()
         self._start_realtime_update()
 
-    # ===== SEARCH SERVICE (TÌM TRÊN TOÀN BỘ DANH SÁCH) =====
-    def _search_service(self):
-        """Tìm service theo ID hoặc tên, không phụ thuộc category."""
+    # ===== LIVE SEARCH =====
+
+    def _live_search_service(self, *_):
+        if hasattr(self, "_search_after_id"):
+            self.after_cancel(self._search_after_id)
+        self._search_after_id = self.after(200, self._show_suggestions)
+
+    def _show_suggestions(self):
         keyword = self.search_var.get().strip().lower()
         if not keyword:
+            if hasattr(self, "suggest_listbox"):
+                self.suggest_listbox.place_forget()
             return
 
+        # Lọc danh sách gợi ý
         filtered = []
         self.service_id_map.clear()
-
-        # duyệt toàn bộ service trong tất cả category
         for cat, services in self.services_by_category.items():
             for s in services:
                 name = f"{s['service']} - {s['name']}"
@@ -142,44 +166,118 @@ class OrdersPage(tk.Frame):
                     filtered.append(name)
                     self.service_id_map[name] = s["service"]
 
-        if filtered:
-            self.cb_service["values"] = filtered
-            self.cb_service.set(filtered[0])
-        else:
-            messagebox.showinfo("No match", f"No service found for '{keyword}'")
-    
-    def _live_search_service(self):
-        keyword = self.search_var.get().strip().lower()
-        self.service_id_map.clear()
-
-        if not keyword:
-            self._on_category_selected()
+        # Nếu không có kết quả -> ẩn
+        if not filtered:
+            if hasattr(self, "suggest_listbox"):
+                self.suggest_listbox.place_forget()
             return
-        
-        filtered = []
-        for cat, services in self.services_by_category.items():
-            for s in services:
-                name = f"{s['service']} - {s['name']}"
-                if keyword in str(s['service']).lower() or keyword in s['name'].lower():
-                    filtered.append(name)
-                    self.service_id_map[name] = s['service']
 
-        if filtered:
-            self.cb_service['values'] = filtered
-            self.cb_service.set(filtered[0])
+        # Tạo Listbox nếu chưa có
+        if not hasattr(self, "suggest_listbox"):
+            style = ttk.Style()
+            entry_bg = style.lookup("TEntry", "fieldbackground", default="#2D2D30")
+            entry_fg = style.lookup("TEntry", "foreground", default="#FFFFFF")
+            select_bg = style.lookup("TCombobox", "selectbackground", default="#0078D4")
+            select_fg = style.lookup("TCombobox", "selectforeground", default="#FFFFFF")
+
+            self.suggest_listbox = tk.Listbox(
+                self,
+                height=8,
+                activestyle="none",
+                font=("Segoe UI", 10),
+                bg=entry_bg,
+                fg=entry_fg,
+                highlightthickness=1,
+                highlightbackground=entry_bg,
+                relief="solid",
+                borderwidth=1,
+                selectbackground=select_bg,
+                selectforeground=select_fg,
+                cursor="hand2",
+            )
+
+            # --- Gắn sự kiện ---
+            self.suggest_listbox.bind("<ButtonRelease-1>", self._select_suggestion)
+            self.suggest_listbox.bind("<Escape>", lambda e: self.suggest_listbox.place_forget())
+            self.suggest_listbox.bind("<Motion>", self._on_hover)
+            self.suggest_listbox.bind("<Leave>", lambda e: self.suggest_listbox.selection_clear(0, tk.END))
+            self.search_entry.bind("<Down>", self._focus_suggest_listbox)
+            self.search_entry.bind("<Up>", self._focus_suggest_listbox)
+            self.search_entry.bind("<Return>", self._enter_select)
+
+        # Cập nhật danh sách
+        self.suggest_listbox.delete(0, tk.END)
+        for item in filtered[:100]:
+            self.suggest_listbox.insert(tk.END, item)
+
+        # Lấy vị trí Entry để popup
+        x = self.search_entry.winfo_rootx() - self.winfo_rootx()
+        y = self.search_entry.winfo_rooty() - self.winfo_rooty() + self.search_entry.winfo_height()
+        w = self.search_entry.winfo_width()
+        self.suggest_listbox.place(x=x, y=y, width=w)
+        self.filtered_items = filtered  # Lưu lại danh sách hiển thị
+
+    def _on_hover(self, event):
+        """Highlight item khi rê chuột"""
+        if not hasattr(self, "suggest_listbox"):
+            return
+        index = self.suggest_listbox.nearest(event.y)
+        self.suggest_listbox.selection_clear(0, tk.END)
+        self.suggest_listbox.selection_set(index)
+        self.suggest_listbox.activate(index)
+
+    def _focus_suggest_listbox(self, event):
+        """Dùng phím ↑ ↓ để điều hướng"""
+        if not hasattr(self, "suggest_listbox") or not self.suggest_listbox.winfo_ismapped():
+            return "break"
+
+        sel = self.suggest_listbox.curselection()
+        if not sel:
+            idx = 0 if event.keysym == "Down" else tk.END
         else:
-            self.cb_service['values'] = []
-            self.cb_service.set('')
+            idx = sel[0] + (1 if event.keysym == "Down" else -1)
+        idx = max(0, min(idx, self.suggest_listbox.size() - 1))
+        self.suggest_listbox.selection_clear(0, tk.END)
+        self.suggest_listbox.selection_set(idx)
+        self.suggest_listbox.activate(idx)
+        self.suggest_listbox.see(idx)
+        return "break"
+
+    def _enter_select(self, event):
+        """Khi nhấn Enter trong ô tìm kiếm"""
+        if hasattr(self, "suggest_listbox") and self.suggest_listbox.winfo_ismapped():
+            sel = self.suggest_listbox.curselection()
+            if sel:
+                selection = self.suggest_listbox.get(sel[0])
+                self._apply_selection(selection)
+                self.suggest_listbox.place_forget()
+                return "break"
+        self._search_service()
+
+    def _select_suggestion(self, event):
+        """Chọn bằng chuột"""
+        if not hasattr(self, "suggest_listbox"):
+            return
+        selection = self.suggest_listbox.get(tk.ACTIVE)
+        self._apply_selection(selection)
+        self.suggest_listbox.place_forget()
+
+    def _apply_selection(self, selection):
+        """Cập nhật khi chọn gợi ý"""
+        if not selection:
+            return
+        self.cb_service.set(selection)
+        self.search_var.set(selection)
+
+
+
+
+    def _search_service(self):
+        self._live_search_service()
 
     def _clear_search(self):
         self.search_var.set("")
         self._on_category_selected()
-
-    def _clear_search(self):
-        """Hiển thị lại toàn bộ service theo category hiện tại."""
-        self.search_var.set("")
-        self._on_category_selected()
-
 
     # ===== BALANCE =====
     def auto_get_balance(self):
