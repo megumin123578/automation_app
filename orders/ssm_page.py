@@ -1,23 +1,17 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 from tkcalendar import DateEntry
 import datetime, threading, time, requests, csv, os
 import webbrowser
+import os
 
 API_URL = "https://smmstore.pro/api/v2"
 CSV_PATH = "orders/orders.csv"
-
-def get_api_key(interactive=True, force_edit=False):
-    """Đọc hoặc nhập API key SMMStore (cho phép sửa khi force_edit=True)."""
-    import tkinter as tk
-    from tkinter import simpledialog, messagebox
-    import os
-
+api_key_path = "orders/api_key.txt"
+def get_api_key(interactive=True, force_edit=False, api_key_path = "orders/api_key.txt"):
     os.makedirs("orders", exist_ok=True)
-    api_path = "orders/api_key.txt"
-
-    # đọc file nếu có
-    if os.path.exists(api_path) and not force_edit:
+    api_path = api_key_path
+    if os.path.exists(api_path) and not force_edit: 
         with open(api_path, encoding="utf-8") as f:
             key = f.read().strip()
         if key:
@@ -26,7 +20,6 @@ def get_api_key(interactive=True, force_edit=False):
     if not interactive:
         return ""
 
-    # nếu chưa có hoặc đang sửa key → hỏi nhập
     root = tk.Toplevel()
     root.withdraw()
 
@@ -53,13 +46,11 @@ def get_api_key(interactive=True, force_edit=False):
     root.destroy()
     return key.strip()
 
-
-
-def read_api_key():
-    path = "orders/api_key.txt"
+def read_api_key(api_key_path = "orders/api_key.txt"):
+    path = api_key_path
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
-            return f.read().strip()
+            return f.read().strip() #return api key
     return ""
 
 def api_request(params: dict):
@@ -80,8 +71,7 @@ class OrdersPage(tk.Frame):
         super().__init__(parent)
 
         # ===== TITLE =====
-        ttk.Label(self, text="📦 SMMStore Auto Scheduler",
-                  font=("Segoe UI", 16, "bold")).pack(pady=(2, 0))
+        ttk.Label(self, text="📦 SMMStore Auto Scheduler",font=("Segoe UI", 16, "bold")).pack(pady=(2, 0))
 
         # ===== BALANCE =====
         self.balance_var = tk.StringVar(value="Loading balance...")
@@ -175,7 +165,38 @@ class OrdersPage(tk.Frame):
         ttk.Label(form, text="Quantity:").grid(row=4, column=0, sticky="w")
         self.quantity_var = tk.StringVar(value="1000")
         ttk.Entry(form, textvariable=self.quantity_var, width=15).grid(row=4, column=1, sticky="w", padx=(0, 8))
+        
+        # ===== DRIP-FEED TOGGLE =====
+        self.drip_var = tk.BooleanVar(value=False)
+        ttk.Label(form, text="Drip-Feed:").grid(row=5, column=0, sticky="e", padx=(0, 6))
 
+        # frame gộp toggle + runs + interval
+        self.drip_container = ttk.Frame(form)
+        self.drip_container.grid(row=5, column=1, columnspan=5, sticky="w")
+
+        # toggle switch
+        self._drip_switch = tk.Canvas(self.drip_container, width=46, height=24,
+                                    highlightthickness=0, bd=0, cursor="hand2")
+        self._drip_switch.pack(side="left", padx=(0, 10))
+        self._drip_switch.bind("<Button-1>", lambda e: self._toggle_drip_feed())
+        self._render_drip_feed_toggle()
+        self._drip_switch.bind("<Enter>", lambda e: self._show_tip("Enable Drip-Feed: split order into multiple runs"))
+        self._drip_switch.bind("<Leave>", lambda e: self._hide_tip())
+
+
+        # runs + interval (ẩn mặc định)
+        self.runs_var = tk.StringVar(value='')
+        self.interval_var = tk.StringVar(value='')
+
+        self.lbl_runs = ttk.Label(self.drip_container, text='Runs:')
+        self.entry_runs = ttk.Entry(self.drip_container, textvariable=self.runs_var,
+                                    width=8, justify="center")
+        self.lbl_interval = ttk.Label(self.drip_container, text="Interval (min):")
+        self.entry_interval = ttk.Entry(self.drip_container, textvariable=self.interval_var,
+                                        width=8, justify="center")
+
+
+        
         btn_frame = ttk.Frame(form)
         btn_frame.grid(row=4, column=6, columnspan=2, sticky="e")
         ttk.Button(btn_frame, text="Submit", command=self.add_schedule).pack(side="left", padx=(0, 4))
@@ -533,12 +554,19 @@ class OrdersPage(tk.Frame):
         self._send_order(data)
 
     def _send_order(self, data):
-        resp = api_request({
+        params = {
             "action": "add",
             "service": data["service"],
             "link": data["link"],
             "quantity": data["quantity"],
-        })
+        }
+
+        # Nếu bật drip-feed, thêm 2 tham số
+        if self.drip_var.get():
+            params["runs"] = self.runs_var.get()
+            params["interval"] = self.interval_var.get()
+
+        resp = api_request(params)
         if not isinstance(resp, dict) or 'error' in resp:
             self._update_status(data['run_time'], 'Failed')
             return
@@ -660,3 +688,50 @@ class OrdersPage(tk.Frame):
 
     def _start_realtime_update(self):
         self.after(3000, self._start_realtime_update)
+
+    def _render_drip_feed_toggle(self):
+        """Vẽ công tắc Drip-Feed"""
+        if not hasattr(self, "_drip_switch"):
+            return
+        cv = self._drip_switch
+        cv.delete("all")
+
+        on = bool(self.drip_var.get())
+        track = "#4CAF50" if on else "#FF6B6B"
+        knob_x = 26 if on else 2
+
+        # Nền 'pill'
+        cv.create_oval(1, 1, 23, 23, fill=track, outline=track)
+        cv.create_oval(23, 1, 45, 23, fill=track, outline=track)
+        cv.create_rectangle(12, 1, 34, 23, fill=track, outline=track)
+
+        # Nút trắng
+        cv.create_oval(knob_x, 3, knob_x + 18, 21, fill="#FFFFFF", outline="#DDDDDD")
+
+
+    def _toggle_drip_feed(self):
+        self.drip_var.set(not self.drip_var.get())
+        self._render_drip_feed_toggle()
+
+        if self.drip_var.get():
+            self.lbl_runs.pack(side="left", padx=(10, 2))
+            self.entry_runs.pack(side="left")
+            self.lbl_interval.pack(side="left", padx=(10, 2))
+            self.entry_interval.pack(side="left")
+        else:
+            for w in [self.lbl_runs, self.entry_runs, self.lbl_interval, self.entry_interval]:
+                w.pack_forget()
+
+    def _show_tip(self, text):
+        x, y = self.winfo_pointerxy()
+        self.tip = tk.Toplevel(self)
+        self.tip.wm_overrideredirect(True)
+        self.tip.geometry(f"+{x+10}+{y+10}")
+        label = ttk.Label(self.tip, text=text, background="#6c696d", relief="solid", borderwidth=1)
+        label.pack(ipadx=4, ipady=2)
+
+    def _hide_tip(self):
+        if hasattr(self, "tip"):
+            self.tip.destroy()
+            del self.tip
+
