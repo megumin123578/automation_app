@@ -1,3 +1,7 @@
+v1.0.60: - Thêm tính năng xóa Orders
+              - Cập nhật trang thái theo response API
+v1.0.59: - Thêm thanh tìm kiếm
+v1.0.58: - Thêm Mode Orders, lênh lịch buff tự động smms
 v1.0.57: - Sửa lỗi không cấu trúc được toàn bộ đối với thư mục con
 v1.0.56: - Cấu trúc lại các thư mục, files
 v1.0.55: - Cho phép ghép chuẩn bitrate với video chất lượng cao khi bật nvenc mode
@@ -5,7 +9,6 @@ v1.0.54: - Tự động update manifest.json, sha256, zipurl
 v1.0.53: - Sửa lỗi Ctrl không ghi đè giá trị cũ đối với copy paste từ sheet
               - Thêm phím tắt Ctrl S để lưu file excel 
               -  Đưa vị trí nút save excel về cùng hàng nút clear
-              - 
 v1.0.52: - Sửa lỗi giá trị monetization không được update khi người dùng chọn
 v1.0.51: - Ctrl + B để paste giá trị copy từ sheet, excel
               - Load group gần nhất khi khởi động app

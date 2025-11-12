@@ -8,6 +8,7 @@ API_KEY = "0f06dab474e72deb25b69026871433af"
 CSV_PATH = "orders/orders.csv"
 
 
+
 def api_request(params: dict):
     params["key"] = API_KEY
     try:
@@ -126,7 +127,7 @@ class OrdersPage(tk.Frame):
 
         # ===== QUEUE =====
         ttk.Label(self, text="🧾 Request Queue", font=("Segoe UI", 12, "bold")).pack(pady=(0, 2))
-        columns = ("run_time", "service", "link", "quantity", "status")
+        columns = ("run_time", 'order_id', "service", "link", "quantity", "status")
         self.tree = ttk.Treeview(self, columns=columns, show="headings", height=10)
         for col in columns:
             self.tree.heading(col, text=col.capitalize())
@@ -148,6 +149,28 @@ class OrdersPage(tk.Frame):
         threading.Thread(target=self._load_services, daemon=True).start()
         self._load_csv()
         self._start_realtime_update()
+        
+    HEADERS = ("run_time","order_id","service","link","quantity","status","charge","remains")
+
+    def _ensure_row_keys(self, row: dict):
+        for k in self.HEADERS:
+            row.setdefault(k, "")
+
+    def _set_tree_cells(self, run_time: str, **cols):
+        col_names = list(self.tree["columns"])  # ["run_time","order_id","service","link","quantity","status"]
+        for iid in self.tree.get_children():
+            vals = list(self.tree.item(iid, "values"))
+            if vals and vals[0] == run_time:
+                for k, v in cols.items():
+                    if k in col_names:
+                        idx = col_names.index(k)
+                        # Bảo toàn số lượng cột
+                        while len(vals) < len(col_names): 
+                            vals.append("")
+                        vals[idx] = v
+                self.tree.item(iid, values=tuple(vals))
+                break
+            
     # ===== Delete =====
     def _show_context_menu(self, event):
         iid = self.tree.identify_row(event.y)
@@ -171,9 +194,12 @@ class OrdersPage(tk.Frame):
         if os.path.exists(CSV_PATH):
             with open(CSV_PATH, newline='', encoding='utf-8') as f:
                 rows = list(csv.DictReader(f))
-            new_rows = [r for r in rows if r['run_time'] not in run_times_to_delete]
+            new_rows = [r for r in rows if r.get('run_time') not in run_times_to_delete]
+            # Bù cột trước khi ghi
+            for r in new_rows:
+                self._ensure_row_keys(r)
             with open(CSV_PATH,'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=['run_time', 'service', 'link','quantity','status'])
+                writer = csv.DictWriter(f, fieldnames=self.HEADERS)
                 writer.writeheader()
                 writer.writerows(new_rows)
 
@@ -316,9 +342,6 @@ class OrdersPage(tk.Frame):
         print(f"[DEBUG] Selected service: {selection} -> ID: {service_id}")
 
 
-
-
-
     def _search_service(self):
         self._live_search_service()
 
@@ -422,17 +445,65 @@ class OrdersPage(tk.Frame):
             "link": data["link"],
             "quantity": data["quantity"],
         })
-        status = "Done" if isinstance(resp, dict) and "error" not in resp else "Failed"
-        self._update_status(data["run_time"], status)
+        if not isinstance(resp, dict) or 'error' in resp:
+            self._update_status(data['run_time'], 'Failed')
+            return
+        order_id = str(resp.get('order', "")).strip()
+        if not order_id:
+            self._update_status(data['run_time'], 'Failed')
+            return
+        self._set_tree_cells(data['run_time'], order_id=order_id)
+        self._update_order_status_in_csv(data['run_time'], order_id, status="In Queue",
+                                         charge="", remains="")
+        threading.Thread(target=self._track_order_status, args=(data['run_time'], order_id), daemon=True).start()
+    
+    def _track_order_status(self, run_time, order_id):
+        while True:
+            time.sleep(15)
+            resp = api_request({'action':'status', 'order':order_id})
+            if not isinstance(resp, dict):
+                continue
+            status =  resp.get('status', 'Unknown')
+            charge = resp.get('charge', '?')
+            remains = resp.get('remains', resp.get('remain', '?'))
+
+            # Cập nhật UI (chỉ cột status)
+            self._set_tree_cells(run_time, status=f'{status} (remains: {remains})')
+            # Ghi CSV đầy đủ trường
+            self._update_order_status_in_csv(run_time, order_id, status, charge, remains)
+
+            if status and status.lower() in {'completed', 'partial', 'cancelled', 'canceled'}:
+                break
+
+    def _update_order_status_in_csv(self, run_time, order_id, status, charge, remains):
+        rows = []
+        if os.path.exists(CSV_PATH):
+            with open(CSV_PATH, newline='', encoding='utf-8') as f:
+                rows = list(csv.DictReader(f))
+
+        for r in rows:
+            if r.get('run_time') == run_time:
+                r['status'] = status
+                r['order_id'] = order_id
+                r['charge'] = charge
+                r['remains'] = remains
+            self._ensure_row_keys(r)
+
+        with open(CSV_PATH, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=self.HEADERS)
+            writer.writeheader()
+            writer.writerows(rows)
 
     # ===== CSV =====
     def _append_to_csv(self, data):
+        self._ensure_row_keys(data)
         exists = os.path.exists(CSV_PATH)
         with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["run_time", "service", "link", "quantity", "status"])
+            writer = csv.DictWriter(f, fieldnames=self.HEADERS)
             if not exists:
                 writer.writeheader()
             writer.writerow(data)
+
 
     def _load_csv(self):
         if not os.path.exists(CSV_PATH):
@@ -440,6 +511,7 @@ class OrdersPage(tk.Frame):
         with open(CSV_PATH, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
+                self._ensure_row_keys(row)
                 self._insert_tree(row)
                 if row["status"] == "In Queue":
                     threading.Thread(target=self._wait_and_send, args=(row,), daemon=True).start()
@@ -449,24 +521,32 @@ class OrdersPage(tk.Frame):
         if os.path.exists(CSV_PATH):
             with open(CSV_PATH, newline="", encoding="utf-8") as f:
                 rows = list(csv.DictReader(f))
+
         for r in rows:
-            if r["run_time"] == run_time:
+            if r.get("run_time") == run_time:
                 r["status"] = new_status
+            self._ensure_row_keys(r)
+
         with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["run_time", "service", "link", "quantity", "status"])
+            writer = csv.DictWriter(f, fieldnames=self.HEADERS)
             writer.writeheader()
             writer.writerows(rows)
-        # Update UI
-        for iid in self.tree.get_children():
-            vals = self.tree.item(iid, "values")
-            if vals[0] == run_time:
-                new_vals = (*vals[:4], new_status)
-                self.tree.item(iid, values=new_vals)
-                break
+
+        # Update đúng cột 'status' trên UI
+        self._set_tree_cells(run_time, status=new_status)
+
 
     def _insert_tree(self, data):
-        self.tree.insert("", "end", values=(data["run_time"], data["service"], data["link"],
-                                            data["quantity"], data["status"]))
+        self._ensure_row_keys(data)
+        self.tree.insert("", "end", values=(
+            data.get("run_time",""),
+            data.get("order_id",""),
+            data.get("service",""),
+            data.get("link",""),
+            data.get("quantity",""),
+            data.get("status","")
+        ))
+
 
     def _start_realtime_update(self):
         self.after(3000, self._start_realtime_update)

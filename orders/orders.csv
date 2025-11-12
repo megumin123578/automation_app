@@ -1,7 +1,3 @@
-run_time,service,link,quantity,status
-2025-11-11 16:27,15048,abc,10,Done
-2025-11-11 16:27,,abc,10,Done
-2025-11-11 16:28,,abc,10,Failed
-2025-11-11 16:33,,abc,1000,Failed
-2025-11-11 16:33,,abc,1000,Failed
-2025-11-11 16:34,,A,1000,Failed
+run_time,order_id,service,link,quantity,status,charge,remains
+2025-11-12 09:59,27969305,8738,https://youtube.com/shorts/0wUdGmX5VSQ,100,Completed,0.063,0
+2025-11-12 10:05,27969395,8738,https://youtube.com/shorts/0wUdGmX5VSQ,100,Completed,0.063,0
