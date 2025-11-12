@@ -1,3 +1,4 @@
+v1.0.62: - Thêm tùy chọn Drop feed cho smms page
 v1.0.61: - Thêm tùy chỉnh API key, hiển thị màu sắc tương ứng với trạng thái Orders
 v1.0.60: - Thêm tính năng xóa Orders
               - Cập nhật trang thái theo response API
