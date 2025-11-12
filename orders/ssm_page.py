@@ -133,6 +133,13 @@ class OrdersPage(tk.Frame):
             self.tree.column(col, width=180 if col == "link" else 100, anchor="w")
         self.tree.pack(fill="both", expand=True, padx=10, pady=(0, 2))
 
+        #DELETE
+        self.menu = tk.Menu(self, tearoff=0)
+        self.menu.add_command(label="Delete", command=self._delete_selected)
+        self.tree.bind('<Button-3>', self._show_context_menu)
+        self.tree.bind('<Delete>', lambda e: self._delete_selected())
+
+
         # ===== DATA =====
         self.services_by_category = {}
         self.service_id_map = {}
@@ -141,6 +148,34 @@ class OrdersPage(tk.Frame):
         threading.Thread(target=self._load_services, daemon=True).start()
         self._load_csv()
         self._start_realtime_update()
+    # ===== Delete =====
+    def _show_context_menu(self, event):
+        iid = self.tree.identify_row(event.y)
+        if iid:
+            self.tree.selection_set(iid)
+            self.menu.post(event.x_root, event.y_root)
+    def _delete_selected(self):
+        selection = self.tree.selection()
+        if not selection:
+            messagebox.showinfo('Info', 'No item selected!!')
+            return
+
+        confirm = messagebox.askyesno('Confirm delete?','Do you want to delete selected item(s)?')
+        if not confirm:
+            return
+        
+        run_times_to_delete = [self.tree.item(iid, "values")[0] for iid in selection]
+        for iid in selection:
+            self.tree.delete(iid)
+        
+        if os.path.exists(CSV_PATH):
+            with open(CSV_PATH, newline='', encoding='utf-8') as f:
+                rows = list(csv.DictReader(f))
+            new_rows = [r for r in rows if r['run_time'] not in run_times_to_delete]
+            with open(CSV_PATH,'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=['run_time', 'service', 'link','quantity','status'])
+                writer.writeheader()
+                writer.writerows(new_rows)
 
     # ===== LIVE SEARCH =====
 
