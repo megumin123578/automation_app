@@ -2,12 +2,11 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
 import datetime, threading, time, requests, csv, os
+import webbrowser
 
 API_URL = "https://smmstore.pro/api/v2"
 API_KEY = "0f06dab474e72deb25b69026871433af"
 CSV_PATH = "orders/orders.csv"
-
-
 
 def api_request(params: dict):
     params["key"] = API_KEY
@@ -133,6 +132,14 @@ class OrdersPage(tk.Frame):
             self.tree.heading(col, text=col.capitalize())
             self.tree.column(col, width=180 if col == "link" else 100, anchor="w")
         self.tree.pack(fill="both", expand=True, padx=10, pady=(0, 2))
+        self.tree.bind("<Button-1>", self._on_tree_click)
+
+        self.tree.tag_configure('st_queue',      foreground="#FBFF00")  # In Queue
+        self.tree.tag_configure('st_processing', foreground="#0066FF")  # Processing/Unknown
+        self.tree.tag_configure('st_completed',  foreground="#1CFD08")  # Completed (xanh)
+        self.tree.tag_configure('st_partial',    foreground='#8A6D00')  # Partial
+        self.tree.tag_configure('st_failed',     foreground="#FF0000")  # Failed/Cancelled (đỏ)
+        self.tree.tag_configure('st_unknown',    foreground='#333333')
 
         #DELETE
         self.menu = tk.Menu(self, tearoff=0)
@@ -149,28 +156,65 @@ class OrdersPage(tk.Frame):
         threading.Thread(target=self._load_services, daemon=True).start()
         self._load_csv()
         self._start_realtime_update()
-        
+
     HEADERS = ("run_time","order_id","service","link","quantity","status","charge","remains")
+    
+    def _on_tree_click(self, event):
+        """Mở link khi click vào cột Link"""
+        region = self.tree.identify("region", event.x, event.y)
+        if region != "cell":
+            return  # bỏ qua click ngoài ô
+        col = self.tree.identify_column(event.x)
+        if col != "#4":  
+            return
+
+        row_id = self.tree.identify_row(event.y)
+        if not row_id:
+            return
+
+        values = self.tree.item(row_id, "values")
+        if len(values) >= 4:
+            link = values[3].strip()
+            if link.startswith("http"):
+                webbrowser.open(link)
+            else:
+                messagebox.showinfo("Invalid Link", f"URL is not valid:\n{link}")
+                
+    def _status_to_tag(self, status_text: str) -> str:
+        s = (status_text or "").lower()
+        if 'completed' in s:
+            return 'st_completed'
+        if 'partial' in s:
+            return 'st_partial'
+        if 'cancel' in s or 'failed' in s or 'error' in s:
+            return 'st_failed'
+        if 'queue' in s:
+            return 'st_queue'
+        return 'st_processing'
+    def _apply_status_tag(self, iid, status_text: str):
+        tag = self._status_to_tag(status_text)
+        self.tree.item(iid, tags=(tag,))
 
     def _ensure_row_keys(self, row: dict):
         for k in self.HEADERS:
             row.setdefault(k, "")
 
     def _set_tree_cells(self, run_time: str, **cols):
-        col_names = list(self.tree["columns"])  # ["run_time","order_id","service","link","quantity","status"]
+        col_names = list(self.tree["columns"])
         for iid in self.tree.get_children():
             vals = list(self.tree.item(iid, "values"))
             if vals and vals[0] == run_time:
                 for k, v in cols.items():
                     if k in col_names:
                         idx = col_names.index(k)
-                        # Bảo toàn số lượng cột
-                        while len(vals) < len(col_names): 
+                        while len(vals) < len(col_names):
                             vals.append("")
                         vals[idx] = v
                 self.tree.item(iid, values=tuple(vals))
+                if 'status' in cols:
+                    self._apply_status_tag(iid, cols['status'])
                 break
-            
+
     # ===== Delete =====
     def _show_context_menu(self, event):
         iid = self.tree.identify_row(event.y)
@@ -538,14 +582,20 @@ class OrdersPage(tk.Frame):
 
     def _insert_tree(self, data):
         self._ensure_row_keys(data)
-        self.tree.insert("", "end", values=(
-            data.get("run_time",""),
-            data.get("order_id",""),
-            data.get("service",""),
-            data.get("link",""),
-            data.get("quantity",""),
-            data.get("status","")
-        ))
+        tag = self._status_to_tag(data.get("status",""))
+        self.tree.insert(
+            "", "end",
+            values=(
+                data.get("run_time",""),
+                data.get("order_id",""),
+                data.get("service",""),
+                data.get("link",""),
+                data.get("quantity",""),
+                data.get("status","")
+            ),
+            tags=(tag,)
+        )
+
 
 
     def _start_realtime_update(self):
