@@ -5,11 +5,68 @@ import datetime, threading, time, requests, csv, os
 import webbrowser
 
 API_URL = "https://smmstore.pro/api/v2"
-API_KEY = "0f06dab474e72deb25b69026871433af"
 CSV_PATH = "orders/orders.csv"
 
+def get_api_key(interactive=True, force_edit=False):
+    """Đọc hoặc nhập API key SMMStore (cho phép sửa khi force_edit=True)."""
+    import tkinter as tk
+    from tkinter import simpledialog, messagebox
+    import os
+
+    os.makedirs("orders", exist_ok=True)
+    api_path = "orders/api_key.txt"
+
+    # đọc file nếu có
+    if os.path.exists(api_path) and not force_edit:
+        with open(api_path, encoding="utf-8") as f:
+            key = f.read().strip()
+        if key:
+            return key
+
+    if not interactive:
+        return ""
+
+    # nếu chưa có hoặc đang sửa key → hỏi nhập
+    root = tk.Toplevel()
+    root.withdraw()
+
+    old_key = ""
+    if os.path.exists(api_path):
+        with open(api_path, encoding="utf-8") as f:
+            old_key = f.read().strip()
+
+    key = simpledialog.askstring(
+        "SMMStore API Key",
+        "Enter your SMMStore API key:",
+        show="*",
+        initialvalue=old_key
+    )
+    if not key:
+        messagebox.showwarning("Missing", "API key is required.")
+        root.destroy()
+        return ""
+
+    with open(api_path, "w", encoding="utf-8") as f:
+        f.write(key.strip())
+
+    messagebox.showinfo("Saved", "API key saved successfully.")
+    root.destroy()
+    return key.strip()
+
+
+
+def read_api_key():
+    path = "orders/api_key.txt"
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return f.read().strip()
+    return ""
+
 def api_request(params: dict):
-    params["key"] = API_KEY
+    key = read_api_key()
+    if not key:
+        return {"error": "Missing API key. Please configure it from menu."}
+    params["key"] = key
     try:
         r = requests.post(API_URL, data=params, timeout=30)
         r.raise_for_status()
@@ -399,7 +456,7 @@ class OrdersPage(tk.Frame):
     def _balance_thread(self):
         resp = api_request({"action": "balance"})
         if isinstance(resp, dict) and "error" in resp:
-            self.balance_var.set("Error fetching balance")
+            self.balance_var.set("Error loading balance")
         else:
             bal = resp.get("balance", "?")
             cur = resp.get("currency", "")
@@ -505,7 +562,13 @@ class OrdersPage(tk.Frame):
             remains = resp.get('remains', resp.get('remain', '?'))
 
             # Cập nhật UI (chỉ cột status)
-            self._set_tree_cells(run_time, status=f'{status} (remains: {remains})')
+            if status.lower() in {"completed"}:
+                display_status = status
+            else:
+                display_status = f"{status} (remains: {remains})"
+
+            # Cập nhật UI (chỉ cột status)
+            self._set_tree_cells(run_time, status=display_status)
             # Ghi CSV đầy đủ trường
             self._update_order_status_in_csv(run_time, order_id, status, charge, remains)
 
@@ -550,8 +613,14 @@ class OrdersPage(tk.Frame):
             for row in reader:
                 self._ensure_row_keys(row)
                 self._insert_tree(row)
-                if row["status"] == "In Queue":
+                status = row["status"].lower()
+                order_id = row.get("order_id", "").strip()
+
+                if not order_id and "queue" in status:
                     threading.Thread(target=self._wait_and_send, args=(row,), daemon=True).start()
+                elif order_id and not any(s in status for s in ["completed", "partial", "cancel", "failed"]):
+                    threading.Thread(target=self._track_order_status, args=(row["run_time"], order_id), daemon=True).start()
+
 
     def _update_status(self, run_time, new_status):
         rows = []
@@ -588,8 +657,6 @@ class OrdersPage(tk.Frame):
             ),
             tags=(tag,)
         )
-
-
 
     def _start_realtime_update(self):
         self.after(3000, self._start_realtime_update)

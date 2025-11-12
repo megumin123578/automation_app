@@ -9,6 +9,7 @@ from thong_ke.stats_page import StatisticsPage
 from orders.ssm_page import OrdersPage
 import time
 from rearange_files import rearrange_and_delete_junk_files 
+from orders.ssm_page import get_api_key
 
 class App(tk.Tk):
     def __init__(self):
@@ -74,6 +75,22 @@ class App(tk.Tk):
 
         help_menu.add_command(label=f"About (v{APP_VERSION})", command=_show_about)
         menubar.add_cascade(label="Help", menu=help_menu)
+        # ====== CONFIG MENU ======
+        config_menu = tk.Menu(menubar, tearoff=0)
+
+        def _set_api_key():
+            key = get_api_key(interactive=True, force_edit=True)
+            if key:
+                try:
+                    if hasattr(self, "orders_page"):
+                        self.orders_page.auto_get_balance()
+                        threading.Thread(target=self.orders_page._load_services, daemon=True).start()
+                        self._set_status("Reloaded balance and services after saving API key.")
+                except Exception as e:
+                    print("Error reloading after saving API key:", e)
+
+        config_menu.add_command(label="Set SMMStore API Key...", command=_set_api_key)
+        menubar.add_cascade(label="Config", menu=config_menu)
 
         self._build_shell()
 
