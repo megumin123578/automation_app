@@ -120,9 +120,8 @@ class OrdersPage(tk.Frame):
         ttk.Entry(form, textvariable=self.quantity_var, width=15).grid(row=4, column=1, sticky="w", padx=(0, 8))
 
         btn_frame = ttk.Frame(form)
-        btn_frame.grid(row=4, column=5, columnspan=2, sticky="e")
+        btn_frame.grid(row=4, column=6, columnspan=2, sticky="e")
         ttk.Button(btn_frame, text="Submit", command=self.add_schedule).pack(side="left", padx=(0, 4))
-        ttk.Button(btn_frame, text="Send Now", command=self.send_now).pack(side="left")
 
         # ===== QUEUE =====
         ttk.Label(self, text="🧾 Request Queue", font=("Segoe UI", 12, "bold")).pack(pady=(0, 2))
@@ -445,11 +444,21 @@ class OrdersPage(tk.Frame):
         h, m = int(self.hour_var.get()), int(self.min_var.get())
         run_time = datetime.datetime(d.year, d.month, d.day, h, m)
         if run_time <= datetime.datetime.now():
-            messagebox.showwarning("Invalid Time", "Run time must be in the future.")
+            service_id = self.service_id_map.get(self.cb_service.get())
+            data = {
+                "run_time": datetime.datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "service": service_id,
+                "link": self.link_var.get(),
+                "quantity": self.quantity_var.get(),
+                "status": "In Queue"
+            }
+            self._append_to_csv(data)
+            self._insert_tree(data)
+            threading.Thread(target=self._send_order, args=(data,), daemon=True).start()
             return
         service_id = self.service_id_map.get(self.cb_service.get())
         data = {
-            "run_time": run_time.strftime("%Y-%m-%d %H:%M"),
+            "run_time": run_time.strftime("%d/%m/%Y %H:%M"),
             "service": service_id,
             "link": self.link_var.get(),
             "quantity": self.quantity_var.get(),
@@ -459,24 +468,8 @@ class OrdersPage(tk.Frame):
         self._insert_tree(data)
         threading.Thread(target=self._wait_and_send, args=(data,), daemon=True).start()
 
-    def send_now(self):
-        if not self.cb_service.get():
-            messagebox.showwarning("Missing", "Please select a service.")
-            return
-        service_id = self.service_id_map.get(self.cb_service.get())
-        data = {
-            "run_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "service": service_id,
-            "link": self.link_var.get(),
-            "quantity": self.quantity_var.get(),
-            "status": "In Queue"
-        }
-        self._append_to_csv(data)
-        self._insert_tree(data)
-        threading.Thread(target=self._send_order, args=(data,), daemon=True).start()
-
     def _wait_and_send(self, data):
-        run_time = datetime.datetime.strptime(data["run_time"], "%Y-%m-%d %H:%M")
+        run_time = datetime.datetime.strptime(data["run_time"], "%d/%m/%Y %H:%M")
         delta = (run_time - datetime.datetime.now()).total_seconds()
         if delta > 0:
             time.sleep(delta)
