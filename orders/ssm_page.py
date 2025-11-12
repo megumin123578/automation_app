@@ -589,7 +589,3 @@ class OrdersPage(tk.Frame):
             tags=(tag,)
         )
 
-
-
-    def _start_realtime_update(self):
-        self.after(3000, self._start_realtime_update)
