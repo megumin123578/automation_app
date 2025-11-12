@@ -48,12 +48,6 @@ def rearrange_and_delete_junk_files(): #main function to be called
     if not check_current_folder(): #if not in src folder
         print('Attempting to delete src folder...')
         try:
-            shutil.rmtree((src_folder))
-            print(f'Deleted src folder')
-        except Exception as e:
-            print(f'Error deleting src folder: {e}')
-        
-        try:
             shutil.rmtree((os.path.join(cur, 'src')))
             print(f'Deleted src folder')
         except Exception as e:

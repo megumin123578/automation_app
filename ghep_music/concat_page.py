@@ -645,7 +645,8 @@ class ConcatPage(tk.Frame):
                         )
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         desired = get_first_vids_name(out_dir, group[0])
-                        if bg_audio and os.path.isfile(bg_audio):
+                        bg_vol = float(self.bgm_volume_var.get())
+                        if bg_audio and os.path.isfile(bg_audio) and bg_vol > 0:
                             tmp = mix_audio_with_bgm_ffmpeg(
                                 temp, bg_audio, out_dir,
                                 bgm_volume=self.bgm_volume_var.get(),
@@ -687,7 +688,8 @@ class ConcatPage(tk.Frame):
                         )
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         desired = get_first_vids_name(out_dir, group[0]) 
-                        if bg_audio and os.path.isfile(bg_audio):
+                        bg_vol = float(self.bgm_volume_var.get())
+                        if bg_audio and os.path.isfile(bg_audio) and bg_vol > 0:
                             tmp = mix_audio_at_end_ffmpeg(
                                 temp, bg_audio, out_dir, self.outro_duration_var.get(),
                                 bgm_volume=self.bgm_volume_var.get(),
@@ -781,7 +783,8 @@ class ConcatPage(tk.Frame):
                         )
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         desired = get_first_vids_name(out_dir, group[0]) 
-                        if bg_audio and os.path.isfile(bg_audio):
+                        bg_vol = float(self.bgm_volume_var.get())
+                        if bg_audio and os.path.isfile(bg_audio) and bg_vol > 0:
                             tmp = mix_audio_with_bgm_ffmpeg(
                                 temp, bg_audio, out_dir,
                                 bgm_volume=self.bgm_volume_var.get(),
