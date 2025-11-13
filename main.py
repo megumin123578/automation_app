@@ -23,7 +23,7 @@ class App(tk.Tk):
 
         self._init_done = False
         self._init_error = None
-
+        self._update_restarted = False
         self._show_splash()
 
         self.title(APP_TITLE)
@@ -1069,12 +1069,17 @@ class App(tk.Tk):
         threading.Thread(target=worker, daemon=True).start()
 
     def _restart_app(self):
+        if self._update_restarted:
+            return  # tránh restart lần 2
+        self._update_restarted = True
+
         python = sys.executable
         script = os.path.abspath(sys.argv[0])
         args = sys.argv[1:]
         subprocess.Popen([python, script] + args, shell=False)
         self.destroy()
         sys.exit(0)
+
 
     def _open_manage_channel_window(self):
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manage_channel\data\manage_page.py")
@@ -1098,7 +1103,8 @@ class App(tk.Tk):
                         self._set_status(msg)
 
                         if msg.startswith("Installed update") or "Cập nhật lên" in msg:
-                            self._restart_app()
+                            if not self._update_restarted:
+                                self._restart_app()
                 else:
                     print(info.get("message", "Already the lastes version"))
             except Exception as e:
