@@ -211,6 +211,9 @@ class OrdersPage(tk.Frame):
         self.tree.pack(fill="both", expand=True, padx=10, pady=(0, 2))
         self.tree.bind("<Button-1>", self._on_tree_click)
 
+        self.tree.bind("<Motion>", self._on_tree_motion)
+        self.tree.bind("<Leave>", lambda e: self.tree.config(cursor=""))
+
         self.tree.tag_configure('st_queue',      foreground="#FBFF00")  # In Queue
         self.tree.tag_configure('st_processing', foreground="#0066FF")  # Processing/Unknown
         self.tree.tag_configure('st_completed',  foreground="#1CFD08")  # Completed (xanh)
@@ -735,3 +738,24 @@ class OrdersPage(tk.Frame):
             self.tip.destroy()
             del self.tip
 
+    def _on_tree_motion(self, event):
+        """Đổi sang cursor dạng link khi rê lên cột Link có URL hợp lệ."""
+        region = self.tree.identify("region", event.x, event.y)
+        if region != "cell":
+            self.tree.config(cursor="")
+            return
+
+        col = self.tree.identify_column(event.x)
+        row_id = self.tree.identify_row(event.y)
+
+        # Cột #4 là cột Link (theo thứ tự em đang dùng)
+        if col == "#4" and row_id:
+            values = self.tree.item(row_id, "values")
+            if len(values) >= 4:
+                link = str(values[3]).strip()
+                if link.startswith("http"):
+                    self.tree.config(cursor="hand2")  # hiệu ứng hover dạng link
+                    return
+
+        # Không phải ô link, trả cursor về mặc định
+        self.tree.config(cursor="")
