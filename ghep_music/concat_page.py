@@ -21,6 +21,30 @@ class ConcatPage(tk.Frame):
 
         style.configure("NvencOff.TButton", font=("Segoe UI", 10, "bold"), foreground="#ffffff", background="#d32f2f")
         style.map("NvencOff.TButton", background=[("active", "#b71c1c")])
+        style.configure(
+            "Advanced.TButton",
+            font=("Segoe UI", 10, "bold"),
+            foreground="#ffffff",
+            background="#4E4E4E",
+            padding=6,
+        )
+        style.map(
+            "Advanced.TButton",
+            background=[("active", "#5A5A5A")]
+        )
+
+        style.configure(
+            "Advanced.On.TButton",
+            font=("Segoe UI", 10, "bold"),
+            foreground="#000000",
+            background="#8BC34A",   
+            padding=6,
+        )
+        style.map(
+            "Advanced.On.TButton",
+            background=[("active", "#7CB342")]
+        )
+
 
         self.start_time = None
         self.elapsed_times = []
@@ -132,10 +156,10 @@ class ConcatPage(tk.Frame):
         self.combo_mode.bind("<<ComboboxSelected>>", lambda e: (self.save_channel_config(), self._update_mode_visibility(), self.reload_groups()))
 
         self.btn_advanced = ttk.Button(
-            channel_frame, text="Advanced ▸", style="Secondary.TButton",
+            channel_frame, text="Advanced ▸",style="Advanced.TButton",
             command=self._toggle_advanced
         )
-        self.btn_advanced.grid(row=0, column=7, sticky="w", padx=8)
+        self.btn_advanced.grid(row=0, column=8, sticky="w", padx=8)
 
         # Parameters frame
         param_frame = ttk.Frame(self.frm_top)
@@ -1293,12 +1317,14 @@ class ConcatPage(tk.Frame):
 
     def _toggle_advanced(self):
         self._advanced = not self._advanced
+
         if self._advanced:
             self.video_frame.grid()
-            self.btn_advanced.configure(text="Advanced ▾")
+            self.btn_advanced.configure(text="Advanced ▾", style="Advanced.On.TButton")
         else:
             self.video_frame.grid_remove()
-            self.btn_advanced.configure(text="Advanced ▸")
+            self.btn_advanced.configure(text="Advanced ▸", style="Advanced.TButton")
+
 
     def _toggle_nvenc(self):
         self.use_nvenc_var.set(not self.use_nvenc_var.get())
