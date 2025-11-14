@@ -21,3 +21,6 @@ git clean -fdx #clean file not in git
 pyinstaller --noconfirm --onefile --windowed --icon "C:\Users\Seo no luc\Documents\dev\upload-short-with-gpm-handle-excel-file\spider.ico" --distpath . "C:\Users\Seo no luc\Documents\dev\upload-short-with-gpm-handle-excel-file\main.py"
 
 
+
+#insert logo
+ffmpeg -i 44.mp4 -i logo.png -filter_complex "[1:v]scale=iw*0.25:ih*0.25,format=rgba,colorchannelmixer=aa=0.5[wm];[0:v][wm]overlay=57:min(1026\,H-h-20)" -c:v h264_nvenc -preset fast -cq 23 -c:a copy output.mp4
