@@ -26,6 +26,8 @@ class App(tk.Tk):
         self._update_restarted = False
         self._show_splash()
 
+        self._active_nav_key = None
+
         self.title(APP_TITLE)
         # self.state("zoomed")
         self.minsize(1000, 600)
@@ -139,6 +141,18 @@ class App(tk.Tk):
             b.pack(fill="x")
             self._nav_buttons[key] = b
 
+            # hover effect
+            def on_enter(e, k=key):
+                if getattr(self, "_active_nav_key", None) != k:
+                    e.widget.configure(bg="#126300")
+            def on_leave(e, k=key):
+                if getattr(self, "_active_nav_key", None) == k:
+                    e.widget.configure(bg="#E6F0FF", fg="#000000")
+                else:
+                    e.widget.configure(bg=self._sidebar.cget("bg"), fg="#ffffff")
+            b.bind('<Enter>', on_enter)
+            b.bind('<Leave>', on_leave)
+
         add_btn("Auto Upload", "assign", lambda: self._show_page("assign"))
         add_btn("Concatenation", "concat", lambda: self._show_page("concat"))
         add_btn("Manage Channels", "manage", lambda: self._show_page("manage"))
@@ -151,6 +165,7 @@ class App(tk.Tk):
         ttk.Label(bar, textvariable=self.status_var).pack(side=tk.LEFT)
 
     def _highlight_nav(self, active_key):
+        self._active_nav_key = active_key
         for k, btn in self._nav_buttons.items():
             if k == active_key:
                 btn.configure(bg="#E6F0FF", fg="#000000") 
