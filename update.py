@@ -3,28 +3,22 @@ import hashlib
 import zipfile
 import shutil
 import re
-import subprocess
 import tempfile
 import json
 from datetime import datetime
 
 # ===== CONFIG =====
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMP_DIR = os.path.join(ROOT_DIR, "temp_build")
 TARGET_FILE = os.path.join(ROOT_DIR, "hyperparameter.py")
 VERSION = datetime.now().strftime("%Y.%m.%d.%H%M")
 OUTPUT_ZIP = os.path.join(ROOT_DIR, f"update_package_{VERSION}.zip")
 MANIFEST_PATH = os.path.join(ROOT_DIR, "manifest.json")
 
-
-# Thông tin GitHub (để tạo link zip_url)
 GITHUB_REPO = "megumin123578/upload-short-with-gpm-handle-excel-file"
 
-EXTRA_FILES = ["update_content.txt", "assets", 'main.exe']  # tồn tại thì copy vào gói
-
-
-# ===== UTILS =====
+# ====== CALC SHA256 ======
 def sha256_of_file(path):
+    import hashlib
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
@@ -32,126 +26,142 @@ def sha256_of_file(path):
     return h.hexdigest()
 
 
-def copy_and_bump_version(src_path=TARGET_FILE, dest_dir=TEMP_DIR):
+# ===== BUMP VERSION =====
+def bump_hyperparameter(src_path=TARGET_FILE):
     if not os.path.exists(src_path):
-        print(f"Không tìm thấy file: {src_path}")
+        print("Không tìm thấy hyperparameter.py")
         return None, None
 
-    os.makedirs(dest_dir, exist_ok=True)
-    dest_path = os.path.join(dest_dir, os.path.basename(src_path))
+    temp_dir = tempfile.mkdtemp(prefix="hyper_")
+    dest_path = os.path.join(temp_dir, "hyperparameter.py")
 
     with open(src_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     match = re.search(r'APP_VERSION\s*=\s*"(\d+\.\d+\.\d+)"', content)
     if not match:
-        print("Không tìm thấy APP_VERSION trong file.")
+        print("Không tìm thấy APP_VERSION")
         return None, None
 
-    old_version = match.group(1)
-    parts = old_version.split(".")
+    old_ver = match.group(1)
+    parts = old_ver.split(".")
     parts[-1] = str(int(parts[-1]) + 1)
-    new_version = ".".join(parts)
+    new_ver = ".".join(parts)
 
     new_content = re.sub(
         r'APP_VERSION\s*=\s*"\d+\.\d+\.\d+"',
-        f'APP_VERSION = "{new_version}"',
+        f'APP_VERSION = "{new_ver}"',
         content
     )
 
     with open(dest_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-    print(f"hyperparameter.py: {old_version} → {new_version}")
-    return new_version, dest_path
+    print(f"hyperparameter.py: {old_ver} → {new_ver}")
+    return new_ver, dest_path
 
 
-def run_pyarmor(out_dir: str):
-    print("Đang chạy PyArmor để mã hóa source...")
-    cmd = [
-        "pyarmor", "gen", "-r",
-        "--exclude", "./hyperparameter.py",
-        "-O", out_dir, "."
-    ]
-    result = subprocess.run(cmd, check=False)
-    if result.returncode != 0:
-        raise RuntimeError("PyArmor thất bại!")
+# ===== OBFUSCATOR =====
+def obfuscate_source(text: str) -> str:
+    import zlib, base64
+    data = zlib.compress(text.encode("utf-8"), level=9)
+    b64 = base64.b64encode(data).decode("ascii")
+
+    return f"""# -*- coding: utf-8 -*-
+import zlib as _z, base64 as _b
+_c=_z.decompress(_b.b64decode({b64!r}))
+exec(compile(_c, __file__, 'exec'), globals(), globals())
+"""
 
 
-def zip_dir(src_dir: str, zip_path: str):
-    files_count = 0
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+# ===== COPY & OBFUSCATE PY ONLY =====
+def copy_and_obfuscate_py(src_root, dst_root, bumped_file_path):
+    for dirpath, dirnames, filenames in os.walk(src_root):
+
+        # bỏ qua thư mục build, cache, assets
+        dirnames[:] = [
+            d for d in dirnames
+            if d not in (".git", "__pycache__", "assets", "temp_build")
+        ]
+
+        rel = os.path.relpath(dirpath, src_root)
+        out_dir = os.path.join(dst_root, rel if rel != "." else "")
+        os.makedirs(out_dir, exist_ok=True)
+
+        for fname in filenames:
+            if not fname.endswith(".py"):
+                continue
+
+            src = os.path.join(dirpath, fname)
+            dst = os.path.join(out_dir, fname)
+
+            # hyperparameter.py dùng bản đã bump
+            if os.path.abspath(src) == os.path.abspath(TARGET_FILE):
+                shutil.copy2(bumped_file_path, dst)
+                print("Copied bumped hyperparameter.py")
+                continue
+
+            # đọc & obfuscate
+            try:
+                with open(src, "r", encoding="utf-8") as f:
+                    code = f.read()
+            except UnicodeDecodeError:
+                with open(src, "r", encoding="latin-1") as f:
+                    code = f.read()
+
+            obf = obfuscate_source(code)
+            with open(dst, "w", encoding="utf-8") as f:
+                f.write(obf)
+
+            print("Obfuscated:", os.path.relpath(dst, dst_root))
+
+
+# ===== ZIP =====
+def zip_dir(src_dir, zip_path):
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         for dirpath, _, filenames in os.walk(src_dir):
-            for file in filenames:
-                full_path = os.path.join(dirpath, file)
-                rel_path = os.path.relpath(full_path, src_dir).replace("\\", "/")
-                zipf.write(full_path, arcname=rel_path)
-                files_count += 1
-    print(f"Đã tạo file ZIP: {zip_path}")
-    print(f"Tổng số file nén: {files_count}")
+            for fname in filenames:
+                full = os.path.join(dirpath, fname)
+                rel = os.path.relpath(full, src_dir).replace("\\", "/")
+                z.write(full, rel)
+    print("Đã tạo ZIP:", zip_path)
 
 
+# ===== UPDATE MANIFEST =====
 def update_manifest(version, zip_path):
-    """Tự động cập nhật manifest.json với version, zip_url, sha256"""
-    sha256 = sha256_of_file(zip_path)
-    zip_name = os.path.basename(zip_path)
-
-    zip_url = (
-        f"https://github.com/{GITHUB_REPO}/releases/download/"
-        f"v{version}/{zip_name}"
-    )
+    sha = sha256_of_file(zip_path)
+    name = os.path.basename(zip_path)
 
     data = {
         "version": version,
-        "zip_url": zip_url,
-        "sha256": sha256
+        "zip_url": f"https://github.com/{GITHUB_REPO}/releases/download/v{version}/{name}",
+        "sha256": sha
     }
 
     with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-    print("\nĐã cập nhật manifest.json:")
-    print(json.dumps(data, indent=2, ensure_ascii=False))
+    print("manifest.json updated")
 
 
+# ===== MAIN BUILD =====
 def build_package():
-    app_version, bumped_file = copy_and_bump_version()
-    if not app_version:
-        print("Không tạo được version, dừng lại.")
+    version, bumped_file = bump_hyperparameter()
+    if not version:
         return
 
-    temp_out_dir = tempfile.mkdtemp(prefix="obf_out_")
+    temp_dir = tempfile.mkdtemp(prefix="pyonly_")
 
-    try:
-        run_pyarmor(temp_out_dir)
+    print("Copy + obfuscate .py files ONLY...")
+    copy_and_obfuscate_py(ROOT_DIR, temp_dir, bumped_file)
 
-        if bumped_file:
-            shutil.copy2(bumped_file, os.path.join(temp_out_dir, "hyperparameter.py"))
-            print("Đã chèn hyperparameter.py vào gói tạm")
+    print("Zipping package...")
+    zip_dir(temp_dir, OUTPUT_ZIP)
 
-        for fname in EXTRA_FILES:
-            src = os.path.join(ROOT_DIR, fname)
-            dest = os.path.join(temp_out_dir, fname)
-            if not os.path.exists(src):
-                print(f"Bỏ qua vì không tìm thấy: {src}")
-                continue
-            if os.path.isfile(src):
-                os.makedirs(os.path.dirname(dest), exist_ok=True)
-                shutil.copy2(src, dest)
-                print(f"Đã thêm file: {fname}")
-            elif os.path.isdir(src):
-                shutil.copytree(src, dest, dirs_exist_ok=True)
-                print(f"Đã thêm thư mục: {fname}")
+    update_manifest(version, OUTPUT_ZIP)
 
-        zip_dir(temp_out_dir, OUTPUT_ZIP)
-        shutil.rmtree(TEMP_DIR, ignore_errors=True)
-
-        # Cập nhật manifest.json sau khi build
-        update_manifest(app_version, OUTPUT_ZIP)
-
-        print(f"\nHoàn tất build cho phiên bản: {app_version}")
-    finally:
-        shutil.rmtree(temp_out_dir, ignore_errors=True)
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    print("DONE → version:", version)
 
 
 if __name__ == "__main__":
