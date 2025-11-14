@@ -202,7 +202,6 @@ class OrdersPage(tk.Frame):
         ttk.Button(btn_frame, text="Submit", command=self.add_schedule).pack(side="left", padx=(0, 4))
 
         # ===== QUEUE =====
-        ttk.Label(self, text="🧾 Request Queue", font=("Segoe UI", 12, "bold")).pack(pady=(0, 2))
         columns = ("run_time", 'order_id', "service", "link", "quantity", "status")
         self.tree = ttk.Treeview(self, columns=columns, show="headings", height=10)
         for col in columns:

@@ -415,9 +415,10 @@ class App(tk.Tk):
         vsb.pack(side=tk.LEFT, fill=tk.Y)
 
         # bindings
-        self.tree.bind("<Double-1>", self._on_tree_double_click)
+        self.tree.bind("<Button-1>", self._on_tree_click)        # 1 click -> edit ô
         self.tree.bind("<Delete>", self._delete_selected_rows)
-        self.tree.bind("<Button-3>", self._show_tree_menu)
+        self.tree.bind("<Button-3>", self._show_tree_menu)       # chuột phải -> menu Edit/Delete
+
         
 
     def _build_footer(self, parent):
@@ -905,9 +906,17 @@ class App(tk.Tk):
             return
         if item_id not in self.tree.selection():
             self.tree.selection_set(item_id)
+
+        index = self.tree.index(item_id)
+
         menu = tk.Menu(self, tearoff=0)
+        menu.add_command(
+            label="Edit Values",
+            command=lambda iid=item_id, idx=index: self._edit_row_dialog(iid, idx)
+        )
         menu.add_command(label="Delete", command=lambda: self._delete_selected_rows())
         menu.post(event.x_root, event.y_root)
+
 
     def _open_profile_manager(self):
         group_file = self.group_file_var.get().strip()
@@ -1459,6 +1468,90 @@ class App(tk.Tk):
             f"{max(len(titles), len(descs), len(dates), len(times))} dòng từ Excel."
         )
         self._schedule_preview()
+    
+    def _on_tree_click(self, event):
+        """Single click vào ô để edit inline (giống Excel)."""
+        region = self.tree.identify("region", event.x, event.y)
+        if region != "cell":
+            return  
+
+        item_id = self.tree.identify_row(event.y)
+        col_id  = self.tree.identify_column(event.x)  # "#1", "#2", ...
+        if not item_id or not col_id:
+            return
+
+        col_index = int(col_id[1:]) - 1  # 0-based
+
+        self.tree.selection_set(item_id)
+        self.tree.focus(item_id)
+
+        bbox = self.tree.bbox(item_id, col_id)
+        if not bbox:
+            return
+        x, y, w, h = bbox
+        if w <= 0 or h <= 0:
+            return
+
+        old_values = list(self.tree.item(item_id, "values"))
+        old_text = old_values[col_index] if col_index < len(old_values) else ""
+
+        if hasattr(self, "_cell_editor") and self._cell_editor is not None:
+            try:
+                self._cell_editor.destroy()
+            except Exception:
+                pass
+            self._cell_editor = None
+
+        editor = tk.Entry(self.tree)
+        self._cell_editor = editor
+        editor.place(x=x, y=y, width=w, height=h)
+        editor.insert(0, old_text)
+        def _focus_and_select():
+            try:
+                editor.focus_set()
+                editor.select_range(0, tk.END)
+            except Exception:
+                pass
+
+        self.after(1, _focus_and_select)
+
+        def _finish(save: bool):
+            new_text = editor.get().strip() if save else old_text
+            try:
+                editor.destroy()
+            except Exception:
+                pass
+            self._cell_editor = None
+
+            if not save:
+                return
+
+            # Cập nhật Treeview
+            values = list(self.tree.item(item_id, "values"))
+            values += [""] * max(0, col_index + 1 - len(values))
+            values[col_index] = new_text
+            self.tree.item(item_id, values=values)
+
+            # Cập nhật _last_assignments để Save Excel dùng dữ liệu mới
+            if self._last_assignments:
+                try:
+                    row_idx = self.tree.index(item_id)
+                    if 0 <= row_idx < len(self._last_assignments):
+                        row_vals = list(self._last_assignments[row_idx])
+                        row_vals += [""] * max(0, len(values) - len(row_vals))
+                        row_vals[:len(values)] = values
+                        self._last_assignments[row_idx] = tuple(row_vals)
+                except Exception:
+                    pass
+
+            self._set_status(
+                f"Updated row {self.tree.index(item_id)+1}, column {col_index+1}."
+            )
+
+        editor.bind("<Return>", lambda e: _finish(True))   # Enter -> lưu
+        editor.bind("<Escape>", lambda e: _finish(False))  # Esc -> huỷ
+        editor.bind("<FocusOut>", lambda e: _finish(True)) # mất focus -> auto lưu
+
 
 if __name__ == "__main__":
     rearrange_and_delete_junk_files() # rearrange files first
