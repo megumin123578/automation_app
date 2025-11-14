@@ -363,7 +363,9 @@ class App(tk.Tk):
 
             self._set_status(f"Refreshed random videos for {len(items)} row(s).")
 
-        ttk.Button(frm3, text="Refresh", command=_refresh_random_paths).pack(side=tk.RIGHT, padx=(0, 10))
+        ttk.Button(frm3, text="Clear", command=self._clear_inputs).pack(side=tk.LEFT, padx=(10, 10))
+        ttk.Button(frm3, text="Refresh", command=_refresh_random_paths).pack(side=tk.RIGHT, padx=(10, 10))
+
 
     def _build_inputs(self, parent):
         container = ttk.Frame(parent, padding=10)
@@ -396,10 +398,6 @@ class App(tk.Tk):
         paned.add(f2)
         paned.add(f3)
         paned.add(f4)
-        btns = ttk.Frame(parent, padding=(10, 0, 10, 0))
-        btns.pack(fill=tk.X)
-        ttk.Button(btns, text="Clear Inputs", command=self._clear_inputs).pack(side=tk.LEFT, padx=6)
-        ttk.Button(btns, text="Save Excel", command=self._save_excel).pack(side=tk.RIGHT, padx=6)
 
     def _build_preview(self, parent):
         frm = ttk.Frame(parent, padding=10)
@@ -486,6 +484,8 @@ class App(tk.Tk):
 
         ttk.Button(bar, text="Browse", command=choose_folder).pack(side=tk.LEFT, padx=(0, 8))
         ttk.Button(bar, text="Combine", command=self._combine_excels).pack(side=tk.RIGHT)
+        ttk.Button(bar, text="Save Excel (Ctrl + S)", command=self._save_excel).pack(side=tk.RIGHT, padx=(0,8))
+        
 
     # Logic
     def _schedule_preview(self):
