@@ -30,7 +30,7 @@ class ConcatPage(tk.Frame):
         )
         style.map(
             "Advanced.TButton",
-            background=[("active", "#5A5A5A")]
+            background=[("active", "#8BC34A")]
         )
 
         style.configure(
@@ -42,7 +42,7 @@ class ConcatPage(tk.Frame):
         )
         style.map(
             "Advanced.On.TButton",
-            background=[("active", "#7CB342")]
+            background=[("active", "#D13BFF")]
         )
 
 
