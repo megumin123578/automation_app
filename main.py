@@ -144,7 +144,7 @@ class App(tk.Tk):
             # hover effect
             def on_enter(e, k=key):
                 if getattr(self, "_active_nav_key", None) != k:
-                    e.widget.configure(bg="#126300")
+                    e.widget.configure(bg="#2AA50F")
             def on_leave(e, k=key):
                 if getattr(self, "_active_nav_key", None) == k:
                     e.widget.configure(bg="#E6F0FF", fg="#000000")
@@ -430,11 +430,14 @@ class App(tk.Tk):
         vsb.pack(side=tk.LEFT, fill=tk.Y)
 
         # bindings
-        self.tree.bind("<Button-1>", self._on_tree_click)        # 1 click -> edit ô
+        self.tree.bind("<Button-1>", self._on_tree_single_click)  # 1 click: chỉ chọn / bỏ chọn
+        self.tree.bind("<Double-1>", self._on_tree_click)         # 2 click: edit ô (inline)
         self.tree.bind("<Delete>", self._delete_selected_rows)
-        self.tree.bind("<Button-3>", self._show_tree_menu)       # chuột phải -> menu Edit/Delete
-
-        
+        self.tree.bind("<Button-3>", self._show_tree_menu)        # chuột phải -> menu Edit/Delete
+        self.tree.bind("<Control-a>", self._select_all)
+        self.tree.bind("<Control-A>", self._select_all)
+        self.tree.bind('<Escape>', self._clear_selection)
+        self.bind_all("<Button-1>", self._global_click, add="+")
 
     def _build_footer(self, parent):
         bar = ttk.Frame(parent, relief=tk.SUNKEN, padding=6)
@@ -719,16 +722,6 @@ class App(tk.Tk):
 
     def _set_status(self, msg: str):
         self.after(0, lambda: self.status_var.set(msg))
-
-    def _on_tree_double_click(self, event):
-        region = self.tree.identify("region", event.x, event.y)
-        if region != "cell":
-            return
-        item_id = self.tree.identify_row(event.y)
-        if not item_id:
-            return
-        index = self.tree.index(item_id)
-        self._edit_row_dialog(item_id, index)
 
     def _edit_row_dialog(self, item_id, index):
         vals = list(self.tree.item(item_id, "values"))
@@ -1485,18 +1478,18 @@ class App(tk.Tk):
         self._schedule_preview()
     
     def _on_tree_click(self, event):
-        """Single click vào ô để edit inline (giống Excel)."""
-        region = self.tree.identify("region", event.x, event.y)
-        if region != "cell":
-            return  
-
+        region = self.tree.identify('region', event.x, event.y)
         item_id = self.tree.identify_row(event.y)
-        col_id  = self.tree.identify_column(event.x)  # "#1", "#2", ...
-        if not item_id or not col_id:
+        col_id = self.tree.identify_column(event.x)
+
+        if region == 'nothing' or not item_id:
+            self._clear_selection_and_editor()
+            return
+            
+        if region != 'cell' or not col_id:
             return
 
-        col_index = int(col_id[1:]) - 1  # 0-based
-
+        col_index = int(col_id[1:]) - 1
         self.tree.selection_set(item_id)
         self.tree.focus(item_id)
 
@@ -1510,44 +1503,34 @@ class App(tk.Tk):
         old_values = list(self.tree.item(item_id, "values"))
         old_text = old_values[col_index] if col_index < len(old_values) else ""
 
-        if hasattr(self, "_cell_editor") and self._cell_editor is not None:
-            try:
-                self._cell_editor.destroy()
-            except Exception:
-                pass
-            self._cell_editor = None
+        # Nếu đã có editor thì destroy trước
+        self._destroy_cell_editor()
 
         editor = tk.Entry(self.tree)
         self._cell_editor = editor
         editor.place(x=x, y=y, width=w, height=h)
         editor.insert(0, old_text)
+
         def _focus_and_select():
             try:
                 editor.focus_set()
                 editor.select_range(0, tk.END)
             except Exception:
                 pass
-
         self.after(1, _focus_and_select)
 
         def _finish(save: bool):
             new_text = editor.get().strip() if save else old_text
-            try:
-                editor.destroy()
-            except Exception:
-                pass
-            self._cell_editor = None
+            self._destroy_cell_editor()
 
             if not save:
                 return
 
-            # Cập nhật Treeview
             values = list(self.tree.item(item_id, "values"))
             values += [""] * max(0, col_index + 1 - len(values))
             values[col_index] = new_text
             self.tree.item(item_id, values=values)
 
-            # Cập nhật _last_assignments để Save Excel dùng dữ liệu mới
             if self._last_assignments:
                 try:
                     row_idx = self.tree.index(item_id)
@@ -1563,10 +1546,54 @@ class App(tk.Tk):
                 f"Updated row {self.tree.index(item_id)+1}, column {col_index+1}."
             )
 
-        editor.bind("<Return>", lambda e: _finish(True))   # Enter -> lưu
-        editor.bind("<Escape>", lambda e: _finish(False))  # Esc -> huỷ
-        editor.bind("<FocusOut>", lambda e: _finish(True)) # mất focus -> auto lưu
+        editor.bind("<Return>", lambda e: _finish(True))
+        editor.bind("<Escape>", lambda e: _finish(False))
+        editor.bind("<FocusOut>", lambda e: _finish(True))
 
+
+    def _on_tree_single_click(self, event):
+        region = self.tree.identify('region', event.x, event.y)
+        item_id = self.tree.identify_row(event.y)
+
+        if region == 'nothing' or not item_id:
+            self._clear_selection_and_editor()
+            return
+
+        
+    def _destroy_cell_editor(self):
+        if getattr(self, "_cell_editor", None) is not None:
+            try:
+                self._cell_editor.destroy()
+            except Exception:
+                pass
+            self._cell_editor = None
+
+    def _clear_selection_and_editor(self):
+        self.tree.selection_remove(self.tree.selection())
+        self._destroy_cell_editor()
+
+    def _select_all(self, event=None):
+        items = self.tree.get_children()
+        self.tree.selection_set(items)
+        return "break" 
+    def _clear_selection(self, event=None):
+        self.tree.selection_remove(self.tree.selection())
+        return "break"
+    
+    def _global_click(self, event):
+        widget = event.widget
+
+        if isinstance(widget, (tk.Button, ttk.Button)):
+            return
+
+        if isinstance(widget, ttk.Treeview) or widget is self.tree:
+            return
+
+        if getattr(self, "_cell_editor", None) is not None:
+            if widget is self._cell_editor:
+                return
+
+        self._clear_selection_and_editor()
 
 if __name__ == "__main__":
     rearrange_and_delete_junk_files() # rearrange files first
