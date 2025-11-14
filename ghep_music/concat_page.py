@@ -25,7 +25,7 @@ class ConcatPage(tk.Frame):
             "Advanced.TButton",
             font=("Segoe UI", 10, "bold"),
             foreground="#ffffff",
-            background="#4E4E4E",
+            background="#D13BFF",
             padding=6,
         )
         style.map(
@@ -36,7 +36,7 @@ class ConcatPage(tk.Frame):
         style.configure(
             "Advanced.On.TButton",
             font=("Segoe UI", 10, "bold"),
-            foreground="#000000",
+            foreground="#ffffff",
             background="#8BC34A",   
             padding=6,
         )
@@ -141,7 +141,7 @@ class ConcatPage(tk.Frame):
         # --- Concat mode ngay cạnh ---
         ttk.Label(channel_frame, text="Concat mode:", font=("Segoe UI", 10, "bold")).grid(row=0, column=3, sticky="e", padx=(15,5))
         self.combo_mode = ttk.Combobox(
-            channel_frame, textvariable=self.concat_mode, state="readonly", width=25, font=("Segoe UI", 10),
+            channel_frame, textvariable=self.concat_mode, state="readonly", width=60,justify='center', font=("Segoe UI", 10),
             values=[
                 "Concat with music background",
                 "Concat with outro music",
