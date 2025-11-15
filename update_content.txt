@@ -1,3 +1,5 @@
+v1.0.64: - update UI, layout, effect
+              - add double click to edit values
 v1.0.63: - Cập nhật layout
 v1.0.62: - Thêm tùy chọn Drop feed cho smms page
 v1.0.61: - Thêm tùy chỉnh API key, hiển thị màu sắc tương ứng với trạng thái Orders
