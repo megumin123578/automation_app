@@ -112,7 +112,7 @@ class ConcatPage(tk.Frame):
         for c in (1, 2, 4, 6, 7):
             channel_frame.grid_columnconfigure(c, weight=1)
 
-        ttk.Label(channel_frame, text="Channel:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
+        ttk.Label(channel_frame, text="Profile:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="e", padx=5)
         self.combo_channel = ttk.Combobox(
             channel_frame, textvariable=self.selected_channel, values=self._list_channels(),
             width=25, state="readonly", font=("Segoe UI", 10)
