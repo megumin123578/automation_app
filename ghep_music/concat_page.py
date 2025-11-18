@@ -237,6 +237,7 @@ class ConcatPage(tk.Frame):
             self.time_limit_min_var.set(str(m_i))
             self.time_limit_sec_var.set(str(s_i))
             self.save_channel_config()
+            self.reload_groups() 
         
         self.combo_time_limit.bind("<FocusOut>", _commit_time_limit)
         self.combo_time_limit_sec.bind("<FocusOut>", _commit_time_limit)
@@ -526,23 +527,38 @@ class ConcatPage(tk.Frame):
         #hiển thị Remaining theo mode:
         mode = self.concat_mode.get()
         if mode == "Concat with time limit":
-            # ước lượng theo time-limit
             target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
             pool = [v for v in all_videos if os.path.abspath(v) not in used_videos]
             estimated = estimate_time_limit_groups(pool, target_seconds)
             if limit_groups > 0:
                 estimated = min(limit_groups, estimated)
+            self.num_groups.set(str(estimated))
+
+        elif mode == "Tuan Seo Custom":
+            # 1) lọc thư mục tên "ok"
+            filtered = [
+                v for v in all_videos
+                if os.path.basename(os.path.dirname(v)).lower() != "ok"
+            ]
+            # update total videos sau khi lọc
+            self.total_mp4.set(str(len(filtered)))
+            # 2) bỏ video đã dùng trong log
+            pool = [v for v in filtered if os.path.abspath(v) not in used_videos]
+            # 3) estimate theo time-limit
+            target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
+            estimated = estimate_time_limit_groups(pool, target_seconds)
+            # 4) giới hạn theo user setting
+            if limit_groups > 0:
+                estimated = min(limit_groups, estimated)
 
             self.num_groups.set(str(estimated))
         elif mode == "Loop":
-            # Mỗi video là một job, nên đếm số video chưa dùng
             remaining = len([v for v in all_videos if os.path.abspath(v) not in used_videos])
             if limit_groups > 0:
                 remaining = min(remaining, limit_groups)
             self.num_groups.set(str(remaining))
         else:
             self.num_groups.set(str(len(self.groups)))
-
     def _choose_folder(self, var: tk.StringVar, reload=False, bgm=False):
         folder = filedialog.askdirectory(title="Select folder")
         if folder:
@@ -587,6 +603,12 @@ class ConcatPage(tk.Frame):
         elif mode == "Concat with time limit" or mode == "Tuan Seo Custom":
             folder = self.input_folder.get()
             all_videos = list_all_mp4_files(folder) if folder and os.path.isdir(folder) else []
+
+            if mode == "Tuan Seo Custom":
+                all_videos = [
+                    v for v in all_videos
+                    if os.path.basename(os.path.dirname(v)).lower() != "ok"
+                ]
 
             used_global = self._get_used_videos_from_log()
             pool = [v for v in all_videos if os.path.abspath(v) not in used_global]
@@ -1315,4 +1337,5 @@ class ConcatPage(tk.Frame):
         if getattr(self, "_loading", False):
             return
         self.save_channel_config()
+        self.reload_groups()
 

@@ -1,2 +1,0 @@
-{"output": "E:\\ghep xong\\906 - Copy (19)_7.mp4", "inputs": ["E:\\storage\\906 - Copy (19).mp4", "E:\\storage\\910 - Copy (24).mp4", "E:\\storage\\909 - Copy (10).mp4", "E:\\storage\\908 - Copy (19).mp4"], "mode": "Tuan Seo Custom"}
-{"output": "E:\\ghep xong\\907 - Copy (32)_4.mp4", "inputs": ["E:\\storage\\907 - Copy (32).mp4"], "mode": "Tuan Seo Custom"}

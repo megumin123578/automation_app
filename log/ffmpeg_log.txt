@@ -8,33 +8,33 @@ ffmpeg version 2025-06-28-git-cfd1f81e7d-full_build-www.gyan.dev Copyright (c) 2
   libavfilter    11.  0.100 / 11.  0.100
   libswscale      9.  0.100 /  9.  0.100
   libswresample   6.  0.100 /  6.  0.100
-[mov,mp4,m4a,3gp,3g2,mj2 @ 000001f3263001c0] Auto-inserting h264_mp4toannexb bitstream filter
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002221fe801c0] Auto-inserting h264_mp4toannexb bitstream filter
 Input #0, concat, from 'temp.txt':
-  Duration: N/A, start: -0.021333, bitrate: 7485 kb/s
-  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 7351 kb/s, 60 fps, 60 tbr, 15360 tbn
+  Duration: N/A, start: -0.021333, bitrate: 4763 kb/s
+  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 4643 kb/s, 60 fps, 60 tbr, 15360 tbn
     Metadata:
       handler_name    : VideoHandler
       vendor_id       : [0][0][0][0]
       encoder         : Lavc62.4.100 h264_nvenc
-  Stream #0:1(und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 134 kb/s, start -0.021333
+  Stream #0:1(und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 119 kb/s, start -0.021333
     Metadata:
       handler_name    : SoundHandler
       vendor_id       : [0][0][0][0]
 Stream mapping:
   Stream #0:0 -> #0:0 (copy)
   Stream #0:1 -> #0:1 (copy)
-Output #0, mp4, to 'temp_476.mp4':
+Output #0, mp4, to 'temp_30732.mp4':
   Metadata:
     encoder         : Lavf62.1.101
-  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 7351 kb/s, 60 fps, 60 tbr, 15360 tbn
+  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 4643 kb/s, 60 fps, 60 tbr, 15360 tbn
     Metadata:
       handler_name    : VideoHandler
       vendor_id       : [0][0][0][0]
       encoder         : Lavc62.4.100 h264_nvenc
-  Stream #0:1(und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 134 kb/s
+  Stream #0:1(und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 119 kb/s
     Metadata:
       handler_name    : SoundHandler
       vendor_id       : [0][0][0][0]
 Press [q] to stop, [?] for help
-[out#0/mp4 @ 000001f3262fe4c0] video:7178KiB audio:132KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.196581%
-frame=  480 fps=0.0 q=-1.0 Lsize=    7325KiB time=00:00:07.97 bitrate=7527.6kbits/s speed= 645x elapsed=0:00:00.01    
+[out#0/mp4 @ 000002221fe92f80] video:4535KiB audio:117KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.308926%
+frame=  480 fps=0.0 q=-1.0 Lsize=    4666KiB time=00:00:07.97 bitrate=4795.5kbits/s speed= 809x elapsed=0:00:00.00    
