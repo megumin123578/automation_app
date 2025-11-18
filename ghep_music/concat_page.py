@@ -86,7 +86,6 @@ class ConcatPage(tk.Frame):
         self._advanced = False
         self.time_limit_min_var = tk.StringVar(value="0")
         self.time_limit_sec_var = tk.StringVar(value="0")
-        self._dur_cache: dict[str, float] = {}
 
         self.outro_mode_var = tk.StringVar(value="By group count")
         self.outro_duration_var = tk.IntVar(value=15)
@@ -525,7 +524,7 @@ class ConcatPage(tk.Frame):
         #hiển thị Remaining theo mode:
         mode = self.concat_mode.get()
         if mode == "Concat with time limit":
-            planned = limit_groups or 1  # time limit chỉ tạo theo thời lượng
+            planned = limit_groups or "No limit"  
             self.num_groups.set(str(planned))
         elif mode == "Loop":
             # Mỗi video là một job, nên đếm số video chưa dùng
@@ -578,15 +577,30 @@ class ConcatPage(tk.Frame):
             todo_groups = [[] for _ in range(count)]
 
         elif mode == "Concat with time limit":
-            count = limit_groups if limit_groups > 0 else 1
+            folder = self.input_folder.get()
+            all_videos = list_all_mp4_files(folder) if folder and os.path.isdir(folder) else []
+
+            used_global = self._get_used_videos_from_log()
+            pool = [v for v in all_videos if os.path.abspath(v) not in used_global]
+
+            target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
+            estimated = self.estimate_time_limit_groups(pool, target_seconds)
+
+            if limit_groups > 0:
+                count = min(limit_groups, estimated)
+            else:
+                count = estimated
+
+            if count <= 0:
+                return messagebox.showwarning("Không còn video", "Hết clip phù hợp cho Time Limit.")
+
             todo_groups = [[] for _ in range(count)]
+
 
         else:
             todo_groups = self.groups
             if limit_groups > 0:
                 todo_groups = self.groups[:limit_groups]
-
-
         self.stop_flag.clear()
         self.btn_concat.config(state=tk.DISABLED)
         self.btn_stop.config(state=tk.NORMAL)
@@ -599,6 +613,8 @@ class ConcatPage(tk.Frame):
         self.worker.start()
         self.after(1000, self._poll_worker)
 
+
+    
     def stop_concat(self):
         self.stop_flag.set()
         self.status_var.set("Stop")
@@ -1266,87 +1282,14 @@ class ConcatPage(tk.Frame):
         val = self.main_video_volume_var.get()
         self.lbl_main_video_vol_value.config(text=f"{val * 100:.0f}%")
         self.save_channel_config()
-    
-    def _get_video_duration(self, path: str) -> float:
-        """Lấy duration (giây) bằng ffprobe, có cache."""
-        if path in self._dur_cache:
-            return self._dur_cache[path]
-        try:
-            # ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "file"
-            import subprocess, shlex
-            cmd = f'ffprobe -v error -select_streams v:0 -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "{path}"'
-            out = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
-            dur = float(out.decode().strip())
-            if dur < 0:
-                dur = 0.0
-        except Exception:
-            dur = 0.0
-        self._dur_cache[path] = dur
-        return dur
 
     def _pick_videos_for_time(self, pool: list[str], target_seconds: float) -> list[str]:
-        import random
-        random.shuffle(pool)
-        selected, total = [], 0.0
-
-        # bước 1: add đến khi đạt/qua target
-        for p in pool:
-            d = self._get_video_duration(p)
-            if d <= 0:
-                continue
-            selected.append(p)
-            total += d
-            if total >= target_seconds:
-                break
-        if not selected:
-            return []
-        
-        overshoot = total - target_seconds
-        limit_over = max(60.0, 0.5 * target_seconds)  # không quá dài
-
-        if overshoot <= limit_over:
-            return selected
-        last = selected[-1]
-        last_d = self._get_video_duration(last)
-        need_reduce = overshoot
-        candidates = [p for p in pool if p not in selected]
-        best = None
-        best_gap = None
-        for c in candidates:
-            cd = self._get_video_duration(c)
-            if 0 < cd < last_d and (last_d - cd) >= need_reduce - limit_over:
-                gap = last_d - cd
-                if best is None or gap < best_gap:
-                    best = c
-                    best_gap = gap
-        if best:
-            selected[-1] = best  # thay
-            return selected
-        return selected
+        return pick_videos_for_time_limit(pool, target_seconds)
     
     def _get_used_videos_from_log(self) -> set[str]:
-        used_videos = set()
-        log_dir = os.path.abspath("log")
-        os.makedirs(log_dir, exist_ok=True)
-        ch = self.selected_channel.get().strip() or 'default'
-        log_path = os.path.join(log_dir, f"{ch}.txt")
-        if os.path.exists(log_path):
-            try:
-                with open(log_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            data = json.loads(line)
-                            for p in data.get("inputs", []):
-                                used_videos.add(os.path.abspath(p))
-                        except json.JSONDecodeError:
-                            continue
-            except Exception as e:
-                messagebox.showwarning("Log", f"Lỗi đọc log: {e}")
-        return used_videos
-
+        ch = self.selected_channel.get().strip() or "default"
+        return get_used_videos_from_log(ch)
+    
     def _loop_video_to_duration(self, src: str, dst: str, target_seconds: float, progress_cb=None):
         loop_video_to_duration(
             src=src,

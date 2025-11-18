@@ -1,5 +1,0 @@
-{"output": "E:\\ghep xong\\908 - Copy (19).mp4", "inputs": ["E:\\storage\\908 - Copy (19).mp4", "E:\\storage\\905 - Copy (32).mp4"], "mode": "Normal concat (no music)"}
-{"output": "E:\\ghep xong\\904 - Copy (19).mp4", "inputs": ["E:\\storage\\904 - Copy (19).mp4", "E:\\storage\\907 - Copy (32).mp4"], "mode": "Normal concat (no music)"}
-{"output": "E:\\ghep xong\\902 - Copy (14).mp4", "inputs": ["E:\\storage\\902 - Copy (14).mp4", "E:\\storage\\906 - Copy (19).mp4"], "mode": "Normal concat (no music)"}
-{"output": "E:\\ghep xong\\903 - Copy (5).mp4", "inputs": ["E:\\storage\\903 - Copy (5).mp4", "E:\\storage\\909 - Copy (10).mp4"], "mode": "Normal concat (no music)"}
-{"output": "E:\\ghep xong\\901 - Copy (26).mp4", "inputs": ["E:\\storage\\901 - Copy (26).mp4", "E:\\storage\\910 - Copy (24).mp4"], "mode": "Normal concat (no music)"}

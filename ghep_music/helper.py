@@ -14,6 +14,7 @@ import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from moviepy import VideoClip, concatenate_videoclips, VideoFileClip, vfx
 import shlex
+from typing import List, Dict, Optional
 CONFIG_FILE = "ghep_music/config.json"
 CONFIG_DIR = "ghep_music/configs"
 LAST_CHANNEL_FILE = "ghep_music/last_channel.json"
@@ -725,3 +726,109 @@ def _double_bitrate(s: str) -> str:
     if not m: return s
     n, suf = int(m.group(1)), m.group(2)
     return f"{n*2}{suf}"
+
+from functools import lru_cache
+@lru_cache(maxsize=512)
+def get_video_duration(path:str) -> float:
+    try:
+        cmd = [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            path
+        ]
+        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        dur = float(out.decode().strip())
+        return max(dur, 0.0)
+    except:
+        return 0.0
+    
+def pick_videos_for_time_limit(pool: List[str], target_seconds: float) -> List[str]:
+    if target_seconds <= 0:
+        return []
+
+    random.shuffle(pool)
+    selected = []
+    total = 0.0
+
+    for p in pool:
+        d = get_video_duration(p)
+        if d <= 0:
+            continue
+        selected.append(p)
+        total += d
+        if total >= target_seconds:
+            break
+
+    if not selected:
+        return []
+
+    overshoot = total - target_seconds
+    limit_over = max(60.0, 0.5 * target_seconds)
+
+    if overshoot > limit_over and len(selected) > 1:
+        last = selected[-1]
+        last_d = get_video_duration(last)
+        candidates = [p for p in pool if p not in selected]
+        best = None
+        best_gap = float('inf')
+
+        for c in candidates:
+            cd = get_video_duration(c)
+            if 0 < cd < last_d:
+                gap = abs((total - last_d + cd) - target_seconds)
+                if gap < best_gap:
+                    best_gap = gap
+                    best = c
+        if best:
+            selected[-1] = best
+
+    return selected
+
+def get_used_videos_from_log(channel: str = "default") -> set[str]:
+    used = set()
+    log_dir = os.path.abspath("log")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, f"{channel}.txt")
+    if not os.path.exists(log_path):
+        return used
+
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                data = json.loads(line)
+                for p in data.get("inputs", []):
+                    used.add(os.path.abspath(p))
+    except Exception as e:
+        print(f"[WARN] Lỗi đọc log {channel}: {e}")
+    return used
+
+
+def estimate_time_limit_groups(pool: list[str], target_seconds: float) -> int:
+        durations = []
+        for v in pool:
+            try:
+                dur = get_video_duration(v)  # hàm này chắc chắn đã có trong helper
+                durations.append((v, dur))
+            except:
+                continue
+        random.shuffle(durations)
+        count = 0
+        used = set()
+
+        for _ in range(len(durations)):
+            # dùng lại logic pick_videos_for_time_limit
+            group = pick_videos_for_time_limit(
+                [p for (p, _) in durations if p not in used],
+                target_seconds
+            )
+            if not group:
+                break
+
+            count += 1
+            used.update(group)
+
+        return count
