@@ -164,7 +164,6 @@ class ConcatPage(tk.Frame):
         param_frame.grid_columnconfigure(5, weight=1)   
         param_frame.grid_columnconfigure(1, weight=0)  
 
-        
         self.lbl_group_size = ttk.Label(param_frame, text="Videos per Group:", font=("Segoe UI", 10, "bold"))
         self.lbl_group_size.grid(row=0, column=0, sticky="e", padx=5)
         self.combo_group_size = ttk.Combobox(
@@ -510,27 +509,7 @@ class ConcatPage(tk.Frame):
             messagebox.showerror("Lỗi", f"Đọc video lỗi: {e}")
             return
 
-        used_videos = set()
-        log_dir = os.path.abspath("log")
-        os.makedirs(log_dir, exist_ok=True)
-        ch = self.selected_channel.get().strip() or 'default'
-        log_path = os.path.join(log_dir, f"{ch}.txt")
-        if os.path.exists(log_path):
-            try:
-                with open(log_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            data = json.loads(line)
-                            for p in data.get("inputs", []):
-                                used_videos.add(os.path.abspath(p))
-                        except json.JSONDecodeError:
-                            continue
-            except Exception as e:
-                messagebox.showwarning("Log", f"Lỗi đọc log: {e}")
-
+        used_videos = self._get_used_videos_from_log()
         all_videos = [v for v in all_videos if os.path.abspath(v) not in used_videos]
         gsize = self.group_size_var.get() or 6
         all_groups = get_all_random_video_groups(all_videos, group_size=gsize)
@@ -624,6 +603,22 @@ class ConcatPage(tk.Frame):
         self.stop_flag.set()
         self.status_var.set("Stop")
 
+    def _encode_group_to_temp(self, group: list[str], temp: str):
+        width, height = map(int, self.resolution_var.get().split("x"))
+
+        auto_concat(
+            group, temp,
+            num_threads=8,
+            width=width,
+            height=height,
+            fps=self.fps_var.get(),
+            use_nvenc=self.use_nvenc_var.get(),
+            cq=self.cq_var.get(),
+            v_bitrate=self.v_bitrate_var.get(),
+            a_bitrate=self.a_bitrate_var.get(),
+            nvenc_preset=self.nvenc_preset_var.get(),
+        )
+
     #==============Switch mode================
     def _do_concat_worker(self, todo: list[list[str]], out_dir: str):
         log_dir = os.path.abspath("log")
@@ -650,18 +645,7 @@ class ConcatPage(tk.Frame):
 
                     #++++++++++++++++LOGIC+++++++++++++++++++++
                     if mode == "Concat with music background":
-                        auto_concat(
-                            group, temp,
-                            num_threads=8,
-                            width=int(self.resolution_var.get().split("x")[0]),
-                            height=int(self.resolution_var.get().split("x")[1]),
-                            fps=self.fps_var.get(),
-                            use_nvenc=self.use_nvenc_var.get(),
-                            cq=self.cq_var.get(),
-                            v_bitrate=self.v_bitrate_var.get(),
-                            a_bitrate=self.a_bitrate_var.get(),
-                            nvenc_preset=self.nvenc_preset_var.get()
-                        )
+                        self._encode_group_to_temp(group, temp)
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         desired = get_first_vids_name(out_dir, group[0])
                         bg_vol = float(self.bgm_volume_var.get())
@@ -693,18 +677,7 @@ class ConcatPage(tk.Frame):
                                 self.after(0, lambda: self._append_log("Hết clip phù hợp cho Outro Time Limit."))
                                 break
 
-                        auto_concat(
-                            group, temp,
-                            num_threads=8,
-                            width=int(self.resolution_var.get().split("x")[0]),
-                            height=int(self.resolution_var.get().split("x")[1]),
-                            fps=self.fps_var.get(),
-                            use_nvenc=self.use_nvenc_var.get(),
-                            cq=self.cq_var.get(),
-                            v_bitrate=self.v_bitrate_var.get(),
-                            a_bitrate=self.a_bitrate_var.get(),
-                            nvenc_preset=self.nvenc_preset_var.get()
-                        )
+                        self._encode_group_to_temp(group, temp)
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         desired = get_first_vids_name(out_dir, group[0]) 
                         bg_vol = float(self.bgm_volume_var.get())
@@ -725,18 +698,7 @@ class ConcatPage(tk.Frame):
                         used_this_run.update(os.path.abspath(p) for p in group)
 
                     elif mode == "Normal concat (no music)":
-                        auto_concat(
-                            group, temp,
-                            num_threads=8,
-                            width=int(self.resolution_var.get().split("x")[0]),
-                            height=int(self.resolution_var.get().split("x")[1]),
-                            fps=self.fps_var.get(),
-                            use_nvenc=self.use_nvenc_var.get(),
-                            cq=self.cq_var.get(),
-                            v_bitrate=self.v_bitrate_var.get(),
-                            a_bitrate=self.a_bitrate_var.get(),
-                            nvenc_preset=self.nvenc_preset_var.get()
-                        )
+                        self._encode_group_to_temp(group, temp)
                         output = get_first_vids_name(out_dir, group[0])
                         shutil.copy2(temp, output)
 
@@ -788,18 +750,7 @@ class ConcatPage(tk.Frame):
                             break
 
                         # 3) Ghép + mix BGM (giống 'Concat with music background')
-                        auto_concat(
-                            group, temp,
-                            num_threads=8,
-                            width=int(self.resolution_var.get().split("x")[0]),
-                            height=int(self.resolution_var.get().split("x")[1]),
-                            fps=self.fps_var.get(),
-                            use_nvenc=self.use_nvenc_var.get(),
-                            cq=self.cq_var.get(),
-                            v_bitrate=self.v_bitrate_var.get(),
-                            a_bitrate=self.a_bitrate_var.get(),
-                            nvenc_preset=self.nvenc_preset_var.get()
-                        )
+                        self._encode_group_to_temp(group, temp)
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
                         desired = get_first_vids_name(out_dir, group[0]) 
                         bg_vol = float(self.bgm_volume_var.get())
@@ -1119,10 +1070,8 @@ class ConcatPage(tk.Frame):
                 "a_bitrate": self.a_bitrate_var.get(),
                 "nvenc_preset": self.nvenc_preset_var.get(),
                 "time_limit_min": int(self.time_limit_min_var.get() or 0),
-                "time_limit_sec": int(self.time_limit_sec_var.get() or 0),
-                
+                "time_limit_sec": int(self.time_limit_sec_var.get() or 0),   
             }
-
         }
         # Chỉ lưu video_volume khi đang ở chế độ outro
         if self.concat_mode.get() == "Concat with outro music":
@@ -1171,27 +1120,6 @@ class ConcatPage(tk.Frame):
                 child.bind("<Button-3>", show_menu)
         except Exception:
             pass
-    
-    def _attach_select_all(self, widget, include_click=False):
-        def _focus_in(e):
-            e.widget.after(1, lambda: _safe_select_all(e.widget))
-
-        def _click(e):
-            e.widget.after(1, lambda: _safe_select_all(e.widget))
-            return "break"
-
-        def _safe_select_all(w):
-            try:
-                w.selection_range(0, "end")
-                w.icursor("end")
-            except Exception:
-                try:
-                    w.tag_add("sel", "1.0", "end-1c")
-                except Exception:
-                    pass
-        widget.bind("<FocusIn>", _focus_in, add="+")
-        if include_click:
-            widget.bind("<Button-1>", _click, add="+")
 
     def _clear_channel_selection(self):
         ch = self.selected_channel.get().strip()
@@ -1298,12 +1226,10 @@ class ConcatPage(tk.Frame):
             self.lbl_job_info.grid_remove()
     
     def _show_time_limit(self, visible=True):
-        widgets = [self.lbl_time_limit, self.combo_time_limit,
-           getattr(self, "combo_time_limit_sec", None),
-           next((w for w in self.frm_top.winfo_children() if isinstance(w, ttk.Label) and w.cget("text") == "Seconds:"), None)]
-        widgets = [w for w in widgets if w]
+        widgets = [self.lbl_time_limit, self.combo_time_limit, self.combo_time_limit_sec]
         for w in widgets:
             w.grid() if visible else w.grid_remove()
+
 
     def _toggle_advanced(self):
         self._advanced = not self._advanced
@@ -1374,7 +1300,7 @@ class ConcatPage(tk.Frame):
                 break
         if not selected:
             return []
-
+        
         overshoot = total - target_seconds
         limit_over = max(60.0, 0.5 * target_seconds)  # không quá dài
 
@@ -1417,8 +1343,8 @@ class ConcatPage(tk.Frame):
                                 used_videos.add(os.path.abspath(p))
                         except json.JSONDecodeError:
                             continue
-            except Exception:
-                pass
+            except Exception as e:
+                messagebox.showwarning("Log", f"Lỗi đọc log: {e}")
         return used_videos
 
     def _loop_video_to_duration(self, src: str, dst: str, target_seconds: float, progress_cb=None):
