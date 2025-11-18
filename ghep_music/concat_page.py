@@ -1,4 +1,5 @@
 from .helper import *
+from ui_theme import setup_theme
 
 class ConcatPage(tk.Frame):
     def __init__(self, parent):
@@ -613,8 +614,6 @@ class ConcatPage(tk.Frame):
         self.worker.start()
         self.after(1000, self._poll_worker)
 
-
-    
     def stop_concat(self):
         self.stop_flag.set()
         self.status_var.set("Stop")
@@ -1245,7 +1244,6 @@ class ConcatPage(tk.Frame):
         widgets = [self.lbl_time_limit, self.combo_time_limit, self.combo_time_limit_sec]
         for w in widgets:
             w.grid() if visible else w.grid_remove()
-
 
     def _toggle_advanced(self):
         self._advanced = not self._advanced
