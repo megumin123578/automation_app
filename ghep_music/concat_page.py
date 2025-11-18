@@ -513,14 +513,18 @@ class ConcatPage(tk.Frame):
 
         used_videos = self._get_used_videos_from_log()
         all_videos = [v for v in all_videos if os.path.abspath(v) not in used_videos]
-        gsize = self.group_size_var.get() or 6
-        all_groups = get_all_random_video_groups(all_videos, group_size=gsize)
-
         limit_groups = self.limit_videos_var.get()
-        if limit_groups > 0:
-            self.groups = all_groups[:limit_groups]
+        mode = self.concat_mode.get()
+
+        if mode in ("Concat with time limit", "Tuan Seo Custom", "Loop"):
+            self.groups = []
         else:
-            self.groups = all_groups
+            gsize = self.group_size_var.get() or 6
+            all_groups = get_all_random_video_groups(all_videos, group_size=gsize)
+            if limit_groups > 0:
+                self.groups = all_groups[:limit_groups]
+            else:
+                self.groups = all_groups
 
         self.total_mp4.set(str(len(all_videos)))
 
