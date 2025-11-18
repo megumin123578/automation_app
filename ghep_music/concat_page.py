@@ -146,6 +146,7 @@ class ConcatPage(tk.Frame):
                 "Concat and Reverse",
                 "Concat with time limit",
                 "Loop",
+                'Tuan Seo Custom'
             ]
         )
         self.combo_mode.grid(row=0, column=4, sticky="ew", padx=5)
@@ -525,8 +526,14 @@ class ConcatPage(tk.Frame):
         #hiển thị Remaining theo mode:
         mode = self.concat_mode.get()
         if mode == "Concat with time limit":
-            planned = limit_groups or "No limit"  
-            self.num_groups.set(str(planned))
+            # ước lượng theo time-limit
+            target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
+            pool = [v for v in all_videos if os.path.abspath(v) not in used_videos]
+            estimated = estimate_time_limit_groups(pool, target_seconds)
+            if limit_groups > 0:
+                estimated = min(limit_groups, estimated)
+
+            self.num_groups.set(str(estimated))
         elif mode == "Loop":
             # Mỗi video là một job, nên đếm số video chưa dùng
             remaining = len([v for v in all_videos if os.path.abspath(v) not in used_videos])
@@ -577,7 +584,7 @@ class ConcatPage(tk.Frame):
                 return messagebox.showwarning("Không còn video", "Hết clip để chạy Loop (hoặc chưa chọn nguồn).")
             todo_groups = [[] for _ in range(count)]
 
-        elif mode == "Concat with time limit":
+        elif mode == "Concat with time limit" or mode == "Tuan Seo Custom":
             folder = self.input_folder.get()
             all_videos = list_all_mp4_files(folder) if folder and os.path.isdir(folder) else []
 
@@ -585,7 +592,7 @@ class ConcatPage(tk.Frame):
             pool = [v for v in all_videos if os.path.abspath(v) not in used_global]
 
             target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
-            estimated = self.estimate_time_limit_groups(pool, target_seconds)
+            estimated = estimate_time_limit_groups(pool, target_seconds)
 
             if limit_groups > 0:
                 count = min(limit_groups, estimated)
@@ -687,7 +694,7 @@ class ConcatPage(tk.Frame):
                             all_videos = list_all_mp4_files(folder)
                             pool = [v for v in all_videos if os.path.abspath(v) not in (used_global | used_this_run)]
                             target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
-                            group = self._pick_videos_for_time(pool, target_seconds)
+                            group = pick_videos_for_time_limit(pool, target_seconds)
                             if not group:
                                 self.after(0, lambda: self._append_log("Hết clip phù hợp cho Outro Time Limit."))
                                 break
@@ -750,24 +757,29 @@ class ConcatPage(tk.Frame):
                             shutil.move(base, desired)
                             output = desired
 
-                    elif mode == "Concat with time limit":
-                        # 1) Lấy pool còn lại (không trùng với log cũ + phiên này)
+                    elif mode in ("Concat with time limit", "Tuan Seo Custom"):
                         folder = self.input_folder.get()
                         all_videos = list_all_mp4_files(folder)
+                        if mode == "Tuan Seo Custom":
+                            all_videos = [
+                                v for v in all_videos
+                                if os.path.basename(os.path.dirname(v)).lower() != "ok"
+                            ]
+                        # 1) Bỏ video đã dùng
                         pool = [v for v in all_videos if os.path.abspath(v) not in (used_global | used_this_run)]
-
-                        # 2) Chọn ngẫu nhiên tới gần target mà không quá dài
+                        # 2) Chọn group theo time-limit
                         target_seconds = float(self.time_limit_min_var.get()) * 60.0 + float(self.time_limit_sec_var.get())
-                        group = self._pick_videos_for_time(pool, target_seconds)
+                        group = pick_videos_for_time_limit(pool, target_seconds)
                         if not group:
-                            # Hết clip phù hợp -> thoát hẳn vòng lặp
-                            self.after(0, lambda: self._append_log("Hết clip phù hợp cho Time Limit."))
+                            msg = "Hết clip phù hợp cho Tuan Seo Custom." if mode == "Tuan Seo Custom" \
+                                else "Hết clip phù hợp cho Time Limit."
+                            self.after(0, lambda: self._append_log(msg))
                             break
-
-                        # 3) Ghép + mix BGM (giống 'Concat with music background')
+                        # 3) Encode tạm
                         self._encode_group_to_temp(group, temp)
+                        # 4) Mix BGM
                         bg_audio = random.choice(self.mp3_list) if self.mp3_list else None
-                        desired = get_first_vids_name(out_dir, group[0]) 
+                        desired = get_first_vids_name(out_dir, group[0])
                         bg_vol = float(self.bgm_volume_var.get())
                         if bg_audio and os.path.isfile(bg_audio) and bg_vol > 0:
                             tmp = mix_audio_with_bgm_ffmpeg(
@@ -781,10 +793,9 @@ class ConcatPage(tk.Frame):
                         else:
                             output = desired
                             shutil.copy2(temp, output)
-
-                        # 4) Đánh dấu đã dùng để lần xuất kế tiếp không trùng
+                        # 5) Đánh dấu đã dùng
                         used_this_run.update(os.path.abspath(p) for p in group)
-                    
+
                     elif mode == "Loop":
                         folder = self.input_folder.get()
                         all_videos = list_all_mp4_files(folder)
@@ -1184,6 +1195,7 @@ class ConcatPage(tk.Frame):
                 mode == "Concat with time limit"
                 or (mode == "Concat with outro music" and self.outro_mode_var.get() == "By time limit")
                 or mode == "Loop"
+                or mode == 'Tuan Seo Custom'
             ):
             self._show_time_limit(True)
             self._show_group_size(False)  # không dùng group size
@@ -1255,7 +1267,6 @@ class ConcatPage(tk.Frame):
             self.video_frame.grid_remove()
             self.btn_advanced.configure(text="Advanced ▸", style="Advanced.TButton")
 
-
     def _toggle_nvenc(self):
         self.use_nvenc_var.set(not self.use_nvenc_var.get())
 
@@ -1281,9 +1292,6 @@ class ConcatPage(tk.Frame):
         self.lbl_main_video_vol_value.config(text=f"{val * 100:.0f}%")
         self.save_channel_config()
 
-    def _pick_videos_for_time(self, pool: list[str], target_seconds: float) -> list[str]:
-        return pick_videos_for_time_limit(pool, target_seconds)
-    
     def _get_used_videos_from_log(self) -> set[str]:
         ch = self.selected_channel.get().strip() or "default"
         return get_used_videos_from_log(ch)
