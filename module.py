@@ -17,7 +17,7 @@ import re
 CONFIG_FILE = "config.json"
 USED_LOG_FILE = "log.txt"
 CONFIG_PATH = "config_dir"
-GROUP_SETTINGS_PATH =  "src/group_settings.json"
+GROUP_SETTINGS_PATH =  "group_settings.json"
 
 def load_group_settings():
     if not os.path.exists(GROUP_SETTINGS_PATH):
