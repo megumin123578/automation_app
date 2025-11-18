@@ -70,7 +70,6 @@ class ConcatPage(tk.Frame):
         self.a_bitrate_var = tk.StringVar(value="160k")
         self.nvenc_preset_var = tk.StringVar(value="p4")
 
-
         self.mp3_list: list[str] = []
         self.total_mp4 = tk.StringVar(value="0")
         self.num_groups = tk.StringVar(value="0")
@@ -103,9 +102,7 @@ class ConcatPage(tk.Frame):
             self.reload_groups()
 
     def _build_ui(self):
-        # Main configuration frame
         self.frm_top = ttk.LabelFrame(self, text="⚙️ Configuration", padding=(10, 10))
-        
         # Channel selection + Concat mode cùng hàng
         channel_frame = ttk.Frame(self.frm_top)
         channel_frame.grid(row=0, column=0, columnspan=4, sticky="we", pady=5)
@@ -560,8 +557,6 @@ class ConcatPage(tk.Frame):
         else:
             self.num_groups.set(str(len(self.groups)))
 
-
-
     def _choose_folder(self, var: tk.StringVar, reload=False, bgm=False):
         folder = filedialog.askdirectory(title="Select folder")
         if folder:
@@ -940,14 +935,12 @@ class ConcatPage(tk.Frame):
     def _job_progress_done(self, text="Xong 1 job ✓"):
         self.progress_job.configure(value=100)
         self.job_info_var.set(text)
-        # reset nhẹ về 0 sau 0.3s để sẵn sàng job tiếp theo
         self.after(300, lambda: self.progress_job.configure(value=0))
 
     def _job_progress_stop(self):
         self.progress_job.configure(value=0)
         self.job_info_var.set("")
-    ###################################
-            
+
     def _on_done(self):
         self.btn_concat.config(state=tk.NORMAL)
         self.btn_stop.config(state=tk.DISABLED)
@@ -1161,7 +1154,6 @@ class ConcatPage(tk.Frame):
             self.entry_new_channel.delete(0, 'end')
 
     def _add_right_click_menu(self, widget, menu_items: list[tuple[str, callable]]):
-        """Gắn menu chuột phải cho Entry/Combobox, cả phần dropdown, và hỗ trợ phím Delete."""
         menu = tk.Menu(self.winfo_toplevel(), tearoff=0)
         for label, command in menu_items:
             menu.add_command(label=label, command=command)
@@ -1174,8 +1166,6 @@ class ConcatPage(tk.Frame):
 
         # Hiện menu khi bấm chuột phải
         widget.bind("<Button-3>", show_menu)
-
-        # Cũng gắn sự kiện cho phần con (mũi tên dropdown)
         try:
             for child in widget.winfo_children():
                 child.bind("<Button-3>", show_menu)
@@ -1390,13 +1380,9 @@ class ConcatPage(tk.Frame):
 
         if overshoot <= limit_over:
             return selected
-
-        # bước 2: cố gắng giảm overshoot bằng cách thay clip cuối
         last = selected[-1]
         last_d = self._get_video_duration(last)
         need_reduce = overshoot
-
-        # tìm ứng viên ngắn hơn clip cuối đủ để giảm overshoot
         candidates = [p for p in pool if p not in selected]
         best = None
         best_gap = None
@@ -1409,10 +1395,7 @@ class ConcatPage(tk.Frame):
                     best_gap = gap
         if best:
             selected[-1] = best  # thay
-            # không cần tính lại chính xác, vì đã đảm bảo overshoot <= limit_over theo điều kiện
             return selected
-
-        # không tìm được thay thế phù hợp -> chấp nhận overshoot (vì đã cố)
         return selected
     
     def _get_used_videos_from_log(self) -> set[str]:
@@ -1454,7 +1437,7 @@ class ConcatPage(tk.Frame):
         )    
     
     def _on_time_limit_var_changed(self, *_):
-        # tránh save khi đang nạp cấu hình
         if getattr(self, "_loading", False):
             return
         self.save_channel_config()
+
