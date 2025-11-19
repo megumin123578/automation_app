@@ -72,7 +72,7 @@ def setup_theme(style, root,
     style.map(
         "TButton",
         background=[
-            ("active", "#75f775"),   # hover
+            ("active", "#95f895"),   # hover
             ("pressed", "#5e81ac")   # nhấn
         ],
         foreground=[

@@ -29,7 +29,9 @@ def load_group_settings():
         return {}
 
 def save_group_settings(new_data: dict):
-    os.makedirs(os.path.dirname(GROUP_SETTINGS_PATH), exist_ok=True)
+    dir_path = os.path.dirname(GROUP_SETTINGS_PATH)
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
 
     # --- B1: đọc dữ liệu cũ nếu có ---
     old_data = {}
