@@ -12,5 +12,3 @@ EXCEL_DIR_NP = "upload_data_with_monetization.xlsx"
 CHANNEL_HEADER_HINTS = [
     "channel", "kênh", "kenh", "channel_id", "channel name", "channel_name", "name", "id"
 ]
-
-

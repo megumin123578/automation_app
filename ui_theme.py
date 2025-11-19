@@ -1,4 +1,3 @@
-# ui_theme.py
 def setup_theme(style, root,
                 bg_dark="#2b2b2b",
                 bg_panel="#3c3f41",
@@ -47,19 +46,41 @@ def setup_theme(style, root,
               background=[("selected", accent)],
               foreground=[("selected", "white")])
     style.configure("Treeview.Heading",
-                    font=("Segoe UI", 10, "bold"),
-                    background=bg_dark,
-                    foreground=fg_light)
+                font=("Segoe UI", 10, "bold"),
+                background=bg_dark,
+                foreground=fg_light)
+    style.map("Treeview.Heading",
+            background=[
+                ("active", bg_panel),
+                ("pressed", bg_panel)
+            ],
+            foreground=[
+                ("active", fg_light),
+                ("pressed", fg_light)
+            ])
 
     # Button
-    style.configure("TButton",
-                    background=bg_panel,
-                    foreground=fg_light,
-                    font=("Segoe UI", 10, "bold"),
-                    padding=6)
-    style.map("TButton",
-              background=[("active", accent), ("pressed", accent)],
-              foreground=[("active", "white"), ("pressed", "white")])
+    style.configure(
+        "TButton",
+        background="#8397fc",     # nền tối
+        foreground="#ffffff",     # chữ trắng
+        padding=6,
+        font=("Segoe UI", 10, "bold"),
+        borderwidth=0
+    )
+
+    style.map(
+        "TButton",
+        background=[
+            ("active", "#75f775"),   # hover
+            ("pressed", "#5e81ac")   # nhấn
+        ],
+        foreground=[
+            ("active", "black"),
+            ("pressed", "white")
+        ]
+    )
+
 
     # Label
     style.configure("TLabel",

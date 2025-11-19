@@ -155,9 +155,10 @@ class AssignMixin:
                 self._last_assignments = rows
 
             self._set_status(f"Refreshed random videos for {len(items)} row(s).")
-
-        ttk.Button(frm3, text="Clear", command=self._clear_inputs).pack(side=tk.LEFT, padx=(10, 10))
-        ttk.Button(frm3, text="Refresh", command=_refresh_random_paths).pack(side=tk.RIGHT, padx=(10, 10))
+        # ttk.Button(frm3, text="Refresh", command=_refresh_random_paths).pack(side=tk.RIGHT, padx=(10,0))
+        self.bind_all("<F5>", lambda e: _refresh_random_paths())
+        ttk.Button(frm3, text="Clear", command=self._clear_inputs).pack(side=tk.RIGHT, padx=(0, 10))
+        
 
 
     def _build_inputs(self, parent):
@@ -277,36 +278,7 @@ class AssignMixin:
 
         ttk.Button(bar, text="Browse", command=choose_folder).pack(side=tk.LEFT, padx=(0, 8))
         ttk.Button(bar, text="Combine", command=self._combine_excels).pack(side=tk.RIGHT)
-        ttk.Button(bar, text="Save Excel (Ctrl + S)", command=self._save_excel).pack(side=tk.RIGHT, padx=(0,8))
+        ttk.Button(bar, text="Save", command=self._save_excel).pack(side=tk.RIGHT, padx=(0,8))
         
 
-    # Logic:
-    # _schedule_preview
-    # _bind_text_preview
-    # _refresh_group_files
-    # _load_channels
-    # _clear_inputs
-    # _preview
-    # _save_excel
-    # _edit_row_dialog
-    # _apply_date_time_all
-    # _combine_excels
-    # _delete_selected_rows
-    # _show_tree_menu
-    # _open_profile_manager
-    # _add_group
-    # _delete_group
-    # _map_group_folder
-    # _load_folder_map
-    # _get_mapped_folder
-    # _toggle_monetization
-    # _update_profile_combo
-    # _save_group_settings
-    # _paste_from_clipboard
-    # _on_tree_click
-    # _on_tree_single_click
-    # _destroy_cell_editor
-    # _clear_selection_and_editor
-    # _select_all
-    # _clear_selection
-    # _global_click
+    
