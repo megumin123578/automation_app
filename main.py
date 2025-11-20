@@ -208,6 +208,11 @@ class App(tk.Tk, AssignMixin):
 
         self.stats_page = StatisticsPage(page)  # nhúng trang thống kê
         self.stats_page.pack(fill="both", expand=True)
+    
+    def _build_chat_page(self):
+        page = ChatPage(self._content)
+        self.pages["chat"] = page
+        page.pack(fill="both", expand=True)
 
 
     # Logic
@@ -1356,102 +1361,15 @@ class App(tk.Tk, AssignMixin):
             print("Error refreshing channel stats:", e)
 
     def _ai_generate_titles_and_descs(self):
-        model = self._get_gemini_model()
-        if not model:
-            return
-
         topic = sd.askstring("Prompt", "Enter topic to generate Titles + Descriptions:")
         if not topic:
             return
-
-        prompt_titles = (
-            f"Write 10 catchy YouTube Shorts titles about: {topic}.\n"
-            f"STRICT RULES:\n"
-            f"No more than 100 characters.\n"
-            f"- Output MUST be 10 lines ONLY.\n"
-            f"- NO numbering.\n"
-            f"- NO bullets.\n"
-            f"- NO intro sentences.\n"
-            f"- NO explanations.\n"
-            f"- Only titles, one per line."
-        )
-
-        raw_titles = ask_gemini(prompt_titles)
-
-        # CLEAN TITLES
-        titles_clean = []
-        for line in raw_titles.splitlines():
-            l = line.strip()
-            if not l:
-                continue
-            if l.lower().startswith(("of course", "here are", "sure", "okay", "here you go")):
-                continue
-            l = l.lstrip("0123456789.:- ").strip()  # remove numbering if Gemini adds
-            titles_clean.append(l)
-
-        titles_clean = "\n".join(titles_clean[:10])
-        prompt_descs = (
-            f"Write 10 short, SEO-optimized YouTube Shorts descriptions about: {topic}.\n with hastag"
-            f"Rules:\n"
-            f"- Include hashtags.\n"
-            f"- No intro text.\n"
-            f"- No numbering.\n"
-            f"- Output exactly 10 lines, each line is one description."
-        )
-
-        raw_descs = ask_gemini(prompt_descs)
-
-        # CLEAN DESCS
-        descs_clean = []
-        for line in raw_descs.splitlines():
-            l = line.strip()
-            if not l:
-                continue
-            if l.lower().startswith(("of course", "here are", "sure", "okay", "here you go")):
-                continue
-            l = l.lstrip("0123456789.:- ").strip()
-            descs_clean.append(l)
-
-        descs_clean = "\n".join(descs_clean[:10])
+        titles_text, descs_text = generate_titles_and_descs(topic)
         self.txt_titles.delete("1.0", tk.END)
-        self.txt_titles.insert("1.0", titles_clean)
-
+        self.txt_titles.insert("1.0", titles_text)
         self.txt_descs.delete("1.0", tk.END)
-        self.txt_descs.insert("1.0", descs_clean)
-
+        self.txt_descs.insert("1.0", descs_text)
         self._schedule_preview()
-
-
-    def _build_chat_page(self):
-        page = ttk.Frame(self._content)
-        self.pages["chat"] = page
-
-        self.chat_output = tk.Text(page, height=20, wrap=tk.WORD)
-        self.chat_output.pack(fill="both", expand=True, padx=10, pady=10)
-
-        self.chat_input = tk.Entry(page)
-        self.chat_input.pack(fill="x", padx=10)
-        self.chat_input.bind("<Return>", self._on_chat_send)
-
-        ttk.Button(page, text="Send", command=self._on_chat_send).pack(pady=5)
-
-    def _on_chat_send(self, event=None):
-        msg = self.chat_input.get().strip()
-        if not msg:
-            return
-
-        self.chat_output.insert(tk.END, f"\nYOU: {msg}\n")
-        self.chat_input.delete(0, tk.END)
-
-        model = self._get_gemini_model()
-        if not model:
-            return
-
-        reply = ask_gemini(msg)
-        self.chat_output.insert(tk.END, f"AI: {reply}\n")
-        self.chat_output.see(tk.END)
-    def _get_gemini_model(self):
-        return get_gemini_model()
 
 if __name__ == "__main__":
     rearrange_and_delete_junk_files() # rearrange files first
