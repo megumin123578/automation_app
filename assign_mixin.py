@@ -165,7 +165,16 @@ class AssignMixin:
     def _build_inputs(self, parent):
         container = ttk.Frame(parent, padding=10)
         container.pack(fill=tk.BOTH, expand=True)
-        paned = tk.PanedWindow(container, orient=tk.HORIZONTAL, sashrelief=tk.RAISED, sashwidth=6) #Paned cho phép kéo dãn cột
+
+        # ======== HÀNG NÚT AI (grid) ========
+        top_row = ttk.Frame(container)
+        top_row.pack(fill="x", pady=(0, 8))
+
+        btn_ai_title = ttk.Button(top_row, text="Generate", command=self._ai_generate_titles_and_descs)
+        btn_ai_title.pack(side="left", padx=6)
+        # ======== PANED WINDOW (pack) ========
+        paned = tk.PanedWindow(container, orient=tk.HORIZONTAL,
+                            sashrelief=tk.RAISED, sashwidth=6)
         paned.pack(fill=tk.BOTH, expand=True)
 
         def make_section(label_text):
@@ -176,19 +185,18 @@ class AssignMixin:
             return frame, txt
 
         f1, self.txt_titles = make_section("Titles (one per line)")
-        f2, self.txt_descs = make_section("Descriptions (1 line for all, or multiple lines)")
+        f2, self.txt_descs = make_section("Descriptions (1 line all or multi)")
         f3, self.txt_dates = make_section("Date (MM/DD/YYYY)")
         f4, self.txt_times = make_section("Time (HH:MM)")
+
         self._inputs_paned = paned
         self._inputs_panes = (f1, f2, f3, f4)
 
-        def _bind_ctrl_a(widget):
-            widget.bind("<Control-a>", lambda e: (widget.tag_add("sel", "1.0", "end-1c"), "break"))
-
         for w in (self.txt_titles, self.txt_descs, self.txt_dates, self.txt_times):
-            _bind_ctrl_a(w)
+            w.bind("<Control-a>", lambda e, widget=w:
+                (widget.tag_add("sel", "1.0", "end-1c"), "break"))
 
-        # thêm vào Paned
+        # Add frames into paned
         paned.add(f1)
         paned.add(f2)
         paned.add(f3)

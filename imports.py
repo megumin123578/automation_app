@@ -10,3 +10,4 @@ from orders.ssm_page import OrdersPage
 import time
 from rearange_files import rearrange_and_delete_junk_files 
 from orders.ssm_page import get_api_key
+from gemini_helper import ask_gemini, get_gemini_model
