@@ -121,7 +121,7 @@ class App(tk.Tk, AssignMixin):
 
         # Content
         self._content = ttk.Frame(self._root_container)
-        self._content.pack(side="right", fill="both", expand=True)
+        self._content.pack(side="left", fill="both", expand=True)
 
         # Sidebar buttons
         self._nav_buttons = {}
