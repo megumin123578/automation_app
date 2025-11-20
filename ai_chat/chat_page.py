@@ -4,6 +4,36 @@ import json, os, datetime
 import threading
 from gemini_helper import ask_gemini, get_gemini_model
 
+import re
+
+def parse_markdown(text):
+
+    tokens = []
+
+    # Inline code: `code`
+    text = re.sub(r"`(.+?)`", r"<code>\1</code>", text)
+
+    # Bold: **text**
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+
+    # Italic: *text*
+    text = re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
+
+    pattern = r"<b>.*?</b>|<i>.*?</i>|<code>.*?</code>|[^<]+"
+
+    for part in re.findall(pattern, text):
+        if part.startswith("<b>"):
+            tokens.append(("bold", part[3:-4]))
+        elif part.startswith("<i>"):
+            tokens.append(("italic", part[3:-4]))
+        elif part.startswith("<code>"):
+            tokens.append(("code", part[6:-7]))
+        else:
+            tokens.append(("normal", part))
+
+    return tokens
+
+
 
 class ChatPage(ttk.Frame):
     def __init__(self, parent):
@@ -13,7 +43,7 @@ class ChatPage(ttk.Frame):
         self.log_dir = "ai_chat/chat_logs"
         os.makedirs(self.log_dir, exist_ok=True)
 
-        today = datetime.date.today().strftime("%Y%m%d")
+        today = datetime.date.today().strftime("%d%m%Y")
         self.log_path = os.path.join(self.log_dir, f"session_{today}.json")
         self.chat_history = self._load_history()
 
@@ -198,13 +228,76 @@ class ChatPage(ttk.Frame):
         threading.Thread(target=self._handle_ai, args=(msg,), daemon=True).start()
 
     def _handle_ai(self, msg):
-        try:
-            model = get_gemini_model()
-            reply = ask_gemini(msg) if model else "(Gemini model unavailable)"
-        except Exception as e:
-            reply = f"(Error: {e})"
+        # Tạo bubble AI trống để stream vào
+        ai_bubble = self._add_bubble_stream("", sender="ai")
 
-        self.after(0, lambda: self._add_bubble(reply, sender="ai"))
+        try:
+            from gemini_helper import ask_gemini_stream
+            for chunk in ask_gemini_stream(msg):
+                # append chunk vào bubble
+                self.after(0, lambda c=chunk: ai_bubble["append"](c))
+                # scroll xuống
+                self.after(0, lambda: self.canvas.yview_moveto(1.0))
+
+        except Exception as e:
+            self.after(0, lambda: ai_bubble["append"]("[Error] " + str(e)))
+
+    def _add_bubble_stream(self, text, sender="ai"):
+        """Tạo bubble mà có thể append text vào (dùng cho streaming)."""
+
+        canvas_w = self.canvas.winfo_width()
+        wrap = int(canvas_w * 0.60)
+        padding = 14
+
+        outer = tk.Frame(self.chat_frame, bg="#1E1E1E")
+        outer.pack(anchor="w" if sender=="ai" else "e", pady=6, padx=15)
+
+        bubble_canvas = tk.Canvas(outer, bg="#1E1E1E",
+                                  highlightthickness=0, bd=0)
+        bubble_canvas.pack()
+
+        color = "#3A3A3A" if sender=="ai" else "#4CAF50"
+
+        # text item để update dần
+        text_item = bubble_canvas.create_text(
+            padding, padding,
+            text="",
+            font=("Segoe UI", 11),
+            fill="white",
+            width=wrap,
+            anchor="nw"
+        )
+
+        # === HÀM NỘI BỘ append text ===
+        buffer = []   # lưu phần text hiện tại
+
+        def append_chunk(chunk):
+            buffer.append(chunk)
+            full_text = "".join(buffer)
+
+            bubble_canvas.itemconfig(text_item, text=full_text)
+            bubble_canvas.update_idletasks()
+
+            bbox = bubble_canvas.bbox(text_item)
+            w = (bbox[2] - bbox[0]) + padding * 2
+            h = (bbox[3] - bbox[1]) + padding * 2
+
+            bubble_canvas.config(width=w, height=h)
+
+            # Vẽ lại background
+            bubble_canvas.delete("bg")
+            self._rounded_rect(bubble_canvas, 0, 0, w, h, 16, fill=color)
+
+            # Đặt text lại phía trên
+            bubble_canvas.lift(text_item)
+
+        # Set initial text
+        append_chunk(text)
+
+        return {
+            "append": append_chunk,
+            "get_text": lambda: "".join(buffer),
+        }
 
     def _on_mousewheel(self, event):
         # Windows

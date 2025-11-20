@@ -13,12 +13,19 @@ def load_api_key():
             raise ValueError("File gemini.key rỗng.")
         return key
 
+_cached_model = None
 
 def get_gemini_model():
-    """Load API key + khởi tạo model Gemini"""
+    global _cached_model
+
+    if _cached_model is not None:
+        return _cached_model
+
     key = load_api_key()
     genai.configure(api_key=key)
-    return genai.GenerativeModel("gemini-2.5-pro")
+    _cached_model = genai.GenerativeModel("gemini-2.0-flash-lite")
+
+    return _cached_model
 
 
 def ask_gemini(prompt: str) -> str:
@@ -28,7 +35,10 @@ def ask_gemini(prompt: str) -> str:
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
-        return f"[Gemini Error] {e}"
+        err = str(e)
+        if "429" in err:
+            return "[Error] Quota exceeded. Please retry later."
+        return f"[Error] {err}"
 
 def generate_titles_and_descs(topic: str) -> tuple:
     # PROMPT TITLES
@@ -85,3 +95,17 @@ def generate_titles_and_descs(topic: str) -> tuple:
     descs_text = "\n".join(descs_clean[:10])
 
     return titles_text, descs_text
+
+
+def ask_gemini_stream(prompt, model_override=None):
+    key = load_api_key()
+    genai.configure(api_key=key)
+
+    model = genai.GenerativeModel("gemini-2.0-flash-lite")
+
+    try:
+        for chunk in model.generate_content(prompt, stream=True):
+            if chunk and chunk.text:
+                yield chunk.text
+    except Exception as e:
+        yield f"[Gemini Error] {e}"
