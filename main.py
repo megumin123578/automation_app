@@ -206,7 +206,6 @@ class App(tk.Tk, AssignMixin):
         self.stats_page = StatisticsPage(page)  # nhúng trang thống kê
         self.stats_page.pack(fill="both", expand=True)
 
-    
 
     # Logic
     def _schedule_preview(self):
@@ -286,10 +285,15 @@ class App(tk.Tk, AssignMixin):
         # 4) Render UI theo mode/profile (không cho phép lưu trong lúc restoring)
         self._on_mode_change()
 
-        self.channel_count_lbl.config(text=f"{len(channels)} channels")
+        self._refresh_channel_stats_label()
+
         mapped_dir = self._get_mapped_folder(name, self.selected_profile_var.get().strip())
         mapped_note = f" | mapped: {mapped_dir or '(none)'}"
         self._set_status(f"Loaded {len(channels)} channels from {name}{mapped_note}")
+
+        mapped_note = f" | mapped: {mapped_dir or '(none)'}"
+        self._set_status(f"Loaded {len(channels)} channels from {name}{mapped_note}")
+        
         # --- Khôi phục Save to ---
         profile = self.selected_profile_var.get().strip()
         settings_all = self._group_settings.get(name, {})
@@ -299,7 +303,7 @@ class App(tk.Tk, AssignMixin):
         else:
             last_folder = settings_all.get("__group__", {}).get("move_folder", "")
 
-        # fallback: file CONFIG_PATH cũ
+        # fallback: file file config cũ
         if not last_folder:
             last_folder = load_group_config(name) or load_group_config(name + ".csv") or ""
 
@@ -744,7 +748,7 @@ class App(tk.Tk, AssignMixin):
             return
         folder = os.path.abspath(folder)
 
-        # Quyết định key ghi vào CONFIG_PATH
+        # Quyết định key ghi vào file config
         active_profile = self.selected_profile_var.get().strip()
         use_profile_key = (self.mode_var.get() == "channels" and bool(active_profile))
 
@@ -786,6 +790,27 @@ class App(tk.Tk, AssignMixin):
         except Exception as e:
             messagebox.showerror("Error", f"Error when write:\n{e}")
             return
+
+        # cập nhật preview/status theo map mới
+        self._schedule_preview()
+        self._refresh_channel_stats_label()
+
+        # --- Cập nhật lại label số lượng channel + path map ---
+        try:
+            group_name = self.group_file_var.get().strip()
+            if group_name:
+                count = len(self._channels_cache)
+                current_profile = self.selected_profile_var.get().strip() if self.mode_var.get() == "channels" else None
+                mapped_dir = self._get_mapped_folder(group_name, current_profile)
+                if mapped_dir:
+                    text = f"{count} channels | {mapped_dir}"
+                else:
+                    text = f"{count} channels | (no folder)"
+                self.channel_count_lbl.config(text=text)
+        except Exception:
+            # nếu lỗi thì thôi, không làm crash app
+            pass
+
 
         # cập nhật preview/status theo map mới
         self._schedule_preview()
@@ -1309,6 +1334,27 @@ class App(tk.Tk, AssignMixin):
             if widget is self._cell_editor:
                 return
         self._clear_selection_and_editor()
+
+    def _refresh_channel_stats_label(self):
+        try:
+            group_name = self.group_file_var.get().strip()
+            if not group_name:
+                self.channel_count_lbl.config(text="0 channels | (no folder)")
+                return
+
+            count = len(self._channels_cache)
+            # Ở channel mode thì dùng mapping theo profile, còn lại dùng theo group
+            profile = self.selected_profile_var.get().strip() if self.mode_var.get() == "channels" else None
+            mapped_dir = self._get_mapped_folder(group_name, profile)
+
+            if mapped_dir:
+                text = f"{count} channels | {mapped_dir}"
+            else:
+                text = f"{count} channels | (no folder)"
+
+            self.channel_count_lbl.config(text=text)
+        except Exception as e:
+            print("Error refreshing channel stats:", e)
 
 if __name__ == "__main__":
     rearrange_and_delete_junk_files() # rearrange files first

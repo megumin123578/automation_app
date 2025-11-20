@@ -86,6 +86,7 @@ class AssignMixin:
             self._set_status(f"Profile '{profile}' selected | mapped: {cur_map or '(none)'}")
             self._schedule_preview()
             self._render_monetize_toggle()
+            self._refresh_channel_stats_label()
 
         self.selected_profile_var.trace_add('write', _on_profile_change)
 
