@@ -20,7 +20,7 @@ MANIFEST_PATH = os.path.join(ROOT_DIR, "manifest.json")
 # Thông tin GitHub (để tạo link zip_url)
 GITHUB_REPO = "megumin123578/upload-short-with-gpm-handle-excel-file"
 
-EXTRA_FILES = ["update_content.txt", "assets", 'main.exe']  # tồn tại thì copy vào gói
+EXTRA_FILES = ["update_content.txt", "assets", 'main.exe','gemini.key']  # tồn tại thì copy vào gói
 
 
 # ===== UTILS =====
