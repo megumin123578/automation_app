@@ -243,8 +243,6 @@ class ChatPage(ttk.Frame):
             self.after(0, lambda: ai_bubble["append"]("[Error] " + str(e)))
 
     def _add_bubble_stream(self, text, sender="ai"):
-        """Tạo bubble mà có thể append text vào (dùng cho streaming)."""
-
         canvas_w = self.canvas.winfo_width()
         wrap = int(canvas_w * 0.60)
         padding = 14
