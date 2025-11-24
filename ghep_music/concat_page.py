@@ -583,7 +583,14 @@ class ConcatPage(tk.Frame):
         mode = self.concat_mode.get()
         if self.worker and self.worker.is_alive():
             return messagebox.showinfo("Đang chạy", "Tiến trình đang chạy.")
-        if mode not in ("Loop") and not self.groups:
+        NEED_PREBUILT_GROUPS = {
+            "Concat with music background",
+            "Normal concat (no music)",
+            "Concat and Reverse",
+            "Concat with outro music",   # vì mode này vẫn dùng group size khi chọn “By group count”
+        }
+
+        if mode in NEED_PREBUILT_GROUPS and not self.groups:
             return messagebox.showwarning("Đã chạy hết toàn bộ", "Hãy xóa log để gen lại.")
         out_dir = self.save_folder.get()
         if not out_dir:

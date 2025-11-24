@@ -1,40 +1,45 @@
-ffmpeg version 2025-06-28-git-cfd1f81e7d-full_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
-  built with gcc 15.1.0 (Rev4, Built by MSYS2 project)
-  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint
-  libavutil      60.  3.100 / 60.  3.100
-  libavcodec     62.  4.100 / 62.  4.100
-  libavformat    62.  1.101 / 62.  1.101
-  libavdevice    62.  0.100 / 62.  0.100
-  libavfilter    11.  0.100 / 11.  0.100
-  libswscale      9.  0.100 /  9.  0.100
-  libswresample   6.  0.100 /  6.  0.100
-[mov,mp4,m4a,3gp,3g2,mj2 @ 000002221fe801c0] Auto-inserting h264_mp4toannexb bitstream filter
+ffmpeg version 2025-10-19-git-dc39a576ad-full_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 15.2.0 (Rev8, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 13.100 / 60. 13.100
+  libavcodec     62. 16.100 / 62. 16.100
+  libavformat    62.  6.101 / 62.  6.101
+  libavdevice    62.  2.100 / 62.  2.100
+  libavfilter    11.  9.100 / 11.  9.100
+  libswscale      9.  3.100 /  9.  3.100
+  libswresample   6.  2.100 /  6.  2.100
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002279bfe6040] Auto-inserting h264_mp4toannexb bitstream filter
 Input #0, concat, from 'temp.txt':
-  Duration: N/A, start: -0.021333, bitrate: 4763 kb/s
-  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], 4643 kb/s, 60 fps, 60 tbr, 15360 tbn
+  Duration: N/A, start: -0.021333, bitrate: 11543 kb/s
+  Stream #0:0(eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1080x1920 [SAR 1:1 DAR 9:16], 11368 kb/s, 60 fps, 60 tbr, 15360 tbn
     Metadata:
-      handler_name    : VideoHandler
+      handler_name    : ?Mainconcept Video Media Handler
       vendor_id       : [0][0][0][0]
-      encoder         : Lavc62.4.100 h264_nvenc
-  Stream #0:1(und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 119 kb/s, start -0.021333
+      encoder         : Lavc62.16.100 h264_nvenc
+  Stream #0:1(eng): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 174 kb/s, start -0.021333
     Metadata:
-      handler_name    : SoundHandler
+      handler_name    : #Mainconcept MP4 Sound Media Handler
       vendor_id       : [0][0][0][0]
 Stream mapping:
   Stream #0:0 -> #0:0 (copy)
   Stream #0:1 -> #0:1 (copy)
-Output #0, mp4, to 'temp_30732.mp4':
+Output #0, mp4, to 'temp_10704.mp4':
   Metadata:
-    encoder         : Lavf62.1.101
-  Stream #0:0(und): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 4643 kb/s, 60 fps, 60 tbr, 15360 tbn
+    encoder         : Lavf62.6.101
+  Stream #0:0(eng): Video: h264 (Main) (avc1 / 0x31637661), yuv420p(tv, bt709, progressive), 1080x1920 [SAR 1:1 DAR 9:16], q=2-31, 11368 kb/s, 60 fps, 60 tbr, 15360 tbn
     Metadata:
-      handler_name    : VideoHandler
+      handler_name    : ?Mainconcept Video Media Handler
       vendor_id       : [0][0][0][0]
-      encoder         : Lavc62.4.100 h264_nvenc
-  Stream #0:1(und): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 119 kb/s
+      encoder         : Lavc62.16.100 h264_nvenc
+  Stream #0:1(eng): Audio: aac (LC) (mp4a / 0x6134706D), 48000 Hz, stereo, fltp, 174 kb/s
     Metadata:
-      handler_name    : SoundHandler
+      handler_name    : #Mainconcept MP4 Sound Media Handler
       vendor_id       : [0][0][0][0]
 Press [q] to stop, [?] for help
-[out#0/mp4 @ 000002221fe92f80] video:4535KiB audio:117KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.308926%
-frame=  480 fps=0.0 q=-1.0 Lsize=    4666KiB time=00:00:07.97 bitrate=4795.5kbits/s speed= 809x elapsed=0:00:00.00    
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002279bfe6040] Auto-inserting h264_mp4toannexb bitstream filter
+[aost#0:1/copy @ 000002279e8030c0] Non-monotonic DTS; previous: 692224, current: 692208; changing to 692225. This may result in incorrect timestamps in the output file.
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002279e803700] Auto-inserting h264_mp4toannexb bitstream filter
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002279ecfb180] Auto-inserting h264_mp4toannexb bitstream filter
+[aost#0:1/copy @ 000002279e8030c0] Non-monotonic DTS; previous: 2359280, current: 2359248; changing to 2359281. This may result in incorrect timestamps in the output file.
+[out#0/mp4 @ 000002279e71a540] video:83600KiB audio:1293KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.119757%
+frame= 3707 fps=0.0 q=-1.0 Lsize=   84994KiB time=00:01:01.78 bitrate=11268.6kbits/s speed= 367x elapsed=0:00:00.16    

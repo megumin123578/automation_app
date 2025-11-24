@@ -1,14 +1,14 @@
 {
   "input_folder": "E:/Short/video/Loopy Toys ASMR - Cocomelon",
-  "save_folder": "E:/ghep xong",
+  "save_folder": "C:/Users/Admin/Pictures",
   "bgm_folder": "",
   "group_size": 2,
-  "bgm_volume": 0.0,
+  "bgm_volume": 0.5,
   "limit_videos": 0,
   "concat_mode": "Concat with time limit",
   "main_video_volume": 1.0,
   "video_volume": 0.2,
-  "outro_mode": "By time limit",
+  "outro_mode": "By group count",
   "outro_duration": 15,
   "video_settings": {
     "resolution": "1080x1920",
@@ -19,6 +19,6 @@
     "a_bitrate": "160k",
     "nvenc_preset": "p4",
     "time_limit_min": 0,
-    "time_limit_sec": 40
+    "time_limit_sec": 50
   }
 }
