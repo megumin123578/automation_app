@@ -19,7 +19,7 @@ session = requests.Session()
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
     "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://smmstore.pro/api",
+    "Referer": "https://10000smm.top/api",
 }
 #read older csv
 existing_ids = set()
@@ -84,7 +84,7 @@ def crawl_data(csv_path=CSV_PATH):
     stop_flag = False
 
     while not stop_flag:
-        url = f"https://smmstore.pro/orders?page={page}"
+        url = f"https://10000smm.top/orders?page={page}"
         print("Crawling:", url)
         r = session.get(url, headers=headers, cookies=cookies)
         soup = BeautifulSoup(r.text, "html.parser")
