@@ -5,7 +5,7 @@ import datetime, threading, time, requests, csv, os
 import webbrowser
 import os
 
-API_URL = "https://smmstore.pro/api/v2"
+API_URL = "https://10000smm.top/api/v2"
 CSV_PATH = "orders/orders.csv"
 api_key_path = "orders/api_key.txt"
 def get_api_key(interactive=True, force_edit=False, api_key_path = "orders/api_key.txt"):
